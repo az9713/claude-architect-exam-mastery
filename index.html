@@ -1,0 +1,2799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Certified Architect – Foundations | Study Hub</title>
+<style>
+  /* ─── Reset & Base ───────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary:   #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card:      #0f3460;
+    --bg-card-alt:  #1e2a4a;
+    --border:       rgba(255,255,255,0.08);
+    --text-primary: #e8eaf6;
+    --text-muted:   #9fa8da;
+    --text-dim:     #616e9a;
+    --accent:       #e94560;
+
+    --d1: #ff6b6b;
+    --d2: #4ecdc4;
+    --d3: #45b7d1;
+    --d4: #96ceb4;
+    --d5: #dda0dd;
+
+    --d1-bg: rgba(255,107,107,0.12);
+    --d2-bg: rgba(78,205,196,0.12);
+    --d3-bg: rgba(69,183,209,0.12);
+    --d4-bg: rgba(150,206,180,0.12);
+    --d5-bg: rgba(221,160,221,0.12);
+
+    --radius: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    --shadow-hover: 0 8px 32px rgba(0,0,0,0.6);
+    --nav-h: 56px;
+    --transition: 0.2s ease;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  a:hover { text-decoration: none; }
+
+  /* ─── Scrollbar ─────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--bg-card); border-radius: 3px; }
+
+  /* ─── Utility ───────────────────────────────────────────────────────── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* ─── Header ────────────────────────────────────────────────────────── */
+  .site-header {
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d2137 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 40px 0 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .site-header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, rgba(233,69,96,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .site-header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 10%;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(78,205,196,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header-inner { position: relative; z-index: 1; }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .header-title-group {}
+
+  .certification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(233,69,96,0.15);
+    border: 1px solid rgba(233,69,96,0.3);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .certification-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  h1.site-title {
+    font-size: clamp(24px, 4vw, 38px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: #fff;
+  }
+
+  h1.site-title span {
+    background: linear-gradient(90deg, var(--accent), #ff9f43);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .site-subtitle {
+    margin-top: 6px;
+    font-size: 15px;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
+
+  /* Progress Ring */
+  .overall-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .progress-ring-wrap {
+    position: relative;
+    width: 90px; height: 90px;
+  }
+
+  .progress-ring-wrap svg { transform: rotate(-90deg); }
+
+  .progress-ring-bg { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 6; }
+  .progress-ring-fill {
+    fill: none;
+    stroke: url(#ringGrad);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 238;
+    stroke-dashoffset: 238;
+    transition: stroke-dashoffset 1s ease;
+  }
+
+  .progress-ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .progress-ring-pct {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .progress-ring-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+
+  .progress-ring-sublabel {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Stats Bar */
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    margin-top: 28px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    flex: 1;
+    min-width: 120px;
+    padding: 14px 20px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-number {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 3px;
+  }
+
+  /* ─── Nav ───────────────────────────────────────────────────────────── */
+  .sticky-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(22, 33, 62, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    height: var(--nav-h);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 2px;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .nav-inner::-webkit-scrollbar { display: none; }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--transition);
+    border: 1px solid transparent;
+    flex-shrink: 0;
+  }
+
+  .nav-link:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .nav-link.active {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+    border-color: var(--border);
+  }
+
+  .nav-link .nav-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ─── Main Layout ───────────────────────────────────────────────────── */
+  main { padding: 40px 0 80px; }
+
+  section { margin-bottom: 56px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .section-meta {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ─── Study Plans ───────────────────────────────────────────────────── */
+  #plans { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  .plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .plan-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all var(--transition);
+  }
+
+  .plan-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .plan-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .plan-duration {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+
+  .plan-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .plan-hours {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .plan-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 14px 24px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    transition: color var(--transition);
+  }
+
+  .plan-toggle:hover { color: #fff; }
+
+  .plan-toggle-icon {
+    transition: transform var(--transition);
+    font-size: 16px;
+  }
+
+  .plan-toggle.open .plan-toggle-icon { transform: rotate(180deg); }
+
+  .plan-body {
+    padding: 0 24px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, padding 0.2s ease;
+  }
+
+  .plan-body.open {
+    max-height: 800px;
+    padding: 0 24px 20px;
+  }
+
+  .plan-day {
+    margin-bottom: 16px;
+  }
+
+  .plan-day-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .plan-day ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .plan-day li {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .plan-day li::before {
+    content: '›';
+    color: var(--text-dim);
+    flex-shrink: 0;
+    margin-top: 0px;
+  }
+
+  .plan-day li a {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: rgba(255,255,255,0.15);
+    transition: color var(--transition);
+  }
+
+  .plan-day li a:hover { color: #fff; }
+
+  /* ─── Domain Sections ───────────────────────────────────────────────── */
+  .domain-section {
+    scroll-margin-top: calc(var(--nav-h) + 16px);
+  }
+
+  .domain-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    cursor: pointer;
+    transition: background var(--transition);
+    user-select: none;
+  }
+
+  .domain-header:hover { background: rgba(255,255,255,0.04); }
+
+  .domain-number {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    flex-shrink: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .domain-title-group { flex: 1; min-width: 0; }
+
+  .domain-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+
+  .domain-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .domain-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .domain-weight {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .domain-weight-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  /* Domain progress ring (small) */
+  .domain-progress-ring {
+    position: relative;
+    width: 52px; height: 52px;
+    flex-shrink: 0;
+  }
+
+  .domain-progress-ring svg { transform: rotate(-90deg); }
+  .dpr-bg { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 4; }
+  .dpr-fill { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 138; stroke-dashoffset: 138; transition: stroke-dashoffset 1s ease; }
+
+  .domain-progress-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .domain-collapse-icon {
+    color: var(--text-dim);
+    font-size: 18px;
+    transition: transform var(--transition);
+    flex-shrink: 0;
+  }
+
+  .domain-header.collapsed .domain-collapse-icon { transform: rotate(-90deg); }
+
+  .domain-body {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    overflow: hidden;
+  }
+
+  /* ─── Task Statement Rows ───────────────────────────────────────────── */
+  .task-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition);
+    position: relative;
+  }
+
+  .task-row:last-child { border-bottom: none; }
+  .task-row:hover { background: rgba(255,255,255,0.02); }
+
+  .task-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+    background: transparent;
+  }
+
+  .task-check:checked {
+    background: var(--domain-color, #fff);
+    border-color: var(--domain-color, #fff);
+  }
+
+  .task-check:checked::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  .task-check:hover { border-color: rgba(255,255,255,0.35); }
+
+  .task-info { flex: 1; min-width: 0; }
+
+  .task-id {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .task-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  .task-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .task-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .task-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+
+  .task-link:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  .task-link.visited {
+    opacity: 0.6;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .task-link.visited::after {
+    content: '✓';
+    font-size: 9px;
+    opacity: 0.7;
+  }
+
+  /* ─── Scenarios ─────────────────────────────────────────────────────── */
+  #scenarios { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  .scenarios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  .scenario-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .scenario-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .scenario-number {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .scenario-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.35;
+  }
+
+  .scenario-domains {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .domain-badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid currentColor;
+  }
+
+  .scenario-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .scenario-ts {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .scenario-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    transition: all var(--transition);
+  }
+
+  .scenario-link:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  /* ─── Tools Section ─────────────────────────────────────────────────── */
+  #tools { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .tool-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all var(--transition);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .tool-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .tool-icon {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .tool-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .tool-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .tool-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: auto;
+    transition: gap var(--transition);
+  }
+
+  .tool-card:hover .tool-action { gap: 8px; }
+
+  /* ─── Mock Exams ────────────────────────────────────────────────────── */
+  #exams { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  .exams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .exam-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .exam-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .exam-card:nth-child(1)::before { background: linear-gradient(90deg, var(--d1), var(--d3)); }
+  .exam-card:nth-child(2)::before { background: linear-gradient(90deg, var(--d2), var(--d4)); }
+  .exam-card:nth-child(3)::before { background: linear-gradient(90deg, var(--d5), var(--d3)); }
+
+  .exam-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .exam-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+  }
+
+  .exam-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .exam-scenarios { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .exam-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+  }
+
+  .exam-meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .exam-score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .exam-score-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .exam-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    transition: all var(--transition);
+    text-align: center;
+  }
+
+  .exam-cta:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-1px);
+  }
+
+  /* ─── Exam Prep Section ─────────────────────────────────────────────── */
+  #examprep { scroll-margin-top: calc(var(--nav-h) + 16px); }
+
+  .prep-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .prep-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    transition: all var(--transition);
+  }
+
+  .prep-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .prep-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 1px;
+  }
+
+  .prep-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .prep-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.45;
+  }
+
+  /* ─── Domain Progress Bar (inline) ─────────────────────────────────── */
+  .domain-progress-bar-wrap {
+    padding: 12px 24px;
+    background: rgba(0,0,0,0.15);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .domain-progress-bar-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.8s ease;
+    width: 0%;
+  }
+
+  .domain-progress-bar-pct {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* ─── Infographics sub-grid ─────────────────────────────────────────── */
+  .infographics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .infographic-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .infographic-card:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    color: #fff;
+    transform: translateX(2px);
+  }
+
+  /* ─── Sessions sub-grid ─────────────────────────────────────────────── */
+  .sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .session-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-decoration: none;
+    color: var(--text-muted);
+  }
+
+  .session-card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+
+  .session-card-icon { font-size: 18px; flex-shrink: 0; }
+  .session-card-name { font-size: 13px; font-weight: 600; color: #fff; }
+  .session-card-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ─── Footer ────────────────────────────────────────────────────────── */
+  .site-footer {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 28px 0;
+    text-align: center;
+  }
+
+  .footer-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .footer-built {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-link {
+    font-size: 12px;
+    color: var(--text-dim);
+    transition: color var(--transition);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+  }
+
+  .footer-link:hover {
+    color: var(--text-muted);
+    text-decoration-color: var(--text-dim);
+  }
+
+  .footer-version {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+  }
+
+  /* ─── Responsive ────────────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .header-top { flex-direction: column; }
+    .overall-progress { flex-direction: row; align-self: stretch; }
+    .stats-bar { flex-wrap: wrap; }
+    .stat-item { min-width: 50%; border-right: none; border-bottom: 1px solid var(--border); }
+    .stat-item:nth-child(odd) { border-right: 1px solid var(--border); }
+    .stat-item:last-child, .stat-item:nth-last-child(2):nth-child(odd) { border-bottom: none; }
+    .task-row { flex-direction: column; gap: 10px; }
+    .domain-meta { gap: 8px; }
+  }
+
+  @media (max-width: 500px) {
+    .container { padding: 0 16px; }
+    .domain-header { padding: 14px 16px; }
+    .task-row { padding: 14px 16px; }
+    .domain-progress-bar-wrap { padding: 10px 16px; }
+  }
+
+  /* ─── Animations ────────────────────────────────────────────────────── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in { animation: fadeInUp 0.4s ease both; }
+
+  /* ─── Toast ─────────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(30,42,74,0.97);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: #fff;
+    z-index: 1000;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ───────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="header-top">
+      <div class="header-title-group">
+        <div class="certification-badge">Certification Exam Prep</div>
+        <h1 class="site-title">Claude Certified Architect<br><span>– Foundations</span></h1>
+        <p class="site-subtitle">Interactive Study Hub &nbsp;·&nbsp; All materials in one place</p>
+      </div>
+
+      <div class="overall-progress">
+        <div class="progress-ring-wrap">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <defs>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#e94560"/>
+                <stop offset="100%" stop-color="#ff9f43"/>
+              </linearGradient>
+            </defs>
+            <circle class="progress-ring-bg" cx="45" cy="45" r="38"/>
+            <circle class="progress-ring-fill" id="overallRingFill" cx="45" cy="45" r="38"/>
+          </svg>
+          <div class="progress-ring-text">
+            <span class="progress-ring-pct" id="overallPct">0%</span>
+            <span class="progress-ring-label">done</span>
+          </div>
+        </div>
+        <div class="progress-ring-sublabel" id="overallLabel">0 / 30<br>task statements</div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-number" style="color:var(--d1)">5</div>
+        <div class="stat-label">Domains</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:var(--d2)">30</div>
+        <div class="stat-label">Task Statements</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:var(--d3)">6</div>
+        <div class="stat-label">Scenarios</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:var(--d4)">45+</div>
+        <div class="stat-label">Study Materials</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:var(--d5)">720</div>
+        <div class="stat-label">Pass Score</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── STICKY NAV ──────────────────────────────────────────────────────── -->
+<nav class="sticky-nav" aria-label="Section navigation">
+  <div class="container nav-inner">
+    <button class="nav-link" onclick="scrollTo('domain1')">
+      <span class="nav-dot" style="background:var(--d1)"></span>Domain 1
+    </button>
+    <button class="nav-link" onclick="scrollTo('domain2')">
+      <span class="nav-dot" style="background:var(--d2)"></span>Domain 2
+    </button>
+    <button class="nav-link" onclick="scrollTo('domain3')">
+      <span class="nav-dot" style="background:var(--d3)"></span>Domain 3
+    </button>
+    <button class="nav-link" onclick="scrollTo('domain4')">
+      <span class="nav-dot" style="background:var(--d4)"></span>Domain 4
+    </button>
+    <button class="nav-link" onclick="scrollTo('domain5')">
+      <span class="nav-dot" style="background:var(--d5)"></span>Domain 5
+    </button>
+    <button class="nav-link" onclick="scrollTo('scenarios')">
+      <span class="nav-dot" style="background:#ffd93d"></span>Scenarios
+    </button>
+    <button class="nav-link" onclick="scrollTo('tools')">
+      <span class="nav-dot" style="background:#6bcb77"></span>Tools
+    </button>
+    <button class="nav-link" onclick="scrollTo('exams')">
+      <span class="nav-dot" style="background:#ff6b9d"></span>Mock Exams
+    </button>
+    <button class="nav-link" onclick="scrollTo('examprep')">
+      <span class="nav-dot" style="background:#c77dff"></span>Exam Prep
+    </button>
+  </div>
+</nav>
+
+<!-- ── MAIN CONTENT ────────────────────────────────────────────────────── -->
+<main>
+  <div class="container">
+
+    <!-- ── STUDY PLANS ──────────────────────────────────────────────── -->
+    <section id="plans">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(233,69,96,0.15); color:var(--accent)">📅</div>
+        <div>
+          <div class="section-title">Study Plans</div>
+          <div class="section-meta">Choose the plan that matches your available time</div>
+        </div>
+      </div>
+
+      <div class="plans-grid">
+
+        <!-- 1-Week Plan -->
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-duration" style="background:rgba(150,206,180,0.15);color:var(--d4)">1-Week Intensive</div>
+            <div class="plan-title">Full Deep-Dive</div>
+            <div class="plan-hours">20–30 hours &nbsp;·&nbsp; Best score outcome</div>
+          </div>
+          <button class="plan-toggle" onclick="togglePlan(this)">
+            Show daily schedule <span class="plan-toggle-icon">▾</span>
+          </button>
+          <div class="plan-body">
+            <div class="plan-day">
+              <div class="plan-day-title">Days 1–2: Foundation</div>
+              <ul>
+                <li>Read all 5 study notes (2–3h each) — domains 1 through 5</li>
+                <li>Review <a href="infographics/infographic-agentic-loop.html" onclick="trackLink('infographic-agentic-loop')">Agentic Loop infographic</a> after D1</li>
+                <li>Review <a href="infographics/infographic-mcp-architecture.html" onclick="trackLink('infographic-mcp')">MCP Architecture infographic</a> after D2</li>
+                <li>Review <a href="infographics/infographic-claude-code-hierarchy.html" onclick="trackLink('infographic-hierarchy')">Claude Code Hierarchy</a> after D3</li>
+                <li>Goal: understand all 30 task statements conceptually</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Days 3–4: Active Recall</div>
+              <ul>
+                <li>Complete all 5 domain quizzes — target ≥70% each</li>
+                <li>Review <a href="bonus/common-traps-and-pitfalls.md" onclick="trackLink('traps')">Common Traps Guide</a> — identify your patterns</li>
+                <li>Re-read notes + cheat sheet for any domain below 70%</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Days 5–6: Hands-On Practice</div>
+              <ul>
+                <li>Complete <a href="labs/lab-guide-claude-code-cli.md" onclick="trackLink('lab-cli')">CLI Lab Guide</a></li>
+                <li>Complete <a href="labs/lab-guide-agent-sdk.md" onclick="trackLink('lab-sdk')">Agent SDK Lab Guide</a></li>
+                <li>Work through 2–3 scenario workbooks</li>
+                <li>Take <a href="mock-exams/mock-exam-A.html" onclick="trackLink('exam-a')">Mock Exam A</a> (timed, 90 min)</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Day 7: Final Prep</div>
+              <ul>
+                <li>Review weak domain cheat sheets from Mock A results</li>
+                <li>Read <a href="bonus/pro-tips-by-domain.md" onclick="trackLink('pro-tips')">Pro Tips by Domain</a></li>
+                <li>Take <a href="mock-exams/mock-exam-B.html" onclick="trackLink('exam-b')">Mock Exam B</a> (timed)</li>
+                <li>Before bed: <a href="bonus/quick-wins-last-minute.md" onclick="trackLink('power-review')">Power Review</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Day Plan -->
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-duration" style="background:rgba(69,183,209,0.15);color:var(--d3)">3-Day Focused</div>
+            <div class="plan-title">Solid Preparation</div>
+            <div class="plan-hours">12–15 hours &nbsp;·&nbsp; Study notes + quizzes + mock exam</div>
+          </div>
+          <button class="plan-toggle" onclick="togglePlan(this)">
+            Show daily schedule <span class="plan-toggle-icon">▾</span>
+          </button>
+          <div class="plan-body">
+            <div class="plan-day">
+              <div class="plan-day-title">Day 1 (4–5 hours): Study Notes</div>
+              <ul>
+                <li><a href="study-notes/domain1-agentic-architecture.md" onclick="trackLink('notes-d1')">Domain 1</a> study notes (1h)</li>
+                <li><a href="study-notes/domain2-tool-design-mcp.md" onclick="trackLink('notes-d2')">Domain 2</a> study notes (45m)</li>
+                <li><a href="study-notes/domain3-claude-code-config.md" onclick="trackLink('notes-d3')">Domain 3</a> study notes (1h)</li>
+                <li><a href="study-notes/domain4-prompt-engineering.md" onclick="trackLink('notes-d4')">Domain 4</a> study notes (1h)</li>
+                <li><a href="study-notes/domain5-context-reliability.md" onclick="trackLink('notes-d5')">Domain 5</a> study notes (45m)</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Day 2 (4–5 hours): Active Recall</div>
+              <ul>
+                <li>All 5 domain quizzes (2.5h)</li>
+                <li>Review wrong answers using study notes (1h)</li>
+                <li>Read <a href="bonus/common-traps-and-pitfalls.md" onclick="trackLink('traps')">Common Traps Guide</a> (30m)</li>
+                <li>Read <a href="bonus/pro-tips-by-domain.md" onclick="trackLink('pro-tips')">Pro Tips by Domain</a> (45m)</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Day 3 (4–5 hours): Mock Exam + Review</div>
+              <ul>
+                <li>Take <a href="mock-exams/mock-exam-A.html" onclick="trackLink('exam-a')">Mock Exam A</a> (90m timed)</li>
+                <li>Review all wrong answers against study notes (1.5h)</li>
+                <li>Re-read weakest domain's cheat sheet (30m)</li>
+                <li>Read <a href="bonus/exam-day-strategy.md" onclick="trackLink('exam-strategy')">Exam Day Strategy</a> (30m)</li>
+                <li>Before bed: <a href="bonus/quick-wins-last-minute.md" onclick="trackLink('power-review')">Power Review</a> (30m)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Day Plan -->
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-duration" style="background:rgba(255,107,107,0.15);color:var(--d1)">1-Day Crash Course</div>
+            <div class="plan-title">Maximum Efficiency</div>
+            <div class="plan-hours">6–8 hours &nbsp;·&nbsp; Cheat sheets + mock exam + power review</div>
+          </div>
+          <button class="plan-toggle" onclick="togglePlan(this)">
+            Show schedule <span class="plan-toggle-icon">▾</span>
+          </button>
+          <div class="plan-body">
+            <div class="plan-day">
+              <div class="plan-day-title">Morning (3 hours): Cheat Sheets + Pro Tips</div>
+              <ul>
+                <li>All 5 cheat sheets (15m each) — <a href="cheat-sheets/cheatsheet-domain1.md" onclick="trackLink('cs-d1')">D1</a>, <a href="cheat-sheets/cheatsheet-domain2.md" onclick="trackLink('cs-d2')">D2</a>, <a href="cheat-sheets/cheatsheet-domain3.md" onclick="trackLink('cs-d3')">D3</a>, <a href="cheat-sheets/cheatsheet-domain4.md" onclick="trackLink('cs-d4')">D4</a>, <a href="cheat-sheets/cheatsheet-domain5.md" onclick="trackLink('cs-d5')">D5</a></li>
+                <li><a href="bonus/common-traps-and-pitfalls.md" onclick="trackLink('traps')">Common Traps Guide</a> (30m)</li>
+                <li><a href="bonus/pro-tips-by-domain.md" onclick="trackLink('pro-tips')">Pro Tips by Domain</a> (45m)</li>
+                <li><a href="bonus/exam-day-strategy.md" onclick="trackLink('exam-strategy')">Exam Day Strategy</a> (20m)</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Afternoon (3–4 hours): Mock Exam + Review</div>
+              <ul>
+                <li>Take <a href="mock-exams/mock-exam-A.html" onclick="trackLink('exam-a')">Mock Exam A</a> (90m timed)</li>
+                <li>Review wrong answers using cheat sheets (1h)</li>
+                <li>Re-read 2 weakest domain cheat sheets</li>
+              </ul>
+            </div>
+            <div class="plan-day">
+              <div class="plan-day-title">Evening (1 hour): Final Review</div>
+              <ul>
+                <li><a href="bonus/quick-wins-last-minute.md" onclick="trackLink('power-review')">Power Review</a> — read it twice</li>
+                <li>Sleep — rest matters more than last-minute cramming</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── DOMAIN 1 ────────────────────────────────────────────────── -->
+    <section class="domain-section" id="domain1">
+      <div class="domain-header" onclick="toggleDomain(this)" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <div class="domain-number" style="background:var(--d1-bg);color:var(--d1)">D1</div>
+        <div class="domain-title-group">
+          <div class="domain-title">Agentic Architecture &amp; Orchestration</div>
+          <div class="domain-subtitle">7 task statements &nbsp;·&nbsp; Highest exam weight</div>
+        </div>
+        <div class="domain-meta">
+          <div style="text-align:right">
+            <div class="domain-weight" style="color:var(--d1)">27%</div>
+            <div class="domain-weight-label">of exam</div>
+          </div>
+          <div class="domain-progress-ring" id="dpr1">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle class="dpr-bg" cx="26" cy="26" r="22"/>
+              <circle class="dpr-fill" cx="26" cy="26" r="22" style="stroke:var(--d1)" id="dpr1-fill"/>
+            </svg>
+            <div class="domain-progress-pct" id="dpr1-pct">0%</div>
+          </div>
+          <span class="domain-collapse-icon">▾</span>
+        </div>
+      </div>
+      <div class="domain-body" id="domain1-body">
+        <div class="domain-progress-bar-wrap">
+          <span class="domain-progress-bar-label">Completion</span>
+          <div class="progress-bar"><div class="progress-bar-fill" id="pb1" style="background:var(--d1)"></div></div>
+          <span class="domain-progress-bar-pct" id="pb1-pct">0%</span>
+        </div>
+
+        <!-- Task 1.1 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.1" onchange="toggleComplete('1.1', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.1</div>
+            <div class="task-title">Design and implement agentic loops</div>
+            <div class="task-desc">Structure the core request → tool call → result → continuation cycle; manage loop termination and step limits.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-11" onclick="trackVisit('1.1','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.1','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-agent-sdk.md" onclick="trackVisit('1.1','lab')">🔬 SDK Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.1','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.1','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-agentic-loop.html" onclick="trackVisit('1.1','infographic')">📊 Infographic</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.2 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.2" onchange="toggleComplete('1.2', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.2</div>
+            <div class="task-title">Orchestrate multi-agent systems</div>
+            <div class="task-desc">Design orchestrator–subagent hierarchies; coordinate parallel execution and result aggregation across agents.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-12" onclick="trackVisit('1.2','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.2','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-agent-sdk.md" onclick="trackVisit('1.2','lab')">🔬 SDK Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.2','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.2','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-agentic-loop.html" onclick="trackVisit('1.2','infographic')">📊 Infographic</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.3 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.3" onchange="toggleComplete('1.3', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.3</div>
+            <div class="task-title">Configure subagent invocation and context passing</div>
+            <div class="task-desc">Pass the right context to subagents; avoid context bloat; design context injection patterns for specialized agents.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-13" onclick="trackVisit('1.3','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.3','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-agent-sdk.md" onclick="trackVisit('1.3','lab')">🔬 SDK Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.3','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.3','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-cli-agentic-loop.md" onclick="trackVisit('1.3','session')">💬 Session</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.4 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.4" onchange="toggleComplete('1.4', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.4</div>
+            <div class="task-title">Implement multi-step workflows with enforcement</div>
+            <div class="task-desc">Use programmatic guardrails for irreversible actions; enforce policies at the orchestrator layer, not inside prompts.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-14" onclick="trackVisit('1.4','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.4','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-agent-sdk.md" onclick="trackVisit('1.4','lab')">🔬 SDK Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.4','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.4','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.5 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.5" onchange="toggleComplete('1.5', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.5</div>
+            <div class="task-title">Apply Agent SDK hooks for tool call interception</div>
+            <div class="task-desc">Use before/after hooks to log, validate, transform, or block tool calls; implement policy enforcement via hooks.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-15" onclick="trackVisit('1.5','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.5','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-agent-sdk.md" onclick="trackVisit('1.5','lab')">🔬 SDK Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.5','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.5','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-error-handling.html" onclick="trackVisit('1.5','infographic')">📊 Error Handling</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.6 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.6" onchange="toggleComplete('1.6', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.6</div>
+            <div class="task-title">Design task decomposition strategies</div>
+            <div class="task-desc">Break complex tasks into parallelizable subtasks; assign subtasks to specialized agents; manage dependency graphs.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-16" onclick="trackVisit('1.6','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.6','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.6','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.6','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-decision-trees.html" onclick="trackVisit('1.6','infographic')">📊 Decision Trees</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task 1.7 -->
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d1)" data-task="1.7" onchange="toggleComplete('1.7', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d1)">1.7</div>
+            <div class="task-title">Manage session state, resumption, and forking</div>
+            <div class="task-desc">Persist and restore agent state; implement session forking for parallel explorations; handle session lifecycle.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain1-agentic-architecture.md#task-17" onclick="trackVisit('1.7','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain1.html" onclick="trackVisit('1.7','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('1.7','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain1.md" onclick="trackVisit('1.7','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('1.7','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── DOMAIN 2 ────────────────────────────────────────────────── -->
+    <section class="domain-section" id="domain2">
+      <div class="domain-header" onclick="toggleDomain(this)" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <div class="domain-number" style="background:var(--d2-bg);color:var(--d2)">D2</div>
+        <div class="domain-title-group">
+          <div class="domain-title">Tool Design &amp; MCP Integration</div>
+          <div class="domain-subtitle">5 task statements &nbsp;·&nbsp; Tool interfaces and MCP servers</div>
+        </div>
+        <div class="domain-meta">
+          <div style="text-align:right">
+            <div class="domain-weight" style="color:var(--d2)">18%</div>
+            <div class="domain-weight-label">of exam</div>
+          </div>
+          <div class="domain-progress-ring" id="dpr2">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle class="dpr-bg" cx="26" cy="26" r="22"/>
+              <circle class="dpr-fill" cx="26" cy="26" r="22" style="stroke:var(--d2)" id="dpr2-fill"/>
+            </svg>
+            <div class="domain-progress-pct" id="dpr2-pct">0%</div>
+          </div>
+          <span class="domain-collapse-icon">▾</span>
+        </div>
+      </div>
+      <div class="domain-body" id="domain2-body">
+        <div class="domain-progress-bar-wrap">
+          <span class="domain-progress-bar-label">Completion</span>
+          <div class="progress-bar"><div class="progress-bar-fill" id="pb2" style="background:var(--d2)"></div></div>
+          <span class="domain-progress-bar-pct" id="pb2-pct">0%</span>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d2)" data-task="2.1" onchange="toggleComplete('2.1', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d2)">2.1</div>
+            <div class="task-title">Design effective tool interfaces</div>
+            <div class="task-desc">Write clear tool descriptions and parameter schemas; establish explicit boundaries on what each tool should and should not do.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain2-tool-design-mcp.md#task-statement-21-design-effective-tool-interfaces-with-clear-descriptions-and-boundaries" onclick="trackVisit('2.1','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain2.html" onclick="trackVisit('2.1','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain2.md" onclick="trackVisit('2.1','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('2.1','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-mcp-architecture.html" onclick="trackVisit('2.1','infographic')">📊 MCP Architecture</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d2)" data-task="2.2" onchange="toggleComplete('2.2', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d2)">2.2</div>
+            <div class="task-title">Implement structured error responses for MCP tools</div>
+            <div class="task-desc">Return actionable error data instead of generic failures; design error schemas that enable agents to recover and retry.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain2-tool-design-mcp.md#task-statement-22-implement-structured-error-responses-for-mcp-tools" onclick="trackVisit('2.2','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain2.html" onclick="trackVisit('2.2','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain2.md" onclick="trackVisit('2.2','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('2.2','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-error-handling.html" onclick="trackVisit('2.2','infographic')">📊 Error Handling</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d2)" data-task="2.3" onchange="toggleComplete('2.3', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d2)">2.3</div>
+            <div class="task-title">Distribute tools and configure tool choice</div>
+            <div class="task-desc">Assign tools to the right agents; use tool_choice to steer behavior; avoid tool overload and scope creep.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain2-tool-design-mcp.md#task-statement-23-distribute-tools-appropriately-across-agents-and-configure-tool-choice" onclick="trackVisit('2.3','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain2.html" onclick="trackVisit('2.3','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain2.md" onclick="trackVisit('2.3','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('2.3','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d2)" data-task="2.4" onchange="toggleComplete('2.4', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d2)">2.4</div>
+            <div class="task-title">Integrate MCP servers into workflows</div>
+            <div class="task-desc">Configure MCP servers in Claude Code and agent workflows; manage transport, authentication, and tool discovery.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain2-tool-design-mcp.md#task-statement-24-integrate-mcp-servers-into-claude-code-and-agent-workflows" onclick="trackVisit('2.4','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain2.html" onclick="trackVisit('2.4','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('2.4','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain2.md" onclick="trackVisit('2.4','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('2.4','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-cli-mcp-config.md" onclick="trackVisit('2.4','session')">💬 MCP Session</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d2)" data-task="2.5" onchange="toggleComplete('2.5', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d2)">2.5</div>
+            <div class="task-title">Select and apply built-in tools effectively</div>
+            <div class="task-desc">Choose the right built-in tool (Read, Write, Edit, Bash, Grep, Glob) for each task; understand when not to use Bash.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain2-tool-design-mcp.md#task-statement-25-select-and-apply-built-in-tools-read-write-edit-bash-grep-glob-effectively" onclick="trackVisit('2.5','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain2.html" onclick="trackVisit('2.5','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('2.5','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain2.md" onclick="trackVisit('2.5','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('2.5','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── DOMAIN 3 ────────────────────────────────────────────────── -->
+    <section class="domain-section" id="domain3">
+      <div class="domain-header" onclick="toggleDomain(this)" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <div class="domain-number" style="background:var(--d3-bg);color:var(--d3)">D3</div>
+        <div class="domain-title-group">
+          <div class="domain-title">Claude Code Configuration &amp; Workflows</div>
+          <div class="domain-subtitle">6 task statements &nbsp;·&nbsp; Most hands-on domain</div>
+        </div>
+        <div class="domain-meta">
+          <div style="text-align:right">
+            <div class="domain-weight" style="color:var(--d3)">20%</div>
+            <div class="domain-weight-label">of exam</div>
+          </div>
+          <div class="domain-progress-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle class="dpr-bg" cx="26" cy="26" r="22"/>
+              <circle class="dpr-fill" cx="26" cy="26" r="22" style="stroke:var(--d3)" id="dpr3-fill"/>
+            </svg>
+            <div class="domain-progress-pct" id="dpr3-pct">0%</div>
+          </div>
+          <span class="domain-collapse-icon">▾</span>
+        </div>
+      </div>
+      <div class="domain-body" id="domain3-body">
+        <div class="domain-progress-bar-wrap">
+          <span class="domain-progress-bar-label">Completion</span>
+          <div class="progress-bar"><div class="progress-bar-fill" id="pb3" style="background:var(--d3)"></div></div>
+          <span class="domain-progress-bar-pct" id="pb3-pct">0%</span>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.1" onchange="toggleComplete('3.1', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.1</div>
+            <div class="task-title">Configure CLAUDE.md with hierarchy and scoping</div>
+            <div class="task-desc">Layer global, project, and directory-level CLAUDE.md files; use modular imports; understand precedence rules.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-31-configure-claudemd-files-with-appropriate-hierarchy-scoping-and-modular-organization" onclick="trackVisit('3.1','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.1','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('3.1','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.1','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.1','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-claude-code-hierarchy.html" onclick="trackVisit('3.1','infographic')">📊 Hierarchy</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.2" onchange="toggleComplete('3.2', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.2</div>
+            <div class="task-title">Create and configure custom commands and skills</div>
+            <div class="task-desc">Define slash commands in .claude/commands/; write reusable skill files; parameterize commands with $ARGUMENTS.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-32-create-and-configure-custom-slash-commands-and-skills" onclick="trackVisit('3.2','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.2','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('3.2','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.2','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.2','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.3" onchange="toggleComplete('3.3', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.3</div>
+            <div class="task-title">Apply path-specific rules for conditional loading</div>
+            <div class="task-desc">Use directory-scoped CLAUDE.md files to load different conventions for different parts of a monorepo.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-33-apply-path-specific-rules-for-conditional-convention-loading" onclick="trackVisit('3.3','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.3','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('3.3','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.3','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.3','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-claude-code-hierarchy.html" onclick="trackVisit('3.3','infographic')">📊 Hierarchy</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.4" onchange="toggleComplete('3.4', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.4</div>
+            <div class="task-title">Determine when to use plan mode vs direct execution</div>
+            <div class="task-desc">Use plan mode for complex, risky, or multi-file tasks; use direct execution for well-understood, low-risk changes.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-34-determine-when-to-use-plan-mode-vs-direct-execution" onclick="trackVisit('3.4','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.4','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('3.4','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.4','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.4','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-decision-trees.html" onclick="trackVisit('3.4','infographic')">📊 Decision Trees</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.5" onchange="toggleComplete('3.5', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.5</div>
+            <div class="task-title">Apply iterative refinement techniques</div>
+            <div class="task-desc">Structure multi-turn conversations for progressive improvement; use subagent checkpoints and human feedback loops.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-35-apply-iterative-refinement-techniques-for-progressive-improvement" onclick="trackVisit('3.5','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.5','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('3.5','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.5','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.5','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d3)" data-task="3.6" onchange="toggleComplete('3.6', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d3)">3.6</div>
+            <div class="task-title">Integrate Claude Code into CI/CD pipelines</div>
+            <div class="task-desc">Run Claude Code in headless mode via -p flag; configure non-interactive workflows; handle output parsing and exit codes.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain3-claude-code-config.md#task-statement-36-integrate-claude-code-into-cicd-pipelines" onclick="trackVisit('3.6','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain3.html" onclick="trackVisit('3.6','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain3.md" onclick="trackVisit('3.6','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('3.6','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-cowork-code-review.md" onclick="trackVisit('3.6','session')">💬 Cowork Session</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── DOMAIN 4 ────────────────────────────────────────────────── -->
+    <section class="domain-section" id="domain4">
+      <div class="domain-header" onclick="toggleDomain(this)" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <div class="domain-number" style="background:var(--d4-bg);color:var(--d4)">D4</div>
+        <div class="domain-title-group">
+          <div class="domain-title">Prompt Engineering &amp; Structured Output</div>
+          <div class="domain-subtitle">6 task statements &nbsp;·&nbsp; Precision and output control</div>
+        </div>
+        <div class="domain-meta">
+          <div style="text-align:right">
+            <div class="domain-weight" style="color:var(--d4)">20%</div>
+            <div class="domain-weight-label">of exam</div>
+          </div>
+          <div class="domain-progress-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle class="dpr-bg" cx="26" cy="26" r="22"/>
+              <circle class="dpr-fill" cx="26" cy="26" r="22" style="stroke:var(--d4)" id="dpr4-fill"/>
+            </svg>
+            <div class="domain-progress-pct" id="dpr4-pct">0%</div>
+          </div>
+          <span class="domain-collapse-icon">▾</span>
+        </div>
+      </div>
+      <div class="domain-body" id="domain4-body">
+        <div class="domain-progress-bar-wrap">
+          <span class="domain-progress-bar-label">Completion</span>
+          <div class="progress-bar"><div class="progress-bar-fill" id="pb4" style="background:var(--d4)"></div></div>
+          <span class="domain-progress-bar-pct" id="pb4-pct">0%</span>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.1" onchange="toggleComplete('4.1', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.1</div>
+            <div class="task-title">Design prompts with explicit criteria</div>
+            <div class="task-desc">Specify exactly what "correct" looks like; use rubrics and checklists to reduce ambiguity and false positives.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-41-design-prompts-with-explicit-criteria-to-improve-precision-and-reduce-false-positives" onclick="trackVisit('4.1','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.1','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.1','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.1','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-web-prompt-engineering.md" onclick="trackVisit('4.1','session')">💬 Web Session</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.2" onchange="toggleComplete('4.2', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.2</div>
+            <div class="task-title">Apply few-shot prompting for consistency</div>
+            <div class="task-desc">Construct high-quality examples that demonstrate the desired format, tone, and reasoning pattern.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-42-apply-few-shot-prompting-to-improve-output-consistency-and-quality" onclick="trackVisit('4.2','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.2','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.2','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.2','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-web-prompt-engineering.md" onclick="trackVisit('4.2','session')">💬 Web Session</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.3" onchange="toggleComplete('4.3', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.3</div>
+            <div class="task-title">Enforce structured output using tool use and schemas</div>
+            <div class="task-desc">Use tool_use with JSON Schema to force structured responses; handle schema validation and graceful degradation.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-43-enforce-structured-output-using-tool-use-and-json-schemas" onclick="trackVisit('4.3','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.3','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.3','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.3','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-web-structured-output.md" onclick="trackVisit('4.3','session')">💬 Structured Output</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.4" onchange="toggleComplete('4.4', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.4</div>
+            <div class="task-title">Implement validation, retry, and feedback loops</div>
+            <div class="task-desc">Build programmatic validation pipelines; feed validation failures back to the model with specific correction guidance.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-44-implement-validation-retry-and-feedback-loops-for-extraction-quality" onclick="trackVisit('4.4','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.4','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.4','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.4','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-web-structured-output.md" onclick="trackVisit('4.4','session')">💬 Structured Output</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.5" onchange="toggleComplete('4.5', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.5</div>
+            <div class="task-title">Design efficient batch processing strategies</div>
+            <div class="task-desc">Use the Batch API for large-scale parallel workloads; design batching schemes that maximize throughput at reduced cost.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-45-design-efficient-batch-processing-strategies" onclick="trackVisit('4.5','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.5','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.5','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.5','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-decision-trees.html" onclick="trackVisit('4.5','infographic')">📊 Decision Trees</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d4)" data-task="4.6" onchange="toggleComplete('4.6', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d4)">4.6</div>
+            <div class="task-title">Design multi-instance and multi-pass review</div>
+            <div class="task-desc">Run independent model instances in parallel for review diversity; aggregate disagreements; implement N-pass refinement.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain4-prompt-engineering.md#task-statement-46-design-multi-instance-and-multi-pass-review-architectures" onclick="trackVisit('4.6','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain4.html" onclick="trackVisit('4.6','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain4.md" onclick="trackVisit('4.6','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('4.6','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="interactive-sessions/session-cowork-code-review.md" onclick="trackVisit('4.6','session')">💬 Code Review</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── DOMAIN 5 ────────────────────────────────────────────────── -->
+    <section class="domain-section" id="domain5">
+      <div class="domain-header" onclick="toggleDomain(this)" style="border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+        <div class="domain-number" style="background:var(--d5-bg);color:var(--d5)">D5</div>
+        <div class="domain-title-group">
+          <div class="domain-title">Context Management &amp; Reliability</div>
+          <div class="domain-subtitle">6 task statements &nbsp;·&nbsp; Robustness and trust</div>
+        </div>
+        <div class="domain-meta">
+          <div style="text-align:right">
+            <div class="domain-weight" style="color:var(--d5)">15%</div>
+            <div class="domain-weight-label">of exam</div>
+          </div>
+          <div class="domain-progress-ring">
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle class="dpr-bg" cx="26" cy="26" r="22"/>
+              <circle class="dpr-fill" cx="26" cy="26" r="22" style="stroke:var(--d5)" id="dpr5-fill"/>
+            </svg>
+            <div class="domain-progress-pct" id="dpr5-pct">0%</div>
+          </div>
+          <span class="domain-collapse-icon">▾</span>
+        </div>
+      </div>
+      <div class="domain-body" id="domain5-body">
+        <div class="domain-progress-bar-wrap">
+          <span class="domain-progress-bar-label">Completion</span>
+          <div class="progress-bar"><div class="progress-bar-fill" id="pb5" style="background:var(--d5)"></div></div>
+          <span class="domain-progress-bar-pct" id="pb5-pct">0%</span>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.1" onchange="toggleComplete('5.1', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.1</div>
+            <div class="task-title">Manage conversation context across long interactions</div>
+            <div class="task-desc">Implement context summarization, selective pruning, and structured memory to preserve critical information over many turns.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-51-manage-conversation-context-to-preserve-critical-information-across-long-interactions" onclick="trackVisit('5.1','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.1','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.1','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.1','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.2" onchange="toggleComplete('5.2', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.2</div>
+            <div class="task-title">Design escalation and ambiguity resolution patterns</div>
+            <div class="task-desc">Know the 3 escalation triggers; design escalation paths that preserve context and handoff state cleanly to humans.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-52-design-effective-escalation-and-ambiguity-resolution-patterns" onclick="trackVisit('5.2','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.2','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.2','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.2','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-error-handling.html" onclick="trackVisit('5.2','infographic')">📊 Error Handling</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.3" onchange="toggleComplete('5.3', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.3</div>
+            <div class="task-title">Implement error propagation across multi-agent systems</div>
+            <div class="task-desc">Design error taxonomy; propagate structured errors upward through agent hierarchies; avoid silent failure swallowing.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-53-implement-error-propagation-strategies-across-multi-agent-systems" onclick="trackVisit('5.3','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.3','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.3','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.3','flash')">🎯 Flashcards</a>
+              <a class="task-link" href="infographics/infographic-error-handling.html" onclick="trackVisit('5.3','infographic')">📊 Error Handling</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.4" onchange="toggleComplete('5.4', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.4</div>
+            <div class="task-title">Manage context in large codebase exploration</div>
+            <div class="task-desc">Use targeted file reads over full-repo dumps; maintain a working set of relevant files; summarize explored areas.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-54-manage-context-effectively-in-large-codebase-exploration" onclick="trackVisit('5.4','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.4','quiz')">📝 Quiz</a>
+              <a class="task-link" href="labs/lab-guide-claude-code-cli.md" onclick="trackVisit('5.4','lab')">🔬 CLI Lab</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.4','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.4','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.5" onchange="toggleComplete('5.5', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.5</div>
+            <div class="task-title">Design human review workflows and confidence calibration</div>
+            <div class="task-desc">Build confidence scoring into outputs; route low-confidence results to human review; design review UX for efficient approval.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-55-design-human-review-workflows-and-confidence-calibration" onclick="trackVisit('5.5','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.5','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.5','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.5','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-row">
+          <input type="checkbox" class="task-check" style="--domain-color:var(--d5)" data-task="5.6" onchange="toggleComplete('5.6', this.checked)">
+          <div class="task-info">
+            <div class="task-id" style="color:var(--d5)">5.6</div>
+            <div class="task-title">Preserve information provenance in multi-source synthesis</div>
+            <div class="task-desc">Track and surface source attribution; handle conflicting sources gracefully; make uncertainty explicit in synthesized output.</div>
+            <div class="task-links">
+              <a class="task-link" href="study-notes/domain5-context-reliability.md#task-statement-56-preserve-information-provenance-and-handle-uncertainty-in-multi-source-synthesis" onclick="trackVisit('5.6','notes')">📖 Study Notes</a>
+              <a class="task-link" href="quizzes/quiz-domain5.html" onclick="trackVisit('5.6','quiz')">📝 Quiz</a>
+              <a class="task-link" href="cheat-sheets/cheatsheet-domain5.md" onclick="trackVisit('5.6','cheat')">💡 Cheat Sheet</a>
+              <a class="task-link" href="flashcards/flashcards-all-domains.html" onclick="trackVisit('5.6','flash')">🎯 Flashcards</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SCENARIOS ──────────────────────────────────────────────── -->
+    <section id="scenarios">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(255,217,61,0.15); color:#ffd93d">🎭</div>
+        <div>
+          <div class="section-title">Exam Scenarios</div>
+          <div class="section-meta">4 of these 6 scenarios appear on the real exam — study all of them</div>
+        </div>
+      </div>
+
+      <div class="scenarios-grid">
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 1</div>
+          <div class="scenario-title">Customer Support Resolution Agent</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d1); border-color:var(--d1); background:var(--d1-bg)">D1 Agentic</span>
+            <span class="domain-badge" style="color:var(--d2); border-color:var(--d2); background:var(--d2-bg)">D2 Tools</span>
+            <span class="domain-badge" style="color:var(--d5); border-color:var(--d5); background:var(--d5-bg)">D5 Context</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 1.1, 1.2, 1.4, 1.5, 2.1, 2.2, 2.3, 5.1, 5.2, 5.3</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario1-customer-support.md" onclick="trackLink('scenario1')">Open Workbook →</a>
+          </div>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 2</div>
+          <div class="scenario-title">Code Generation with Claude Code</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d3); border-color:var(--d3); background:var(--d3-bg)">D3 Claude Code</span>
+            <span class="domain-badge" style="color:var(--d5); border-color:var(--d5); background:var(--d5-bg)">D5 Context</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 3.1, 3.2, 3.3, 3.4, 3.5, 5.4</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario2-code-generation.md" onclick="trackLink('scenario2')">Open Workbook →</a>
+          </div>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 3</div>
+          <div class="scenario-title">Multi-Agent Research System</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d1); border-color:var(--d1); background:var(--d1-bg)">D1 Agentic</span>
+            <span class="domain-badge" style="color:var(--d2); border-color:var(--d2); background:var(--d2-bg)">D2 Tools</span>
+            <span class="domain-badge" style="color:var(--d5); border-color:var(--d5); background:var(--d5-bg)">D5 Context</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 1.2, 1.3, 1.6, 2.1, 2.3, 5.3, 5.6</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario3-multi-agent-research.md" onclick="trackLink('scenario3')">Open Workbook →</a>
+          </div>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 4</div>
+          <div class="scenario-title">Developer Productivity with Claude</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d2); border-color:var(--d2); background:var(--d2-bg)">D2 Tools</span>
+            <span class="domain-badge" style="color:var(--d3); border-color:var(--d3); background:var(--d3-bg)">D3 Claude Code</span>
+            <span class="domain-badge" style="color:var(--d1); border-color:var(--d1); background:var(--d1-bg)">D1 Agentic</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 2.1, 2.4, 2.5, 3.1, 3.2, 3.4, 1.3</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario4-developer-productivity.md" onclick="trackLink('scenario4')">Open Workbook →</a>
+          </div>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 5</div>
+          <div class="scenario-title">Claude Code for Continuous Integration</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d3); border-color:var(--d3); background:var(--d3-bg)">D3 Claude Code</span>
+            <span class="domain-badge" style="color:var(--d4); border-color:var(--d4); background:var(--d4-bg)">D4 Prompts</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 3.5, 3.6, 4.1, 4.2, 4.5, 4.6</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario5-ci-cd.md" onclick="trackLink('scenario5')">Open Workbook →</a>
+          </div>
+        </div>
+
+        <div class="scenario-card">
+          <div class="scenario-number">Scenario 6</div>
+          <div class="scenario-title">Structured Data Extraction</div>
+          <div class="scenario-domains">
+            <span class="domain-badge" style="color:var(--d4); border-color:var(--d4); background:var(--d4-bg)">D4 Prompts</span>
+            <span class="domain-badge" style="color:var(--d5); border-color:var(--d5); background:var(--d5-bg)">D5 Context</span>
+          </div>
+          <div class="scenario-footer">
+            <span class="scenario-ts">Task stmts: 4.3, 4.4, 4.5, 5.5, 5.6</span>
+            <a class="scenario-link" href="scenario-workbooks/scenario6-structured-extraction.md" onclick="trackLink('scenario6')">Open Workbook →</a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── INTERACTIVE TOOLS ──────────────────────────────────────── -->
+    <section id="tools">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(107,203,119,0.15); color:#6bcb77">🛠️</div>
+        <div>
+          <div class="section-title">Interactive Tools &amp; Resources</div>
+          <div class="section-meta">Flashcards, concept maps, infographics, labs, and guided sessions</div>
+        </div>
+      </div>
+
+      <div class="tools-grid">
+
+        <a class="tool-card" href="flashcards/flashcards-all-domains.html" onclick="trackLink('flashcards')">
+          <div class="tool-icon">🧠</div>
+          <div>
+            <div class="tool-name">Flashcards</div>
+            <div class="tool-meta">120 cards across all 5 domains · Spaced repetition</div>
+          </div>
+          <div class="tool-action" style="color:var(--d1)">Open deck →</div>
+        </a>
+
+        <a class="tool-card" href="concept-map/concept-map.html" onclick="trackLink('concept-map')">
+          <div class="tool-icon">🗺️</div>
+          <div>
+            <div class="tool-name">Concept Map</div>
+            <div class="tool-meta">Cross-domain relationship visualization</div>
+          </div>
+          <div class="tool-action" style="color:var(--d2)">Explore →</div>
+        </a>
+
+        <a class="tool-card" href="labs/lab-guide-claude-code-cli.md" onclick="trackLink('lab-cli')">
+          <div class="tool-icon">🔬</div>
+          <div>
+            <div class="tool-name">CLI Lab Guide</div>
+            <div class="tool-meta">Hands-on Claude Code CLI exercises · Domain 3</div>
+          </div>
+          <div class="tool-action" style="color:var(--d3)">Start lab →</div>
+        </a>
+
+        <a class="tool-card" href="labs/lab-guide-agent-sdk.md" onclick="trackLink('lab-sdk')">
+          <div class="tool-icon">⚗️</div>
+          <div>
+            <div class="tool-name">Agent SDK Lab</div>
+            <div class="tool-meta">Agentic loop & orchestration exercises · Domain 1</div>
+          </div>
+          <div class="tool-action" style="color:var(--d1)">Start lab →</div>
+        </a>
+
+        <a class="tool-card" href="study-guide.md" onclick="trackLink('study-guide')">
+          <div class="tool-icon">📚</div>
+          <div>
+            <div class="tool-name">Master Study Guide</div>
+            <div class="tool-meta">Full navigation hub with all cross-links</div>
+          </div>
+          <div class="tool-action" style="color:var(--d4)">Open guide →</div>
+        </a>
+
+      </div>
+
+      <!-- Infographics -->
+      <div style="margin-top:28px">
+        <div style="font-size:13px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:12px">Infographics (5)</div>
+        <div class="infographics-grid">
+          <a class="infographic-card" href="infographics/infographic-agentic-loop.html" onclick="trackLink('infographic-agentic-loop')">
+            <span>📊</span>Agentic Loop
+          </a>
+          <a class="infographic-card" href="infographics/infographic-mcp-architecture.html" onclick="trackLink('infographic-mcp')">
+            <span>📊</span>MCP Architecture
+          </a>
+          <a class="infographic-card" href="infographics/infographic-claude-code-hierarchy.html" onclick="trackLink('infographic-hierarchy')">
+            <span>📊</span>Claude Code Hierarchy
+          </a>
+          <a class="infographic-card" href="infographics/infographic-decision-trees.html" onclick="trackLink('infographic-decisions')">
+            <span>📊</span>Decision Trees
+          </a>
+          <a class="infographic-card" href="infographics/infographic-error-handling.html" onclick="trackLink('infographic-errors')">
+            <span>📊</span>Error Handling
+          </a>
+        </div>
+      </div>
+
+      <!-- Interactive Sessions -->
+      <div style="margin-top:28px">
+        <div style="font-size:13px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:12px">Interactive Sessions (6)</div>
+        <div class="sessions-grid">
+          <a class="session-card" href="interactive-sessions/session-cli-agentic-loop.md" onclick="trackLink('session-agentic')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">CLI: Agentic Loop</div>
+              <div class="session-card-meta">Domain 1 &nbsp;·&nbsp; Claude Code CLI</div>
+            </div>
+          </a>
+          <a class="session-card" href="interactive-sessions/session-cli-mcp-config.md" onclick="trackLink('session-mcp')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">CLI: MCP Configuration</div>
+              <div class="session-card-meta">Domain 2 &nbsp;·&nbsp; Claude Code CLI</div>
+            </div>
+          </a>
+          <a class="session-card" href="interactive-sessions/session-cowork-code-review.md" onclick="trackLink('session-cowork')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">Cowork: Code Review</div>
+              <div class="session-card-meta">Domain 3, 4 &nbsp;·&nbsp; Claude.ai</div>
+            </div>
+          </a>
+          <a class="session-card" href="interactive-sessions/session-mobile-review.md" onclick="trackLink('session-mobile')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">Mobile: Quick Review</div>
+              <div class="session-card-meta">Cross-domain &nbsp;·&nbsp; Mobile app</div>
+            </div>
+          </a>
+          <a class="session-card" href="interactive-sessions/session-web-prompt-engineering.md" onclick="trackLink('session-prompt')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">Web: Prompt Engineering</div>
+              <div class="session-card-meta">Domain 4 &nbsp;·&nbsp; Claude.ai web</div>
+            </div>
+          </a>
+          <a class="session-card" href="interactive-sessions/session-web-structured-output.md" onclick="trackLink('session-structured')">
+            <span class="session-card-icon">💬</span>
+            <div>
+              <div class="session-card-name">Web: Structured Output</div>
+              <div class="session-card-meta">Domain 4, 5 &nbsp;·&nbsp; Claude.ai web</div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── MOCK EXAMS ─────────────────────────────────────────────── -->
+    <section id="exams">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(255,107,157,0.15); color:#ff6b9d">📋</div>
+        <div>
+          <div class="section-title">Mock Exams</div>
+          <div class="section-meta">~50 questions each · 90-minute timer · Pass threshold: 720/1000</div>
+        </div>
+      </div>
+
+      <div class="exams-grid">
+
+        <div class="exam-card">
+          <div>
+            <div class="exam-label">Mock Exam</div>
+            <div class="exam-title">Exam A</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px">Scenarios included</div>
+            <div class="exam-scenarios">
+              <span class="exam-badge">S1 Customer Support</span>
+              <span class="exam-badge">S2 Code Gen</span>
+              <span class="exam-badge">S3 Research</span>
+              <span class="exam-badge">S5 CI/CD</span>
+            </div>
+          </div>
+          <div class="exam-meta">Best used as: initial baseline before deep study. Take cold, then use results to guide your study plan.</div>
+          <div class="exam-score" id="score-a">
+            <span>Last score:</span>
+            <span class="exam-score-val" id="score-a-val">Not taken</span>
+          </div>
+          <a class="exam-cta" href="mock-exams/mock-exam-A.html" onclick="trackLink('exam-a')">Start Mock Exam A →</a>
+        </div>
+
+        <div class="exam-card">
+          <div>
+            <div class="exam-label">Mock Exam</div>
+            <div class="exam-title">Exam B</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px">Scenarios included</div>
+            <div class="exam-scenarios">
+              <span class="exam-badge">S1 Customer Support</span>
+              <span class="exam-badge">S3 Research</span>
+              <span class="exam-badge">S4 Dev Productivity</span>
+              <span class="exam-badge">S6 Extraction</span>
+            </div>
+          </div>
+          <div class="exam-meta">Best used as: mid-study progress check. Take after completing all 5 domain quizzes.</div>
+          <div class="exam-score" id="score-b">
+            <span>Last score:</span>
+            <span class="exam-score-val" id="score-b-val">Not taken</span>
+          </div>
+          <a class="exam-cta" href="mock-exams/mock-exam-B.html" onclick="trackLink('exam-b')">Start Mock Exam B →</a>
+        </div>
+
+        <div class="exam-card">
+          <div>
+            <div class="exam-label">Mock Exam</div>
+            <div class="exam-title">Exam C</div>
+          </div>
+          <div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:8px">Scenarios included</div>
+            <div class="exam-scenarios">
+              <span class="exam-badge">S2 Code Gen</span>
+              <span class="exam-badge">S4 Dev Productivity</span>
+              <span class="exam-badge">S5 CI/CD</span>
+              <span class="exam-badge">S6 Extraction</span>
+            </div>
+          </div>
+          <div class="exam-meta">Best used as: final readiness check. Take 48 hours before the real exam.</div>
+          <div class="exam-score" id="score-c">
+            <span>Last score:</span>
+            <span class="exam-score-val" id="score-c-val">Not taken</span>
+          </div>
+          <a class="exam-cta" href="mock-exams/mock-exam-C.html" onclick="trackLink('exam-c')">Start Mock Exam C →</a>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── EXAM PREP ──────────────────────────────────────────────── -->
+    <section id="examprep">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(199,125,255,0.15); color:#c77dff">🎯</div>
+        <div>
+          <div class="section-title">Exam Prep &amp; Bonus Materials</div>
+          <div class="section-meta">Strategy guides, common traps, pro tips, and last-minute review</div>
+        </div>
+      </div>
+
+      <div class="prep-grid">
+
+        <a class="prep-card" href="bonus/exam-day-strategy.md" onclick="trackLink('exam-strategy')">
+          <span class="prep-icon">🗓️</span>
+          <div>
+            <div class="prep-name">Exam Day Strategy</div>
+            <div class="prep-desc">Time management, answer elimination, pacing — the full tactical guide for test day.</div>
+          </div>
+        </a>
+
+        <a class="prep-card" href="bonus/common-traps-and-pitfalls.md" onclick="trackLink('traps')">
+          <span class="prep-icon">⚠️</span>
+          <div>
+            <div class="prep-name">Common Traps &amp; Pitfalls</div>
+            <div class="prep-desc">5 distractor patterns decoded: Over-Engineer, Wrong Problem, Insufficient Guarantee, Wrong Scope, Premature Optimization.</div>
+          </div>
+        </a>
+
+        <a class="prep-card" href="bonus/pro-tips-by-domain.md" onclick="trackLink('pro-tips')">
+          <span class="prep-icon">💎</span>
+          <div>
+            <div class="prep-name">Pro Tips by Domain</div>
+            <div class="prep-desc">Insider tips and key decision rules for each domain — read the night before.</div>
+          </div>
+        </a>
+
+        <a class="prep-card" href="bonus/quick-wins-last-minute.md" onclick="trackLink('power-review')">
+          <span class="prep-icon">⚡</span>
+          <div>
+            <div class="prep-name">30-Min Power Review</div>
+            <div class="prep-desc">The essential facts, rules, and patterns you must remember. Read it twice: night before + morning of exam.</div>
+          </div>
+        </a>
+
+        <a class="prep-card" href="preparation-process.md" onclick="trackLink('prep-process')">
+          <span class="prep-icon">🔍</span>
+          <div>
+            <div class="prep-name">How This Package Was Built</div>
+            <div class="prep-desc">The methodology and agent collaboration behind this study package. Useful for understanding design decisions.</div>
+          </div>
+        </a>
+
+        <a class="prep-card" href="study-guide.md" onclick="trackLink('study-guide')">
+          <span class="prep-icon">🗂️</span>
+          <div>
+            <div class="prep-name">Master Study Guide (MD)</div>
+            <div class="prep-desc">The original Markdown navigation hub — includes all cross-reference tables and learning style paths.</div>
+          </div>
+        </a>
+
+      </div>
+
+      <!-- Pre-exam checklist -->
+      <div style="margin-top:32px; background:var(--bg-card-alt); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px">
+        <div style="font-size:15px; font-weight:700; color:#fff; margin-bottom:20px">Pre-Exam Checklist</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px">
+          <div>
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); margin-bottom:10px">48 Hours Before</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d3)"> Complete Mock Exam B (or A if not taken)
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d3)"> Review all wrong answers
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d3)"> Re-read cheat sheets for 2 weakest domains
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d3)"> Read Exam Day Strategy fully
+              </label>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); margin-bottom:10px">Evening Before</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d5)"> Read Pro Tips by Domain — once through
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d5)"> Read Common Traps Guide — refresh 5 patterns
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d5)"> Read Power Review — first pass
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--d5)"> Sleep — rest matters more than cramming
+              </label>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); margin-bottom:10px">Morning Of (30 min before)</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--accent)"> Read Power Review — second pass
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--accent)"> Recall the 3 escalation triggers
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--accent)"> Recall the 1 golden rule (programmatic enforcement)
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:13px; color:var(--text-muted)">
+                <input type="checkbox" style="margin-top:2px; accent-color:var(--accent)"> 720/1000 = ~72% correct — you have a buffer
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div><!-- /container -->
+</main>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-built">Built with Claude Code by a team of 5 AI agents</div>
+    <div class="footer-links">
+      <a class="footer-link" href="preparation-process.md">How This Was Built</a>
+      <a class="footer-link" href="study-guide.md">Master Study Guide</a>
+      <a class="footer-link" href="bonus/exam-day-strategy.md">Exam Day Strategy</a>
+      <a class="footer-link" href="bonus/quick-wins-last-minute.md">Power Review</a>
+    </div>
+    <div class="footer-version">Claude Certified Architect – Foundations &nbsp;·&nbsp; Exam Guide v1.0 &nbsp;·&nbsp; Study Hub v1.0</div>
+  </div>
+</footer>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- ─── JAVASCRIPT ────────────────────────────────────────────────────────── -->
+<script>
+// ── LocalStorage Schema ──────────────────────────────────────────────────
+const STORAGE_KEY = 'studyProgress_v2';
+
+const TASK_STATEMENTS = [
+  '1.1','1.2','1.3','1.4','1.5','1.6','1.7',
+  '2.1','2.2','2.3','2.4','2.5',
+  '3.1','3.2','3.3','3.4','3.5','3.6',
+  '4.1','4.2','4.3','4.4','4.5','4.6',
+  '5.1','5.2','5.3','5.4','5.5','5.6'
+];
+
+const DOMAIN_TASKS = {
+  1: ['1.1','1.2','1.3','1.4','1.5','1.6','1.7'],
+  2: ['2.1','2.2','2.3','2.4','2.5'],
+  3: ['3.1','3.2','3.3','3.4','3.5','3.6'],
+  4: ['4.1','4.2','4.3','4.4','4.5','4.6'],
+  5: ['5.1','5.2','5.3','5.4','5.5','5.6'],
+};
+
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { tasks: {}, lastVisited: null, examScores: { A: null, B: null, C: null } };
+  } catch { return { tasks: {}, lastVisited: null, examScores: { A: null, B: null, C: null } }; }
+}
+
+function saveProgress(data) {
+  data.lastVisited = new Date().toISOString();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+}
+
+function getTask(data, id) {
+  if (!data.tasks[id]) data.tasks[id] = { visited: [], complete: false };
+  return data.tasks[id];
+}
+
+// ── Progress Tracking ────────────────────────────────────────────────────
+function trackVisit(taskId, type) {
+  const data = loadProgress();
+  const task = getTask(data, taskId);
+  if (!task.visited.includes(type)) task.visited.push(type);
+  saveProgress(data);
+  updateAllProgress();
+}
+
+function trackLink(key) {
+  // Generic link tracking (non-task-specific)
+  const data = loadProgress();
+  if (!data.links) data.links = {};
+  data.links[key] = true;
+  saveProgress(data);
+}
+
+function toggleComplete(taskId, checked) {
+  const data = loadProgress();
+  const task = getTask(data, taskId);
+  task.complete = checked;
+  saveProgress(data);
+  updateAllProgress();
+  if (checked) showToast('Task ' + taskId + ' marked complete');
+}
+
+// ── Progress Calculations ────────────────────────────────────────────────
+function getCompletionCount() {
+  const data = loadProgress();
+  return TASK_STATEMENTS.filter(id => {
+    const t = data.tasks[id];
+    return t && t.complete;
+  }).length;
+}
+
+function getDomainCompletion(domainNum) {
+  const data = loadProgress();
+  const tasks = DOMAIN_TASKS[domainNum];
+  const done = tasks.filter(id => { const t = data.tasks[id]; return t && t.complete; }).length;
+  return { done, total: tasks.length, pct: Math.round((done / tasks.length) * 100) };
+}
+
+// ── Update UI ────────────────────────────────────────────────────────────
+function updateAllProgress() {
+  const done = getCompletionCount();
+  const total = TASK_STATEMENTS.length;
+  const pct = Math.round((done / total) * 100);
+
+  // Overall ring
+  const circumference = 238;
+  const offset = circumference - (pct / 100) * circumference;
+  const fill = document.getElementById('overallRingFill');
+  if (fill) fill.style.strokeDashoffset = offset;
+  const pctEl = document.getElementById('overallPct');
+  if (pctEl) pctEl.textContent = pct + '%';
+  const labelEl = document.getElementById('overallLabel');
+  if (labelEl) labelEl.innerHTML = done + ' / ' + total + '<br>task statements';
+
+  // Domain rings + bars
+  for (let d = 1; d <= 5; d++) {
+    const { done: dd, total: dt, pct: dp } = getDomainCompletion(d);
+
+    // Small ring
+    const dprFill = document.getElementById('dpr' + d + '-fill');
+    if (dprFill) {
+      const c = 138; // circumference for r=22
+      dprFill.style.strokeDashoffset = c - (dp / 100) * c;
+    }
+    const dprPct = document.getElementById('dpr' + d + '-pct');
+    if (dprPct) dprPct.textContent = dp + '%';
+
+    // Bar
+    const pbFill = document.getElementById('pb' + d);
+    if (pbFill) pbFill.style.width = dp + '%';
+    const pbPct = document.getElementById('pb' + d + '-pct');
+    if (pbPct) pbPct.textContent = dp + '%';
+  }
+
+  // Checkboxes
+  const data = loadProgress();
+  document.querySelectorAll('.task-check').forEach(cb => {
+    const id = cb.dataset.task;
+    const t = data.tasks[id];
+    if (t) cb.checked = t.complete;
+  });
+
+  // Task links — mark visited
+  updateVisitedLinks(data);
+
+  // Exam scores
+  if (data.examScores) {
+    ['A','B','C'].forEach(ex => {
+      const el = document.getElementById('score-' + ex.toLowerCase() + '-val');
+      if (el && data.examScores[ex]) {
+        el.textContent = data.examScores[ex];
+        el.style.color = 'var(--d4)';
+      }
+    });
+  }
+}
+
+function updateVisitedLinks(data) {
+  document.querySelectorAll('.task-link').forEach(link => {
+    const taskRow = link.closest('.task-row');
+    if (!taskRow) return;
+    const cb = taskRow.querySelector('.task-check');
+    if (!cb) return;
+    const taskId = cb.dataset.task;
+    const t = data.tasks[taskId];
+    if (!t) return;
+    // Determine link type from text
+    const text = link.textContent;
+    let type = null;
+    if (text.includes('Study Notes') || text.includes('Notes')) type = 'notes';
+    else if (text.includes('Quiz')) type = 'quiz';
+    else if (text.includes('Lab')) type = 'lab';
+    else if (text.includes('Cheat')) type = 'cheat';
+    else if (text.includes('Flash')) type = 'flash';
+    else if (text.includes('Infographic') || text.includes('MCP Arch') || text.includes('Hierarchy') || text.includes('Decision') || text.includes('Error')) type = 'infographic';
+    else if (text.includes('Session') || text.includes('Session') || text.includes('Cowork') || text.includes('Web ') || text.includes('Structured')) type = 'session';
+    if (type && t.visited.includes(type)) {
+      link.classList.add('visited');
+    }
+  });
+}
+
+// ── Sticky Nav Active State ──────────────────────────────────────────────
+function updateActiveNav() {
+  const sections = [
+    { id: 'domain1', nav: 0 },
+    { id: 'domain2', nav: 1 },
+    { id: 'domain3', nav: 2 },
+    { id: 'domain4', nav: 3 },
+    { id: 'domain5', nav: 4 },
+    { id: 'scenarios', nav: 5 },
+    { id: 'tools', nav: 6 },
+    { id: 'exams', nav: 7 },
+    { id: 'examprep', nav: 8 },
+  ];
+
+  const navLinks = document.querySelectorAll('.nav-link');
+  const scrollY = window.scrollY + 120;
+
+  let activeNav = 0;
+  sections.forEach(({ id, nav }) => {
+    const el = document.getElementById(id);
+    if (el && el.offsetTop <= scrollY) activeNav = nav;
+  });
+
+  navLinks.forEach((link, i) => {
+    link.classList.toggle('active', i === activeNav);
+  });
+}
+
+window.addEventListener('scroll', updateActiveNav, { passive: true });
+
+// ── Scroll to section ────────────────────────────────────────────────────
+function scrollTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Toggle Domain Collapse ───────────────────────────────────────────────
+function toggleDomain(header) {
+  const domainSection = header.closest('.domain-section');
+  const body = domainSection.querySelector('.domain-body');
+  const icon = header.querySelector('.domain-collapse-icon');
+
+  const isCollapsed = header.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    // Expand
+    header.classList.remove('collapsed');
+    body.style.display = '';
+    body.style.maxHeight = body.scrollHeight + 'px';
+    setTimeout(() => { body.style.maxHeight = ''; }, 350);
+  } else {
+    // Collapse
+    header.classList.add('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      body.style.transition = 'max-height 0.35s ease, opacity 0.25s ease';
+      body.style.maxHeight = '0';
+      body.style.overflow = 'hidden';
+    });
+    setTimeout(() => {
+      body.style.display = 'none';
+      body.style.maxHeight = '';
+      body.style.overflow = '';
+      body.style.transition = '';
+    }, 360);
+  }
+}
+
+// ── Toggle Study Plan ────────────────────────────────────────────────────
+function togglePlan(btn) {
+  const body = btn.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────
+let toastTimeout;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ── Animate rings on load ────────────────────────────────────────────────
+function animateOnLoad() {
+  // Trigger after a slight delay so CSS transition fires
+  setTimeout(() => updateAllProgress(), 150);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateAllProgress();
+  updateActiveNav();
+  animateOnLoad();
+});
+
+// Listen for storage changes from other tabs
+window.addEventListener('storage', (e) => {
+  if (e.key === STORAGE_KEY) updateAllProgress();
+});
+</script>
+</body>
+</html>

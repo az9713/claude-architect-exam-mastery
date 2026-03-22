@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architectural Decision Trees</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d0d1a; color: #e2e8f0; min-height: 100vh; }
+  h1 { text-align: center; font-size: 1.6rem; font-weight: 800; padding: 2rem 1rem 0.5rem; background: linear-gradient(135deg, #fb923c, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .subtitle { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+  .section { max-width: 1100px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: #fb923c; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 1px solid #3f1f0a; text-transform: uppercase; letter-spacing: 0.05em; }
+  svg text { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .note-box { background: #1a0f05; border: 1px solid #7c2d12; border-radius: 0.75rem; padding: 1rem 1.5rem; margin-top: 1rem; font-size: 0.85rem; line-height: 1.6; color: #fed7aa; }
+  .note-box strong { color: #fb923c; }
+</style>
+</head>
+<body>
+<h1>Architectural Decision Trees</h1>
+<p class="subtitle">Domain 3, 4, 1 — Task Statements 3.4, 4.5, 1.6</p>
+
+<!-- Decision Tree 1: Plan Mode vs Direct Execution -->
+<div class="section">
+  <div class="section-title">Decision Tree 1: Plan Mode vs Direct Execution (TS 3.4)</div>
+  <svg viewBox="0 0 900 420" width="100%" style="max-width:900px;display:block;margin:0 auto">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+      </marker>
+      <marker id="arr-y" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+      </marker>
+      <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+      </marker>
+      <marker id="arr-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#60a5fa"/>
+      </marker>
+    </defs>
+
+    <!-- START -->
+    <ellipse cx="450" cy="35" rx="80" ry="22" fill="#1e1b4b" stroke="#7c3aed" stroke-width="2"/>
+    <text x="450" y="40" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">New Task</text>
+
+    <!-- Q1: Is scope clear? -->
+    <line x1="450" y1="57" x2="450" y2="92" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <polygon points="450,92 510,120 450,148 390,120" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="450" y="116" text-anchor="middle" fill="#93c5fd" font-size="10">Is scope clear</text>
+    <text x="450" y="130" text-anchor="middle" fill="#93c5fd" font-size="10">and bounded?</text>
+
+    <!-- YES → Q2 -->
+    <line x1="510" y1="120" x2="620" y2="120" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr-g)"/>
+    <text x="565" y="113" fill="#10b981" font-size="10">YES</text>
+
+    <!-- NO → Plan mode branch -->
+    <line x1="450" y1="148" x2="450" y2="183" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="460" y="170" fill="#ef4444" font-size="10">NO</text>
+
+    <!-- Q2: Multiple files? -->
+    <polygon points="700,98 780,120 700,142 620,120" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="700" y="116" text-anchor="middle" fill="#93c5fd" font-size="10">Multiple files</text>
+    <text x="700" y="130" text-anchor="middle" fill="#93c5fd" font-size="10">or arch. decisions?</text>
+
+    <!-- YES → Plan Mode -->
+    <line x1="700" y1="142" x2="700" y2="183" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="712" y="168" fill="#ef4444" font-size="10">YES</text>
+    <rect x="630" y="183" width="140" height="55" rx="10" fill="#1a0f05" stroke="#fb923c" stroke-width="2"/>
+    <text x="700" y="206" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="700">PLAN MODE</text>
+    <text x="700" y="223" text-anchor="middle" fill="#d97706" font-size="9">Explore first, then execute</text>
+    <text x="700" y="234" text-anchor="middle" fill="#92400e" font-size="9">Safe architecture design</text>
+
+    <!-- NO → Direct Execution -->
+    <line x1="700" y1="120" x2="830" y2="120" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr-g)"/>
+    <text x="765" y="113" fill="#10b981" font-size="10">NO</text>
+    <rect x="820" y="98" width="60" height="44" rx="8" fill="#031a0e" stroke="#10b981" stroke-width="2"/>
+    <text x="850" y="117" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">DIRECT</text>
+    <text x="850" y="131" text-anchor="middle" fill="#059669" font-size="9">EXECUTE</text>
+
+    <!-- From Q1 NO: Is it exploratory? -->
+    <polygon points="450,183 530,208 450,233 370,208" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="450" y="204" text-anchor="middle" fill="#93c5fd" font-size="10">Open-ended or</text>
+    <text x="450" y="218" text-anchor="middle" fill="#93c5fd" font-size="10">exploratory?</text>
+
+    <!-- YES → Dynamic Decomposition -->
+    <line x1="530" y1="208" x2="610" y2="208" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr-y)"/>
+    <text x="570" y="201" fill="#f59e0b" font-size="10">YES</text>
+    <rect x="610" y="185" width="160" height="55" rx="10" fill="#1c1502" stroke="#f59e0b" stroke-width="2"/>
+    <text x="690" y="205" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">DYNAMIC</text>
+    <text x="690" y="219" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">DECOMPOSITION</text>
+    <text x="690" y="233" text-anchor="middle" fill="#d97706" font-size="9">Adapt as you discover</text>
+
+    <!-- NO → Prompt Chaining -->
+    <line x1="450" y1="233" x2="450" y2="268" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr-b)"/>
+    <text x="460" y="255" fill="#60a5fa" font-size="10">NO</text>
+    <rect x="370" y="268" width="160" height="55" rx="10" fill="#0a1628" stroke="#3b82f6" stroke-width="2"/>
+    <text x="450" y="290" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">PROMPT CHAINING</text>
+    <text x="450" y="307" text-anchor="middle" fill="#3b82f6" font-size="9">Predictable multi-step</text>
+    <text x="450" y="318" text-anchor="middle" fill="#1d4ed8" font-size="9">Fixed sequential pipeline</text>
+
+    <!-- Examples boxes -->
+    <rect x="20" y="340" width="200" height="70" rx="8" fill="#031a0e" stroke="#10b981" stroke-width="1"/>
+    <text x="120" y="358" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">Direct Execute: Good For</text>
+    <text x="120" y="374" text-anchor="middle" fill="#64748b" font-size="9">Single-file bug with stack trace</text>
+    <text x="120" y="388" text-anchor="middle" fill="#64748b" font-size="9">Adding one validation check</text>
+    <text x="120" y="402" text-anchor="middle" fill="#64748b" font-size="9">Clear, well-scoped change</text>
+
+    <rect x="240" y="340" width="200" height="70" rx="8" fill="#1a0f05" stroke="#fb923c" stroke-width="1"/>
+    <text x="340" y="358" text-anchor="middle" fill="#fb923c" font-size="10" font-weight="700">Plan Mode: Good For</text>
+    <text x="340" y="374" text-anchor="middle" fill="#64748b" font-size="9">Microservice restructuring</text>
+    <text x="340" y="388" text-anchor="middle" fill="#64748b" font-size="9">Library migration (45+ files)</text>
+    <text x="340" y="402" text-anchor="middle" fill="#64748b" font-size="9">Multiple valid approaches</text>
+
+    <rect x="460" y="340" width="200" height="70" rx="8" fill="#1c1502" stroke="#f59e0b" stroke-width="1"/>
+    <text x="560" y="358" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Dynamic: Good For</text>
+    <text x="560" y="374" text-anchor="middle" fill="#64748b" font-size="9">"Add tests to legacy codebase"</text>
+    <text x="560" y="388" text-anchor="middle" fill="#64748b" font-size="9">Unknown structure upfront</text>
+    <text x="560" y="402" text-anchor="middle" fill="#64748b" font-size="9">Adapts as dependencies found</text>
+
+    <rect x="680" y="340" width="200" height="70" rx="8" fill="#0a1628" stroke="#3b82f6" stroke-width="1"/>
+    <text x="780" y="358" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">Chaining: Good For</text>
+    <text x="780" y="374" text-anchor="middle" fill="#64748b" font-size="9">Per-file review + integration pass</text>
+    <text x="780" y="388" text-anchor="middle" fill="#64748b" font-size="9">Predictable sequential review</text>
+    <text x="780" y="402" text-anchor="middle" fill="#64748b" font-size="9">Known steps, known order</text>
+  </svg>
+</div>
+
+<!-- Decision Tree 2: Batch vs Sync API -->
+<div class="section">
+  <div class="section-title">Decision Tree 2: Batch vs Synchronous API (TS 4.5)</div>
+  <svg viewBox="0 0 900 320" width="100%" style="max-width:900px;display:block;margin:0 auto">
+    <!-- START -->
+    <ellipse cx="450" cy="35" rx="100" ry="22" fill="#1e1b4b" stroke="#7c3aed" stroke-width="2"/>
+    <text x="450" y="40" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">Processing Task</text>
+
+    <!-- Q1: Latency-sensitive? -->
+    <line x1="450" y1="57" x2="450" y2="92" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <polygon points="450,92 540,120 450,148 360,120" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="450" y="113" text-anchor="middle" fill="#93c5fd" font-size="10">Is latency</text>
+    <text x="450" y="128" text-anchor="middle" fill="#93c5fd" font-size="10">acceptable?</text>
+    <text x="450" y="142" text-anchor="middle" fill="#60a5fa" font-size="9">(Up to 24 hours OK?)</text>
+
+    <!-- YES (latency OK) → Q2 -->
+    <line x1="360" y1="120" x2="260" y2="120" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr-g)"/>
+    <text x="315" y="113" fill="#10b981" font-size="10">YES</text>
+
+    <!-- NO (needs fast) → Sync -->
+    <line x1="540" y1="120" x2="640" y2="120" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="590" y="113" fill="#ef4444" font-size="10">NO</text>
+
+    <!-- Q2: Needs multi-turn tools? -->
+    <polygon points="220,95 300,120 220,145 140,120" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="220" y="114" text-anchor="middle" fill="#93c5fd" font-size="10">Needs mid-request</text>
+    <text x="220" y="128" text-anchor="middle" fill="#93c5fd" font-size="10">tool calling?</text>
+
+    <!-- YES → Sync -->
+    <line x1="220" y1="145" x2="220" y2="185" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="232" y="170" fill="#ef4444" font-size="10">YES</text>
+
+    <!-- NO → Batch -->
+    <line x1="140" y1="120" x2="60" y2="120" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr-g)"/>
+    <text x="100" y="113" fill="#10b981" font-size="10">NO</text>
+
+    <!-- BATCH API -->
+    <rect x="20" y="142" width="140" height="90" rx="10" fill="#031a0e" stroke="#10b981" stroke-width="2"/>
+    <text x="90" y="165" text-anchor="middle" fill="#10b981" font-size="12" font-weight="800">BATCH API</text>
+    <text x="90" y="183" text-anchor="middle" fill="#059669" font-size="9">50% cost savings</text>
+    <text x="90" y="197" text-anchor="middle" fill="#059669" font-size="9">Up to 24hr window</text>
+    <text x="90" y="211" text-anchor="middle" fill="#064e3b" font-size="9">No latency guarantee</text>
+    <text x="90" y="222" text-anchor="middle" fill="#064e3b" font-size="9">Use custom_id fields</text>
+
+    <!-- SYNC API -->
+    <rect x="640" y="95" width="160" height="100" rx="10" fill="#0a1628" stroke="#3b82f6" stroke-width="2"/>
+    <text x="720" y="120" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="800">SYNC API</text>
+    <text x="720" y="138" text-anchor="middle" fill="#3b82f6" font-size="9">Immediate response</text>
+    <text x="720" y="152" text-anchor="middle" fill="#3b82f6" font-size="9">Blocking workflows</text>
+    <text x="720" y="166" text-anchor="middle" fill="#3b82f6" font-size="9">Multi-turn tool calling</text>
+    <text x="720" y="180" text-anchor="middle" fill="#1d4ed8" font-size="9">Pre-merge CI checks</text>
+
+    <!-- Use case examples -->
+    <text x="90" y="260" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">Best For:</text>
+    <text x="90" y="278" text-anchor="middle" fill="#64748b" font-size="9">Nightly test generation</text>
+    <text x="90" y="292" text-anchor="middle" fill="#64748b" font-size="9">Weekly compliance audits</text>
+    <text x="90" y="306" text-anchor="middle" fill="#64748b" font-size="9">Overnight doc processing</text>
+
+    <text x="720" y="220" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">Best For:</text>
+    <text x="720" y="238" text-anchor="middle" fill="#64748b" font-size="9">Pre-merge code review</text>
+    <text x="720" y="252" text-anchor="middle" fill="#64748b" font-size="9">Interactive customer agent</text>
+    <text x="720" y="266" text-anchor="middle" fill="#64748b" font-size="9">Real-time extraction</text>
+
+    <!-- Sync from Q2 yes -->
+    <line x1="220" y1="185" x2="640" y2="145" stroke="#ef4444" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+
+    <!-- Batch SLA note -->
+    <rect x="200" y="240" width="380" height="60" rx="8" fill="#0c1a2e" stroke="#1d4ed8" stroke-width="1"/>
+    <text x="390" y="258" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">SLA Calculation Example</text>
+    <text x="390" y="274" text-anchor="middle" fill="#94a3b8" font-size="9">30-hour SLA → submit every 6 hours</text>
+    <text x="390" y="288" text-anchor="middle" fill="#94a3b8" font-size="9">(30h SLA - 24h batch max = 6h window between submissions)</text>
+  </svg>
+</div>
+
+<!-- Decision Tree 3: Predictable vs Dynamic Workflows -->
+<div class="section">
+  <div class="section-title">Decision Tree 3: Prompt Chaining vs Dynamic Decomposition (TS 1.6)</div>
+  <svg viewBox="0 0 900 300" width="100%" style="max-width:900px;display:block;margin:0 auto">
+    <!-- START -->
+    <ellipse cx="450" cy="35" rx="110" ry="22" fill="#1e1b4b" stroke="#7c3aed" stroke-width="2"/>
+    <text x="450" y="40" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">Complex Workflow Design</text>
+
+    <!-- Q1 -->
+    <line x1="450" y1="57" x2="450" y2="92" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <polygon points="450,92 555,125 450,158 345,125" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="450" y="118" text-anchor="middle" fill="#93c5fd" font-size="10">Is the workflow</text>
+    <text x="450" y="133" text-anchor="middle" fill="#93c5fd" font-size="10">predictable upfront?</text>
+    <text x="450" y="147" text-anchor="middle" fill="#60a5fa" font-size="9">(Steps known before starting?)</text>
+
+    <!-- YES → Chaining -->
+    <line x1="555" y1="125" x2="660" y2="125" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr-g)"/>
+    <text x="607" y="118" fill="#10b981" font-size="10">YES</text>
+
+    <!-- NO → Q2 -->
+    <line x1="345" y1="125" x2="240" y2="125" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="298" y="118" fill="#ef4444" font-size="10">NO</text>
+
+    <!-- Q2: Multi-concern? -->
+    <polygon points="200,100 290,125 200,150 110,125" fill="#1e293b" stroke="#60a5fa" stroke-width="2"/>
+    <text x="200" y="119" text-anchor="middle" fill="#93c5fd" font-size="10">Findings drive</text>
+    <text x="200" y="133" text-anchor="middle" fill="#93c5fd" font-size="10">next steps?</text>
+
+    <!-- YES → Dynamic -->
+    <line x1="110" y1="125" x2="30" y2="125" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr-y)"/>
+    <text x="75" y="118" fill="#f59e0b" font-size="10">YES</text>
+    <rect x="20" y="165" width="155" height="80" rx="10" fill="#1c1502" stroke="#f59e0b" stroke-width="2"/>
+    <text x="97" y="186" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">DYNAMIC</text>
+    <text x="97" y="201" text-anchor="middle" fill="#f59e0b" font-size="10">DECOMPOSITION</text>
+    <text x="97" y="219" text-anchor="middle" fill="#d97706" font-size="9">Subtasks generated from</text>
+    <text x="97" y="231" text-anchor="middle" fill="#d97706" font-size="9">intermediate findings</text>
+
+    <!-- NO from Q2 → Simple -->
+    <line x1="200" y1="150" x2="200" y2="190" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr-b)"/>
+    <text x="212" y="175" fill="#60a5fa" font-size="10">NO</text>
+    <rect x="120" y="190" width="160" height="70" rx="10" fill="#0a1628" stroke="#3b82f6" stroke-width="2"/>
+    <text x="200" y="210" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">FIXED PIPELINE</text>
+    <text x="200" y="228" text-anchor="middle" fill="#3b82f6" font-size="9">Parallel independent tasks</text>
+    <text x="200" y="243" text-anchor="middle" fill="#1d4ed8" font-size="9">then aggregation pass</text>
+
+    <!-- CHAINING box -->
+    <rect x="660" y="95" width="210" height="80" rx="10" fill="#0a1628" stroke="#3b82f6" stroke-width="2"/>
+    <text x="765" y="118" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">PROMPT CHAINING</text>
+    <text x="765" y="136" text-anchor="middle" fill="#3b82f6" font-size="9">Predictable multi-step sequence</text>
+    <text x="765" y="150" text-anchor="middle" fill="#3b82f6" font-size="9">e.g.: analyze each file →</text>
+    <text x="765" y="164" text-anchor="middle" fill="#3b82f6" font-size="9">cross-file integration pass</text>
+
+    <!-- Example comparison -->
+    <rect x="240" y="230" width="640" height="55" rx="8" fill="#0c1020" stroke="#334155" stroke-width="1"/>
+    <text x="300" y="248" fill="#10b981" font-size="10" font-weight="700">Chaining Example:</text>
+    <text x="300" y="262" fill="#64748b" font-size="9">Code review: analyze each file individually → run cross-file integration pass</text>
+    <text x="300" y="278" fill="#f59e0b" font-size="9" font-weight="700" dy="0">Dynamic Example:</text>
+    <text x="430" y="278" fill="#64748b" font-size="9"> "Add tests to codebase" → map structure → identify gaps → create adaptive plan</text>
+  </svg>
+
+  <div class="note-box">
+    <strong>Key Distinction:</strong> Prompt chaining is for <em>predictable</em> workflows where you know the steps before you start (code review, report generation). Dynamic decomposition is for <em>open-ended</em> tasks where the right subtasks emerge from what you discover (codebase exploration, legacy system analysis).
+  </div>
+</div>
+
+</body>
+</html>

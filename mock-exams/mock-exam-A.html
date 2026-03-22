@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock Exam A – Claude Certified Architect Foundations</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;min-height:100vh}
+#exam-header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.3)}
+#exam-header h1{font-size:1.1rem;font-weight:600;letter-spacing:.5px}
+#timer-box{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:8px 18px;font-size:1.3rem;font-weight:700;font-family:monospace;letter-spacing:2px;min-width:90px;text-align:center}
+#timer-box.warning{background:rgba(255,100,0,0.3);border-color:#ff6400;color:#ff6400;animation:pulse 1s infinite}
+#timer-box.danger{background:rgba(220,0,0,0.3);border-color:#dc0000;color:#ff4444;animation:pulse .5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+#header-right{display:flex;align-items:center;gap:12px}
+#progress-text{font-size:.85rem;opacity:.8}
+#submit-btn{background:#e94560;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s}
+#submit-btn:hover{background:#c73652;transform:translateY(-1px)}
+#main-layout{display:flex;max-width:1400px;margin:0 auto;padding:24px;gap:20px}
+#sidebar{width:260px;flex-shrink:0}
+#sidebar-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.08);position:sticky;top:80px}
+#sidebar-card h3{font-size:.85rem;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+#q-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px}
+.q-btn{width:100%;aspect-ratio:1;border:2px solid #e0e0e0;border-radius:6px;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.q-btn:hover{border-color:#0f3460;color:#0f3460}
+.q-btn.answered{background:#e3f2fd;border-color:#1976d2;color:#1976d2}
+.q-btn.flagged{background:#fff3cd;border-color:#f57c00;color:#f57c00}
+.q-btn.current{background:#0f3460;border-color:#0f3460;color:#fff}
+.q-btn.correct{background:#e8f5e9;border-color:#388e3c;color:#388e3c}
+.q-btn.incorrect{background:#ffebee;border-color:#c62828;color:#c62828}
+#sidebar-legend{display:flex;flex-direction:column;gap:6px;font-size:.75rem;color:#555}
+.legend-item{display:flex;align-items:center;gap:8px}
+.legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+#content-area{flex:1;min-width:0}
+.scenario-header{background:linear-gradient(135deg,#1a1a2e,#0f3460);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.scenario-header h2{font-size:1rem;color:#a8c7fa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.scenario-header p{font-size:.95rem;line-height:1.6;opacity:.9}
+.question-card{background:#fff;border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-left:4px solid #e0e0e0;transition:border-color .2s}
+.question-card.current{border-left-color:#0f3460}
+.question-card.answered{border-left-color:#1976d2}
+.question-card.flagged{border-left-color:#f57c00}
+.question-card.correct{border-left-color:#388e3c}
+.question-card.incorrect{border-left-color:#c62828}
+.q-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.q-number{font-size:.8rem;font-weight:700;color:#0f3460;text-transform:uppercase;letter-spacing:.5px}
+.q-tags{display:flex;gap:6px;flex-wrap:wrap}
+.q-tag{font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:600}
+.tag-domain{background:#e3f2fd;color:#1565c0}
+.tag-diff-easy{background:#e8f5e9;color:#2e7d32}
+.tag-diff-medium{background:#fff8e1;color:#e65100}
+.tag-diff-hard{background:#fce4ec;color:#880e4f}
+.q-stem{font-size:1rem;line-height:1.65;color:#1a1a2e;margin-bottom:16px;font-weight:500}
+.q-context{font-size:.9rem;line-height:1.6;color:#444;margin-bottom:14px;padding:12px 16px;background:#f8f9fa;border-radius:8px;border-left:3px solid #a8c7fa}
+.options-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.option-item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border:2px solid #e8e8e8;border-radius:8px;cursor:pointer;transition:all .15s;font-size:.93rem;line-height:1.5}
+.option-item:hover{border-color:#0f3460;background:#f5f7ff}
+.option-item input[type=radio]{margin-top:2px;flex-shrink:0;accent-color:#0f3460;width:16px;height:16px;cursor:pointer}
+.option-item.selected{border-color:#1976d2;background:#e3f2fd}
+.option-item.correct-answer{border-color:#388e3c!important;background:#e8f5e9!important}
+.option-item.wrong-selected{border-color:#c62828!important;background:#ffebee!important}
+.option-letter{font-weight:700;color:#0f3460;min-width:18px}
+.q-footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.flag-btn{background:none;border:1px solid #f57c00;color:#f57c00;border-radius:6px;padding:6px 14px;font-size:.8rem;cursor:pointer;font-weight:600;transition:all .2s}
+.flag-btn:hover,.flag-btn.active{background:#f57c00;color:#fff}
+.explanation-box{margin-top:14px;padding:16px;border-radius:8px;font-size:.88rem;line-height:1.6;display:none}
+.explanation-box.show{display:block}
+.explanation-box.correct-exp{background:#e8f5e9;border:1px solid #a5d6a7}
+.explanation-box.incorrect-exp{background:#ffebee;border:1px solid #ef9a9a}
+.exp-title{font-weight:700;margin-bottom:6px}
+.exp-correct-label{color:#2e7d32}
+.exp-wrong-label{color:#c62828}
+#results-screen{display:none;max-width:900px;margin:0 auto;padding:24px}
+.results-card{background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:20px}
+.results-header{text-align:center;margin-bottom:32px}
+.results-header h2{font-size:1.8rem;margin-bottom:8px;color:#1a1a2e}
+.score-circle{width:140px;height:140px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 16px;font-weight:700;border:6px solid}
+.score-circle.pass{border-color:#388e3c;background:#e8f5e9;color:#2e7d32}
+.score-circle.fail{border-color:#c62828;background:#ffebee;color:#c62828}
+.score-number{font-size:2rem}
+.score-label{font-size:.8rem;opacity:.8}
+.pass-fail-badge{display:inline-block;padding:6px 24px;border-radius:20px;font-weight:700;font-size:1rem;margin-bottom:8px}
+.pass-badge{background:#e8f5e9;color:#2e7d32;border:2px solid #388e3c}
+.fail-badge{background:#ffebee;color:#c62828;border:2px solid #c62828}
+.domain-bars h3{font-size:1rem;font-weight:700;margin-bottom:16px;color:#1a1a2e}
+.domain-row{margin-bottom:14px}
+.domain-row-header{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px}
+.domain-name{font-weight:600;color:#1a1a2e}
+.domain-pct{font-weight:700}
+.bar-bg{background:#f0f2f5;border-radius:4px;height:10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.bar-fill.good{background:#388e3c}
+.bar-fill.mid{background:#f57c00}
+.bar-fill.low{background:#c62828}
+.scenario-breakdown{margin-top:24px}
+.scenario-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f2f5;font-size:.9rem}
+.heatmap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:12px}
+.heatmap-item{padding:10px 14px;border-radius:8px;font-size:.82rem}
+.heatmap-item.weak{background:#ffebee;border-left:3px solid #c62828}
+.heatmap-item.ok{background:#fff8e1;border-left:3px solid #f57c00}
+.heatmap-item.strong{background:#e8f5e9;border-left:3px solid #388e3c}
+.study-next{background:#f0f4ff;border-radius:12px;padding:20px;margin-top:16px}
+.study-next h3{color:#0f3460;margin-bottom:12px}
+.study-next ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+.study-next li{padding:8px 12px;background:#fff;border-radius:6px;font-size:.88rem;border-left:3px solid #0f3460}
+.results-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.action-btn{padding:12px 24px;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:#0f3460;color:#fff}
+.btn-primary:hover{background:#1a5276;transform:translateY(-1px)}
+.btn-secondary{background:#fff;color:#0f3460;border:2px solid #0f3460}
+.btn-secondary:hover{background:#f0f4ff}
+.btn-danger{background:#e94560;color:#fff}
+.btn-danger:hover{background:#c73652}
+#retry-mode-banner{background:#fff3cd;border:1px solid #f57c00;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:.88rem;color:#7a4f00;display:none}
+#config-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:center;justify-content:center}
+#config-modal.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.modal-box h2{margin-bottom:8px;color:#1a1a2e}
+.modal-box p{font-size:.9rem;color:#555;margin-bottom:24px}
+.modal-field label{display:block;font-size:.85rem;font-weight:600;color:#555;margin-bottom:6px}
+.modal-field input{width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:1rem;margin-bottom:16px}
+.modal-actions{display:flex;gap:12px;justify-content:flex-end}
+@media(max-width:768px){#main-layout{flex-direction:column;padding:12px}#sidebar{width:100%}#sidebar-card{position:static}#exam-header h1{font-size:.9rem}}
+</style>
+</head>
+<body>
+
+<div id="config-modal" class="show">
+  <div class="modal-box">
+    <h2>Mock Exam A</h2>
+    <p>Scenarios: Customer Support (S1), Code Generation (S2), Multi-Agent Research (S3), CI/CD (S5)<br>50 questions &bull; Calibrated to real exam difficulty</p>
+    <div class="modal-field">
+      <label>Timer Duration (minutes)</label>
+      <input type="number" id="timer-input" value="90" min="10" max="180">
+    </div>
+    <div class="modal-actions">
+      <button class="action-btn btn-primary" onclick="startExam()">Start Exam</button>
+    </div>
+  </div>
+</div>
+
+<div id="exam-ui" style="display:none">
+  <div id="exam-header">
+    <h1>Mock Exam A &mdash; Claude Certified Architect: Foundations</h1>
+    <div id="header-right">
+      <span id="progress-text">0 / 50 answered</span>
+      <div id="timer-box">90:00</div>
+      <button id="submit-btn" onclick="confirmSubmit()">Submit Exam</button>
+    </div>
+  </div>
+
+  <div id="main-layout">
+    <div id="sidebar">
+      <div id="sidebar-card">
+        <h3>Question Navigator</h3>
+        <div id="q-grid"></div>
+        <div id="sidebar-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1px solid #1976d2"></div> Answered</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#fff3cd;border:1px solid #f57c00"></div> Flagged</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#fff;border:1px solid #ccc"></div> Unanswered</div>
+        </div>
+      </div>
+    </div>
+    <div id="content-area"></div>
+  </div>
+</div>
+
+<div id="results-screen"></div>
+
+<script>
+const QUESTIONS = [
+  // ===== SCENARIO 1: Customer Support Resolution Agent (Q1-13) =====
+  {
+    id:1, scenario:1, domain:'D1', taskStatement:'1.4', difficulty:'Medium',
+    context:'Your customer support agent (built with the Claude Agent SDK) sometimes processes refunds before completing the mandatory identity verification step. Production logs show that in 8% of cases, process_refund is called without a prior successful get_customer call.',
+    stem:'What is the most architecturally sound approach to guarantee the correct tool call order?',
+    options:[
+      'Add a PostToolUse hook that checks whether get_customer was previously called and cancels process_refund if not',
+      'Implement a programmatic prerequisite gate that blocks process_refund from being invoked until get_customer has returned a verified customer ID',
+      'Update the system prompt to emphasize that customer verification is always required before processing any refund',
+      'Add a PreToolUse hook that logs every tool call sequence and sends an alert when process_refund is called out of order'
+    ],
+    correct:1,
+    explanations:[
+      'A PostToolUse hook fires after the tool call, which means the refund has already occurred. This is the wrong hook event for prevention.',
+      'CORRECT. A programmatic prerequisite gate is the only approach that provides deterministic enforcement — it makes it architecturally impossible to call process_refund without a verified customer ID, regardless of LLM behavior.',
+      'Prompt-based guidance has a non-zero failure rate. Production data (8% failure) already demonstrates that prompt instructions alone are insufficient for this business-critical requirement.',
+      'Logging and alerting detects violations after the fact but does not prevent them. This is monitoring, not enforcement.'
+    ]
+  },
+  {
+    id:2, scenario:1, domain:'D1', taskStatement:'1.5', difficulty:'Medium',
+    context:'Your customer support agent calls multiple MCP backend tools that return dates in different formats: the orders database returns Unix timestamps (1711929600), the billing system returns ISO 8601 strings ("2024-04-01T00:00:00Z"), and the CRM returns human-readable strings ("April 1, 2024"). The agent frequently confuses these and makes incorrect date comparisons.',
+    stem:'Which hook pattern is best suited to normalize these date formats before the agent processes them?',
+    options:[
+      'A PreToolUse hook that intercepts each tool call and standardizes the request parameters before they are sent',
+      'A PostToolUse hook that intercepts tool results and converts all date formats to a single canonical format before the agent processes them',
+      'Update each MCP tool description to document the date format it returns, so the agent knows how to interpret each one',
+      'Add a date normalization system prompt instruction telling the agent how to convert between formats'
+    ],
+    correct:1,
+    explanations:[
+      'A PreToolUse hook fires before the tool executes and can inspect/modify the call parameters. However, date format normalization is about processing the output (result), not the input.',
+      'CORRECT. A PostToolUse hook fires after the tool returns results. It can intercept the raw tool result and transform date formats to a single canonical representation before the model processes them — this is the documented pattern for data normalization.',
+      'Documenting formats helps the agent understand, but relies on the model to correctly parse and compare heterogeneous formats in its reasoning — which is exactly what is failing.',
+      'Asking the agent to internally convert formats is probabilistic and adds cognitive load. The hook approach handles this deterministically at the infrastructure level.'
+    ]
+  },
+  {
+    id:3, scenario:1, domain:'D2', taskStatement:'2.2', difficulty:'Hard',
+    context:'Your customer support agent calls process_refund and occasionally receives a failure. The current error response is simply: {"error": "Operation failed"}. When this occurs, the agent apologizes to the customer and says it cannot process the refund, even when the failure was a transient network timeout that could be safely retried.',
+    stem:'What structured error response design would best enable the agent to make appropriate recovery decisions?',
+    options:[
+      'Return HTTP status codes (503 for transient, 400 for validation, 403 for permission) and let the agent infer the recovery action from the code',
+      'Return an error object with errorCategory (transient/validation/permission/business), isRetryable boolean, and a human-readable description',
+      'Return a verbose error log with full stack trace and database error codes so the agent has maximum diagnostic information',
+      'Catch all errors in the MCP server and convert them to success responses with an "error_note" field to avoid raising exceptions'
+    ],
+    correct:1,
+    explanations:[
+      'HTTP status codes were not designed for agent decision-making. Agents cannot reliably infer nuanced recovery decisions from numeric codes, and the MCP protocol uses its own error signaling (isError flag) rather than HTTP semantics.',
+      'CORRECT. This is the documented MCP error pattern. errorCategory tells the agent what kind of failure occurred, isRetryable tells it whether to attempt a retry, and the human-readable description allows the agent to communicate appropriately with the customer.',
+      'Stack traces and database error codes are debugging information for developers, not decision-making context for agents. Exposing internal error details also raises security concerns.',
+      'Converting errors to success responses makes the agent believe the operation succeeded. The agent cannot make recovery decisions if it does not know an error occurred.'
+    ]
+  },
+  {
+    id:4, scenario:1, domain:'D5', taskStatement:'5.1', difficulty:'Medium',
+    context:'Your customer support agent handles complex multi-issue cases. During a long conversation about a return, billing dispute, and account access issue, the agent correctly identifies all three problems early in the conversation. However, by the time it synthesizes a resolution, it has lost track of the specific amounts mentioned and provides vague responses like "we will process a refund for the relevant amount."',
+    stem:'What context management technique best preserves transactional precision across a long support session?',
+    options:[
+      'Summarize the conversation every 5 turns to keep the context window manageable, compressing older content',
+      'Extract transactional facts (amounts, order numbers, dates, statuses) into a persistent "case facts" block that is included verbatim in each subsequent prompt outside the summarized history',
+      'Use progressive summarization to compress the conversation, ensuring dates and amounts are mentioned in the summary',
+      'Instruct the agent in the system prompt to always re-read the earliest messages before giving a final answer'
+    ],
+    correct:1,
+    explanations:[
+      'Summarization risks compressing or losing specific numerical values and stated expectations. The exam guide explicitly identifies this as a progressive summarization risk.',
+      'CORRECT. Extracting transactional facts into a persistent structured block that lives outside the summarized history ensures critical specifics (exact amounts, order IDs, dates) are always in context. This is the recommended pattern for customer support agents.',
+      'Progressive summarization, even when done carefully, risks losing precision. The problem statement says amounts are lost during compression — summarization does not solve the root cause.',
+      'Instructing the agent to re-read earlier messages relies on model compliance and does not guarantee the information is still in context if the conversation has been truncated.'
+    ]
+  },
+  {
+    id:5, scenario:1, domain:'D5', taskStatement:'5.2', difficulty:'Easy',
+    context:'A customer messages: "I am furious! I have been waiting 3 weeks for my replacement and nobody helps me. I DEMAND to speak with a human right now." Your agent is configured with a 70% confidence threshold for escalation. The confidence scoring suggests the agent can resolve the replacement — it is a standard case fully within policy.',
+    stem:'What is the correct escalation behavior?',
+    options:[
+      'Assess whether the replacement case is within standard policy; if so, resolve it autonomously since the agent is capable',
+      'Acknowledge the customer\'s frustration, offer to resolve the replacement immediately, and escalate only if the customer reiterates their demand for a human',
+      'Honor the explicit request for a human agent immediately without first attempting to investigate or offer a resolution',
+      'Escalate based on the negative sentiment detected, triggering the escalation workflow'
+    ],
+    correct:2,
+    explanations:[
+      'Even if the case is technically resolvable, overriding an explicit customer request for human assistance violates the customer\'s stated preference and erodes trust.',
+      'This is the correct approach for frustrated customers who have not explicitly demanded a human — acknowledge frustration and offer resolution. However, this customer explicitly demanded human assistance, making option C the correct response.',
+      'CORRECT. When a customer explicitly requests a human agent, the correct behavior is immediate escalation without first attempting to investigate or resolve. Explicit human requests must be honored immediately per the exam guide\'s escalation protocol.',
+      'Sentiment-based escalation is identified as unreliable. The correct trigger here is the explicit verbal demand, not the sentiment score.'
+    ]
+  },
+  {
+    id:6, scenario:1, domain:'D1', taskStatement:'1.2', difficulty:'Hard',
+    context:'Your customer support agent receives: "My last three orders have all had problems. Order #1001 had wrong items, #1002 arrived damaged, and #1003 never showed up. I need all three resolved today." The agent calls lookup_order(#1001), reads the result, then calls lookup_order(#1002), then lookup_order(#1003) — three sequential round-trips to the coordinator.',
+    stem:'What orchestration improvement would most reduce latency for multi-issue requests?',
+    options:[
+      'Have the coordinator batch all three lookup_order calls into a single API request using the Message Batches API',
+      'Instruct the agent to accumulate all required information before making any tool calls, then call all three lookup_order tools in a single coordinator response to enable parallel execution',
+      'Create a lookup_multiple_orders tool that accepts a list of order IDs and returns all results in a single call',
+      'Have the coordinator spawn three separate subagents, one for each order, and run them sequentially to manage resource usage'
+    ],
+    correct:1,
+    explanations:[
+      'The Message Batches API is designed for asynchronous, latency-tolerant workloads. It has up to 24-hour processing time and does not support multi-turn tool use — entirely inappropriate for real-time customer support.',
+      'CORRECT. Emitting multiple Task tool calls (or multiple tool calls for parallel tools) in a single coordinator response enables parallel execution. The exam guide explicitly states that parallel subagents are spawned by emitting multiple Task calls in a single response.',
+      'Creating a new tool is a valid engineering approach but requires backend changes and is not the recommended first step when the orchestration pattern itself can be improved.',
+      'Sequential subagents provide no latency benefit. Parallel subagents would help, but the question says "spawned sequentially" — and even parallel spawning via subagents adds overhead vs. direct parallel tool calls.'
+    ]
+  },
+  {
+    id:7, scenario:1, domain:'D2', taskStatement:'2.1', difficulty:'Medium',
+    context:'Your agent has two tools: get_customer (description: "Retrieves customer data") and lookup_account (description: "Retrieves account information"). Production logs show the agent calls get_customer for account inquiries and lookup_account for customer profile requests about 30% of the time.',
+    stem:'What is the most effective first step to fix this tool selection confusion?',
+    options:[
+      'Consolidate both tools into a single get_entity tool that accepts any identifier and internally routes to the correct backend',
+      'Expand each tool\'s description to include the specific identifier types it accepts, example queries that should trigger it, and explicit boundary conditions explaining when to use it versus the other tool',
+      'Add few-shot examples to the system prompt showing 5-10 correct tool selections for representative queries',
+      'Implement a pre-processing router that analyzes user input and pre-selects the tool before the main agent processes the request'
+    ],
+    correct:1,
+    explanations:[
+      'Consolidation is a valid architectural option but requires more effort and changes the API surface. The exam guide identifies description quality as the root cause for tool confusion — fix the root cause first.',
+      'CORRECT. Tool descriptions are the primary mechanism LLMs use for tool selection. Expanding descriptions with specific inputs, example queries, and explicit boundaries directly addresses the root cause of the 30% misrouting rate.',
+      'Few-shot examples add value but address symptoms rather than the root cause. The exam guide explicitly states tool descriptions are the primary mechanism — descriptions should be fixed first.',
+      'A pre-processing router adds architectural complexity and bypasses the LLM\'s natural language understanding. This is the "over-engineering" trap when a description update would suffice.'
+    ]
+  },
+  {
+    id:8, scenario:1, domain:'D1', taskStatement:'1.4', difficulty:'Hard',
+    context:'Your customer support agent is escalating a complex billing dispute to a human agent. The human agent has no access to the conversation transcript and must understand the situation from scratch. Currently the agent just says "Escalating to human support" with no additional context.',
+    stem:'What should a well-designed escalation handoff include?',
+    options:[
+      'The full raw conversation transcript, all tool call logs, and all API responses so the human agent has complete information',
+      'A structured summary containing: customer ID, verified contact info, root cause analysis, actions attempted, amount in dispute, and recommended next action',
+      'A confidence score indicating how difficult the case is, and a list of the tools that were called during the session',
+      'A natural language summary of what the customer said, written from the customer\'s perspective'
+    ],
+    correct:1,
+    explanations:[
+      'Full conversation transcripts are verbose and time-consuming for human agents to parse. The exam guide specifically calls out that human agents lack access to the transcript and need a structured summary.',
+      'CORRECT. The exam guide explicitly describes structured handoff summaries as including: customer ID, root cause analysis, refund amount, and recommended action. This is the documented pattern for escalation to humans who lack context.',
+      'Confidence scores and tool call logs are debugging information, not actionable context for human agents. The human needs to understand what happened and what to do, not how confident the AI was.',
+      'A customer-perspective narrative lacks the structured factual data (IDs, amounts, root cause) that human agents need to act quickly and accurately.'
+    ]
+  },
+  {
+    id:9, scenario:1, domain:'D2', taskStatement:'2.4', difficulty:'Easy',
+    context:'Your team is building a customer support agent and has integrated three MCP servers: a CRM system, an orders database, and a payment processor. A new developer clones the repository and reports that the MCP tools are not available in their Claude Code session, even though they are available for all other team members.',
+    stem:'What is the most likely cause?',
+    options:[
+      'The MCP servers require a restart of Claude Code after cloning, which the developer has not done',
+      'The MCP servers are configured in ~/.claude.json (user-level) on the senior developer\'s machine, not in the project-level .mcp.json file, so they are not shared via version control',
+      'The new developer does not have the necessary system permissions to connect to the MCP servers',
+      'MCP server configurations must be manually approved by each user before they become active'
+    ],
+    correct:1,
+    explanations:[
+      'Restarting Claude Code is a troubleshooting step, but it would not explain why other team members have access while the new developer does not. This points to a configuration scoping issue.',
+      'CORRECT. Project-level MCP servers go in .mcp.json (committed to the repository). User-level servers go in ~/.claude.json and are NOT shared via version control. If servers are in user-level config, new team members will not get them when they clone.',
+      'Permission issues would typically manifest as connection errors, not absence of tools. The scenario describes tools being completely absent, suggesting a configuration scoping problem.',
+      'MCP server configurations do not require per-user manual approval in the standard Claude Code workflow. They are automatically available based on configuration files.'
+    ]
+  },
+  {
+    id:10, scenario:1, domain:'D5', taskStatement:'5.3', difficulty:'Hard',
+    context:'Your multi-tool customer support agent calls three MCP tools in sequence for a complex case. The second tool (lookup_order) times out. The current implementation catches the timeout and returns an empty array [] as if no orders were found, then continues processing.',
+    stem:'Why is silently returning an empty result dangerous, and what is the correct approach?',
+    options:[
+      'Returning an empty array is fine because the agent will ask the customer for order details if none are found',
+      'Silently returning empty results masks the access failure as a "no records" outcome, preventing the agent from making appropriate recovery decisions. Return structured error context with the failure type, attempted query, and suggested alternatives',
+      'The agent should immediately escalate to a human when any tool call fails, since it cannot guarantee a complete resolution',
+      'The empty array should be accompanied by a warning flag that the agent can check to determine whether the result is genuine or an error'
+    ],
+    correct:1,
+    explanations:[
+      'The agent proceeding under the assumption of "no orders found" when orders actually exist but were inaccessible is a data accuracy problem that could lead to incorrect resolutions.',
+      'CORRECT. The exam guide explicitly identifies "returning empty results as success" as an anti-pattern. It masks access failures as valid empty results, preventing the coordinator from making informed recovery decisions (retry, alternative query, partial results with caveats).',
+      'Immediate escalation on any tool failure is excessive and eliminates the possibility of recovery. Structured error context enables the coordinator to decide whether to retry, use alternatives, or escalate.',
+      'A warning flag is better than silent failure but is not the documented pattern. The structured error object with errorCategory and isRetryable is the correct approach.'
+    ]
+  },
+  {
+    id:11, scenario:1, domain:'D1', taskStatement:'1.1', difficulty:'Medium',
+    context:'You are reviewing an agentic loop implementation for a customer support agent. The loop code checks if the model\'s response contains the text "I have completed the request" and, if found, terminates the loop. The developer argues this is equivalent to checking stop_reason.',
+    stem:'Why is this approach problematic?',
+    options:[
+      'The phrase "I have completed the request" may appear in the middle of a multi-step response, causing premature termination',
+      'Checking for natural language completion signals in assistant text content is an anti-pattern: it is unreliable, locale-dependent, and bypasses the authoritative stop_reason mechanism that correctly signals end_turn vs tool_use',
+      'This would work correctly but is inefficient because string matching adds processing overhead',
+      'The model never includes completion phrases when it still has tool calls to make, so this approach would fail to terminate the loop when it should'
+    ],
+    correct:1,
+    explanations:[
+      'While premature termination is a risk, this is not the fundamental problem. The issue is architectural: using text parsing instead of the authoritative stop_reason signal.',
+      'CORRECT. The exam guide explicitly lists parsing natural language signals for loop termination as an anti-pattern. stop_reason is the authoritative, programmatic mechanism: "tool_use" means continue, "end_turn" means stop. Text parsing is unreliable, can be spoofed by user input, and violates the documented API contract.',
+      'This approach is not "correct but inefficient" — it is architecturally wrong and will produce incorrect behavior in edge cases.',
+      'Actually the opposite is a concern — the model may include completion phrases even when it still has tool results to process, causing incorrect early termination.'
+    ]
+  },
+  {
+    id:12, scenario:1, domain:'D2', taskStatement:'2.3', difficulty:'Medium',
+    context:'Your customer support coordinator agent currently has access to 22 tools: all CRM operations, all order management tools, all billing tools, all shipping tools, and all escalation tools. You notice the agent occasionally calls the wrong tool category for a given request type.',
+    stem:'What tool distribution approach would most reduce misuse?',
+    options:[
+      'Add detailed routing instructions to the system prompt specifying which tools to use for each request category',
+      'Give each agent access only to the tools relevant to its specific role, keeping the total tool count to 4-5 per agent, and route complex multi-category requests through a coordinator',
+      'Create a mega-tool that wraps all 22 operations and uses internal routing logic to call the appropriate backend',
+      'Sort the tools alphabetically and document them comprehensively so the agent can reliably find the right one'
+    ],
+    correct:1,
+    explanations:[
+      'Routing instructions in system prompts are probabilistic. With 22 tools, the decision complexity still degrades selection reliability regardless of instructions.',
+      'CORRECT. The exam guide states that giving an agent too many tools (e.g., 18 instead of 4-5) degrades tool selection reliability. The solution is scoped tool access: each agent gets only the tools needed for its role.',
+      'A mega-tool violates the principle of clear tool boundaries and single-responsibility. The routing logic becomes a hidden complexity that is harder to maintain and debug.',
+      'Alphabetical sorting and documentation do not address the fundamental problem of decision complexity from having too many options.'
+    ]
+  },
+  {
+    id:13, scenario:1, domain:'D1', taskStatement:'1.7', difficulty:'Medium',
+    context:'A customer support investigation session named "acme-corp-dispute" was started yesterday, but several relevant orders were updated overnight. A developer wants to resume the session to continue the investigation.',
+    stem:'What is the most reliable approach to continuing this investigation?',
+    options:[
+      'Run claude --resume acme-corp-dispute and then tell the agent which files or records have changed since the last session, so it can re-analyze only those changes',
+      'Always start a fresh new session, because resumed sessions never work correctly after data changes',
+      'Run claude --resume acme-corp-dispute without any additional context, since the session state is fully preserved',
+      'Export the session transcript, inject it into a new session as context, and instruct the agent to treat it as background knowledge'
+    ],
+    correct:0,
+    explanations:[
+      'CORRECT. --resume with the session name continues the named session (valid prior context) while informing the agent about specific data changes since the last session enables targeted re-analysis without full re-exploration. This is the documented pattern for session resumption after changes.',
+      'The exam guide explicitly states that sessions can be resumed productively when the prior context is mostly valid. Starting fresh is the right choice only when prior tool results are stale, not just when some data has changed.',
+      'Resuming without informing the agent about changes means it may reason based on stale tool results — the exam guide identifies this as a reliability problem.',
+      'This is the approach for when prior tool results are stale enough to warrant a fresh start with an injected summary. For targeted changes, resuming with change notifications is more efficient.'
+    ]
+  },
+
+  // ===== SCENARIO 2: Code Generation with Claude Code (Q14-26) =====
+  {
+    id:14, scenario:2, domain:'D3', taskStatement:'3.2', difficulty:'Easy',
+    context:'Your team wants to share a /deploy-staging skill that runs the standard deployment checklist before staging deployments. This skill should be available to all developers without requiring any manual setup after cloning the repository.',
+    stem:'Where should this skill file be created?',
+    options:[
+      'In ~/.claude/skills/ in each developer\'s home directory',
+      'In .claude/skills/ in the project repository root',
+      'In the root CLAUDE.md file as a skill definition block',
+      'In .claude/commands/ as a markdown file'
+    ],
+    correct:1,
+    explanations:[
+      '~/.claude/skills/ is for personal skills scoped to the individual user. These are NOT shared via version control and require manual setup by each developer.',
+      'CORRECT. .claude/skills/ in the project repository is version-controlled. All developers get the skill automatically when they clone or pull. This is the documented location for team-shared skills.',
+      'CLAUDE.md is for instructions and context, not skill definitions. Skill definitions have their own SKILL.md frontmatter format and belong in the skills directory.',
+      '.claude/commands/ is for slash commands (prompt-based workflows). Skills (.claude/skills/) support additional frontmatter like context: fork and allowed-tools that commands do not have.'
+    ]
+  },
+  {
+    id:15, scenario:2, domain:'D3', taskStatement:'3.2', difficulty:'Medium',
+    context:'Your team has created a /analyze-codebase skill that performs an extensive analysis of the entire codebase, reading hundreds of files and generating detailed commentary. Developers report that after running this skill, their main Claude Code session is cluttered with all the analysis output, and subsequent normal development tasks feel slower.',
+    stem:'Which skill frontmatter option would prevent the skill\'s output from polluting the main conversation context?',
+    options:[
+      'allowed-tools: [] to restrict the skill from using any tools',
+      'context: fork to run the skill in an isolated sub-agent context, returning only a summary to the main session',
+      'argument-hint: "optional" to make the skill run asynchronously without blocking the session',
+      'max-tokens: 500 to limit the output that appears in the main session'
+    ],
+    correct:1,
+    explanations:[
+      'allowed-tools: [] would prevent the skill from calling any tools, making it unable to read files — this would break the skill entirely.',
+      'CORRECT. context: fork runs the skill as an isolated sub-agent. The verbose analysis output stays in the forked context and does not appear in the main conversation. Only the summary/result is returned to the main session.',
+      'argument-hint provides a prompt to the user when the skill is invoked without arguments. It has nothing to do with context isolation or asynchronous execution.',
+      'max-tokens is not a SKILL.md frontmatter field. Even if it were, limiting output tokens would truncate results rather than isolating them from the main context.'
+    ]
+  },
+  {
+    id:16, scenario:2, domain:'D3', taskStatement:'3.1', difficulty:'Medium',
+    context:'A new team member clones the repository and reports that Claude Code is not applying the team\'s coding standards, even though other team members see them consistently applied. Investigation reveals that the project lead configured the standards in their personal ~/.claude/CLAUDE.md rather than in the project repository.',
+    stem:'What is the correct fix and why does this matter?',
+    options:[
+      'Have each developer manually copy the instructions from the lead\'s ~/.claude/CLAUDE.md to their own ~/.claude/CLAUDE.md',
+      'Move the coding standards from ~/.claude/CLAUDE.md to the project-level .claude/CLAUDE.md or root CLAUDE.md, where they will be shared via version control',
+      'Add the standards to .claude/config.json so they are applied at the project level',
+      'Ask each developer to run /memory load to import the project lead\'s configuration'
+    ],
+    correct:1,
+    explanations:[
+      'Manual copying is error-prone, does not scale, and would need to be repeated each time standards are updated. This contradicts the purpose of version control.',
+      'CORRECT. User-level ~/.claude/CLAUDE.md applies only to that user and is not version-controlled. Project-level CLAUDE.md (at the project root or in .claude/) is committed to the repository and shared automatically with all developers.',
+      '.claude/config.json is not a documented Claude Code configuration file for coding standards. Standards belong in CLAUDE.md files.',
+      '/memory load is for viewing which memory files are loaded, not for importing another user\'s configuration. User-level settings cannot be shared this way.'
+    ]
+  },
+  {
+    id:17, scenario:2, domain:'D3', taskStatement:'3.3', difficulty:'Medium',
+    context:'Your project has React components using functional style with hooks, Python API handlers with specific error handling patterns, and infrastructure Terraform files. Each has distinct conventions. The test files follow a single convention regardless of what they test and are spread throughout the codebase (e.g., Button.test.tsx next to Button.tsx, api_handler_test.py next to api_handler.py).',
+    stem:'What is the most maintainable configuration approach for the test file conventions?',
+    options:[
+      'Create a CLAUDE.md file in each test directory documenting the test conventions for that area',
+      'Add all conventions to the root CLAUDE.md under separate headers for each file type and let Claude infer which applies',
+      'Create a .claude/rules/testing.md file with YAML frontmatter paths: ["**/*.test.*", "**/*_test.py"] so the test conventions load automatically for all test files regardless of directory location',
+      'Create a .claude/skills/test-helper.md skill that developers invoke manually before writing tests'
+    ],
+    correct:2,
+    explanations:[
+      'Test files are spread throughout the codebase, so directory-level CLAUDE.md files would need to be placed in every directory containing tests — this does not scale.',
+      'Consolidating all conventions in root CLAUDE.md means all conventions load for every file, causing irrelevant context and token waste. It also relies on Claude to infer which section applies, which is unreliable.',
+      'CORRECT. .claude/rules/ files with YAML frontmatter glob patterns are the designed solution for conventions that must apply to files by type across the entire codebase, regardless of directory location. The pattern **/*.test.* covers all test files in any directory.',
+      'Requiring manual skill invocation does not "automatically" apply conventions. The question specifically asks for automatic application based on file paths.'
+    ]
+  },
+  {
+    id:18, scenario:2, domain:'D3', taskStatement:'3.4', difficulty:'Easy',
+    context:'A developer has a clear stack trace showing that a null pointer exception occurs in a specific function (line 47 of user_service.py). They know exactly what needs to change and the fix is isolated to that one function.',
+    stem:'Should the developer use plan mode or direct execution?',
+    options:[
+      'Plan mode, because all code changes should be reviewed before execution',
+      'Direct execution, because this is a well-scoped, single-file fix with a clear root cause',
+      'Plan mode, because null pointer exceptions indicate architectural issues',
+      'Direct execution only if the file is under 100 lines long'
+    ],
+    correct:1,
+    explanations:[
+      'Plan mode is designed for complex tasks with multiple valid approaches and architectural decisions. A single-file bug fix with a clear stack trace and known root cause does not meet this threshold.',
+      'CORRECT. The exam guide explicitly lists "a single-file bug fix with a clear stack trace" as a canonical example of when direct execution is appropriate. Plan mode adds overhead without benefit when the task is well-scoped.',
+      'A null pointer exception in a specific line does not inherently indicate architectural issues. Assuming so without evidence would lead to over-engineering.',
+      'File length is not a criterion for choosing plan mode vs direct execution. Complexity, scope, and the number of valid approaches are the relevant factors.'
+    ]
+  },
+  {
+    id:19, scenario:2, domain:'D3', taskStatement:'3.4', difficulty:'Medium',
+    context:'You need to migrate your team\'s authentication library from Auth0 to Okta. This affects 45+ files across the codebase and requires decisions about session token handling, middleware integration approach, and rollback strategy.',
+    stem:'What is the correct approach for this task?',
+    options:[
+      'Use direct execution with comprehensive upfront instructions, since you know the target library',
+      'Start with direct execution to understand the scope, then switch to plan mode once complexity becomes apparent',
+      'Use plan mode to explore the codebase, understand the full scope, and design the migration approach before making any changes',
+      'Delegate to a subagent that will execute the migration in one pass to avoid context fragmentation'
+    ],
+    correct:2,
+    explanations:[
+      'Even with knowledge of the target library, the complexity (45+ files, multiple architectural decisions) warrants exploration before execution. Direct execution risks costly rework when dependencies are discovered mid-migration.',
+      'The exam guide states that for this kind of task, complexity is already known from the requirements — you should not start with direct execution and wait for complexity to emerge.',
+      'CORRECT. The exam guide explicitly lists "library migrations affecting 45+ files" as a canonical example for plan mode. Multiple valid approaches (migration strategies, session handling options), architectural decisions, and large-scale changes all indicate plan mode.',
+      'A single subagent pass without planning is risky for a 45+ file migration. Subagents are for specific isolated tasks, not full architectural migrations without prior planning.'
+    ]
+  },
+  {
+    id:20, scenario:2, domain:'D3', taskStatement:'3.5', difficulty:'Medium',
+    context:'You\'ve asked Claude Code to refactor a data transformation function. You\'ve described the desired behavior in natural language three times with different wording, but each implementation produces slightly different edge case handling. The function should handle: empty arrays (return []), null values in the array (skip them), and nested arrays (flatten one level).',
+    stem:'What is the most effective way to achieve consistent behavior?',
+    options:[
+      'Add more detailed natural language descriptions of the expected behavior for each edge case',
+      'Provide 3-4 concrete input/output examples: show what the function should return for [], [1, null, 2], and [[1,2], 3, [4]] specifically',
+      'Ask Claude to first write tests for the function before implementing it',
+      'Iterate by having Claude re-implement the function five times and selecting the best version'
+    ],
+    correct:1,
+    explanations:[
+      'More natural language description has already been tried three times with inconsistent results. The exam guide explicitly states that concrete examples are more effective than prose when natural language produces inconsistency.',
+      'CORRECT. The exam guide identifies concrete input/output examples as "the most effective way to communicate expected transformations when prose descriptions are interpreted inconsistently." This directly addresses the stated problem.',
+      'Test-driven iteration (option C) is also a valid technique from the exam guide, but it is not listed as an option here in its pure form. Providing examples is the most direct fix for "prose produces inconsistent results."',
+      'Iterating without new information just produces more inconsistency. Without changing the input to the model, outputs will continue to vary.'
+    ]
+  },
+  {
+    id:21, scenario:2, domain:'D3', taskStatement:'3.6', difficulty:'Easy',
+    context:'You are setting up a GitHub Actions workflow that runs Claude Code to review pull requests for security issues. The job runs claude "Review PR #$PR_NUMBER for security vulnerabilities" but the job frequently hangs indefinitely in CI.',
+    stem:'What flag prevents Claude Code from waiting for interactive input in an automated pipeline?',
+    options:[
+      '--no-interactive',
+      '--headless',
+      '-p (or --print)',
+      '--batch'
+    ],
+    correct:2,
+    explanations:[
+      '--no-interactive is not a documented Claude Code flag. It does not exist in the CLI.',
+      '--headless is not a documented Claude Code flag. The exam guide explicitly identifies "CLAUDE_HEADLESS environment variable" as a non-existent feature.',
+      'CORRECT. The -p (or --print) flag is the documented way to run Claude Code in non-interactive mode. It processes the prompt and outputs the result to stdout without waiting for user input.',
+      '--batch is not a documented Claude Code flag. The exam guide sample question (Q10) explicitly identifies --batch as a non-existent option.'
+    ]
+  },
+  {
+    id:22, scenario:2, domain:'D3', taskStatement:'3.6', difficulty:'Medium',
+    context:'Your CI pipeline generates code review findings as free-form text. You need to programmatically parse these findings to post them as inline GitHub PR comments. The parsing logic frequently breaks when the AI changes its output format.',
+    stem:'What is the correct approach to produce machine-parseable output from Claude Code in CI?',
+    options:[
+      'Add "respond only in JSON" to the prompt and parse the response with a JSON parser',
+      'Use --output-format json with --json-schema to enforce a defined schema and produce structured output that downstream tools can reliably parse',
+      'Use regular expressions to extract structured data from the free-form text output',
+      'Set the CLAUDE_OUTPUT=json environment variable before running Claude Code'
+    ],
+    correct:1,
+    explanations:[
+      'Prompt-based JSON requests are not guaranteed. The model may still include preamble text, explanations, or formatting that breaks JSON parsing.',
+      'CORRECT. The exam guide explicitly lists --output-format json with --json-schema as the documented CLI flags for producing machine-parseable structured output in CI contexts. This enforces schema compliance at the framework level.',
+      'Regular expressions applied to free-form text are fragile. This is exactly the problem being solved, not a solution to it.',
+      'CLAUDE_OUTPUT is not a documented environment variable for Claude Code. Using --output-format json is the correct documented approach.'
+    ]
+  },
+  {
+    id:23, scenario:2, domain:'D3', taskStatement:'3.1', difficulty:'Hard',
+    context:'You have a large monorepo with packages in packages/frontend/, packages/backend/, packages/ml-pipeline/, and packages/infra/. Each package has different maintainers and different coding standards. The root CLAUDE.md is becoming an unmaintainable 800-line file. Each package maintainer wants to manage only their own standards.',
+    stem:'What is the most maintainable approach for a large monorepo with package-specific standards?',
+    options:[
+      'Use a single root CLAUDE.md with section headers for each package, and instruct Claude to infer the relevant section',
+      'Have each package maintainer create a CLAUDE.md in their package directory (packages/frontend/CLAUDE.md, etc.) with @import to pull in shared cross-package standards from a centralized file',
+      'Create skills for each package that maintainers must invoke manually before working in that package',
+      'Add all package standards to a single .claude/rules/all-packages.md with no path scoping'
+    ],
+    correct:1,
+    explanations:[
+      'A single 800-line root CLAUDE.md is what the scenario is trying to solve. This approach does not scale and relies on inference rather than explicit scoping.',
+      'CORRECT. Directory-level CLAUDE.md files allow each package maintainer to own their standards. The @import syntax enables pulling in shared cross-package rules, keeping things DRY while maintaining clear ownership boundaries.',
+      'Manual skill invocation is error-prone (developers may forget to invoke them) and does not provide automatic context loading when editing files in a package.',
+      'An unscoped rules file in .claude/rules/ would load all package standards regardless of which package is being edited, negating the purpose of separation.'
+    ]
+  },
+  {
+    id:24, scenario:2, domain:'D3', taskStatement:'3.5', difficulty:'Hard',
+    context:'You are developing a caching layer for a microservice. You describe the requirements to Claude Code and get an implementation. The implementation is mostly correct but has incorrect cache invalidation logic. You also notice the cache key generation does not handle Unicode characters correctly.',
+    stem:'How should you provide feedback to efficiently fix both issues?',
+    options:[
+      'Fix the cache invalidation issue first in one message, then address the Unicode issue in a separate follow-up message',
+      'Provide both issues in a single detailed message, since the cache key (which generates the key) and cache invalidation (which checks the key) interact — fixing one may affect the other',
+      'Ask Claude to regenerate the entire caching layer from scratch with better requirements',
+      'Accept the current implementation for cache invalidation since it is "mostly correct" and only fix the Unicode issue'
+    ],
+    correct:1,
+    explanations:[
+      'Sequential iteration is appropriate for independent issues. However, cache key generation and cache invalidation are coupled: the invalidation logic checks keys generated by the key generation function. Fixing them independently could introduce inconsistency.',
+      'CORRECT. The exam guide states: when issues interact, provide all issues in a single detailed message. Cache key generation and invalidation are tightly coupled — a fix to one must be consistent with the other.',
+      'Regenerating from scratch discards correct code and is disproportionate to the scope of the issues. The exam guide recommends targeted correction, not wholesale regeneration.',
+      'Accepting incorrect behavior in production code is not advisable. Both issues should be addressed.'
+    ]
+  },
+  {
+    id:25, scenario:2, domain:'D4', taskStatement:'4.6', difficulty:'Hard',
+    context:'Your CI pipeline uses Claude Code to generate unit tests for new pull request code. You have observed that when Claude generates tests and then reviews those same tests for quality in the same session, it rates all tests as high-quality even when they have obvious gaps like no edge case coverage.',
+    stem:'Why does this happen and what is the correct architectural solution?',
+    options:[
+      'Increase the temperature setting to make the review more creative and less biased toward confirming its own output',
+      'Use a second independent Claude Code instance to review the generated tests without access to the generation session\'s reasoning context',
+      'Instruct the test generator in the system prompt to also critique its own output before finalization',
+      'Run the tests against the code and only submit test suites that achieve 100% line coverage'
+    ],
+    correct:1,
+    explanations:[
+      'Temperature affects randomness, not self-confirmation bias. The exam guide identifies the cause as retained reasoning context, not insufficient randomness.',
+      'CORRECT. The exam guide explicitly states: "a model retains reasoning context from generation, making it less likely to question its own decisions in the same session." The solution is an independent review instance without access to the generator\'s reasoning context.',
+      'Asking the generator to self-critique in the same session is exactly what the exam guide identifies as ineffective — the same reasoning context bias applies.',
+      'Running tests for coverage metrics is a good practice but does not address the quality review problem. 100% line coverage can be achieved with low-quality, fragile tests.'
+    ]
+  },
+  {
+    id:26, scenario:2, domain:'D4', taskStatement:'4.1', difficulty:'Medium',
+    context:'Your CI pipeline Claude Code review flags 40% of PRs as having "style inconsistencies." Developer surveys show 70% of these flags are for patterns that are acceptable local conventions in specific modules. Developers are starting to ignore all review feedback, including legitimate bugs.',
+    stem:'What is the most effective prompt engineering approach to reduce false positives?',
+    options:[
+      'Add "only report high-confidence findings" to the review prompt',
+      'Add "be conservative in your feedback" to the review prompt',
+      'Define explicit categorical criteria specifying which issue types to report (bugs, security vulnerabilities) versus skip (local style patterns, naming preferences that match the file\'s existing conventions)',
+      'Lower the review frequency to reduce developer fatigue from false positives'
+    ],
+    correct:2,
+    explanations:[
+      'The exam guide explicitly states that general instructions like "only report high-confidence findings" fail to improve precision compared to specific categorical criteria.',
+      'The exam guide explicitly states that "be conservative" is a general instruction that does not improve precision. The model has no calibrated definition of "conservative."',
+      'CORRECT. The exam guide states that specific categorical criteria (which issue types to report vs. skip) are more effective than confidence-based filtering. Explicit rules like "skip local patterns, report bugs and security issues" give the model clear actionable boundaries.',
+      'Reducing frequency does not fix the underlying quality problem. Developers will still encounter the same false positive rate when reviews do run.'
+    ]
+  },
+
+  // ===== SCENARIO 3: Multi-Agent Research System (Q27-39) =====
+  {
+    id:27, scenario:3, domain:'D1', taskStatement:'1.2', difficulty:'Easy',
+    context:'Your multi-agent research system has a coordinator agent and four specialized subagents: WebSearchAgent, DocumentAnalysisAgent, SynthesisAgent, and ReportGeneratorAgent. The SynthesisAgent directly messages the WebSearchAgent to request additional data when it needs more information, bypassing the coordinator.',
+    stem:'Why is direct subagent-to-subagent communication an architectural problem?',
+    options:[
+      'It creates performance overhead because messages must travel an extra network hop between agents',
+      'It bypasses the coordinator\'s observability, error handling, and information routing functions, violating the hub-and-spoke pattern and creating uncoordinated state changes',
+      'Subagents cannot technically communicate directly due to API limitations, so this is a theoretical concern',
+      'It creates circular dependencies only if the DocumentAnalysisAgent also messages the WebSearchAgent'
+    ],
+    correct:1,
+    explanations:[
+      'Network overhead is not the architectural concern. The hub-and-spoke pattern\'s value is not about performance.',
+      'CORRECT. The exam guide states: "All subagent communication must route through the coordinator for observability, consistent error handling, and controlled information flow." Direct subagent communication means the coordinator has no visibility into what happened, cannot handle errors consistently, and loses control of information routing.',
+      'Subagents can technically communicate if given the right tools. The exam is testing architectural judgment about whether they should, not whether they can.',
+      'Circular dependencies are a separate concern. The core issue is bypassing the coordinator regardless of which subagents communicate.'
+    ]
+  },
+  {
+    id:28, scenario:3, domain:'D1', taskStatement:'1.3', difficulty:'Medium',
+    context:'Your coordinator needs to run WebSearchAgent and DocumentAnalysisAgent simultaneously to reduce latency. Currently, it invokes them in sequence: calls WebSearchAgent, waits for results, then calls DocumentAnalysisAgent.',
+    stem:'What is the correct implementation for parallel subagent execution?',
+    options:[
+      'Have the coordinator call WebSearchAgent in a background thread and DocumentAnalysisAgent in the main thread',
+      'Emit both Task tool calls for WebSearchAgent and DocumentAnalysisAgent in a single coordinator response, rather than in separate turns',
+      'Set parallel: true in the AgentDefinition configuration for both subagents',
+      'Have the coordinator send the same message to both agents using a broadcast mechanism'
+    ],
+    correct:1,
+    explanations:[
+      'Threading within the coordinator is an implementation detail at the application level. The documented mechanism for parallel execution in the Agent SDK is multiple Task calls in one response.',
+      'CORRECT. The exam guide explicitly states: "Spawning parallel subagents by emitting multiple Task tool calls in a single coordinator response rather than across separate turns." This is the documented parallelization mechanism.',
+      'parallel: true is not a documented AgentDefinition configuration field. Parallelism is achieved through the Task tool call pattern, not a configuration flag.',
+      'A broadcast mechanism is not the documented approach. Each Task tool call is directed to a specific subagent type.'
+    ]
+  },
+  {
+    id:29, scenario:3, domain:'D1', taskStatement:'1.3', difficulty:'Hard',
+    context:'Your synthesis subagent needs information from both the web search and document analysis phases to do its work. The coordinator passes only the search query to the synthesis agent, expecting it to know the prior results.',
+    stem:'Why does the synthesis agent produce incomplete output, and what is the correct context passing approach?',
+    options:[
+      'The synthesis agent needs a higher API tier to process more complex reasoning tasks',
+      'Subagents do not automatically inherit the coordinator\'s conversation history. The coordinator must explicitly include complete findings from prior agents directly in the synthesis agent\'s prompt',
+      'The synthesis agent needs access to the same tools as the web search agent so it can retrieve data independently',
+      'The coordinator should store findings in a shared database that all subagents can query independently'
+    ],
+    correct:1,
+    explanations:[
+      'API tier does not affect context inheritance. The problem is architectural, not performance-related.',
+      'CORRECT. The exam guide is explicit: "subagents do not automatically inherit parent context or share memory between invocations." The coordinator must include complete findings from prior agents directly in the synthesis agent\'s prompt.',
+      'Giving the synthesis agent web search capabilities violates role separation and would require it to re-do work already completed. The correct solution is context passing, not tool duplication.',
+      'While a shared database is a valid engineering pattern in some architectures, the exam guide\'s documented approach is explicit context passing in the prompt, not implicit shared state.'
+    ]
+  },
+  {
+    id:30, scenario:3, domain:'D2', taskStatement:'2.1', difficulty:'Medium',
+    context:'Your research system has two tools: analyze_content (description: "Analyzes content") and analyze_document (description: "Analyzes documents"). Both accept similar inputs. Logs show the WebSearchAgent calls analyze_document when it should call analyze_content, and vice versa.',
+    stem:'What is the root cause and best fix?',
+    options:[
+      'The tool names are too similar; rename them to have completely different names that do not share words',
+      'The near-identical, minimal descriptions fail to differentiate the tools. Rewrite descriptions to specify the exact input types each tool expects, example use cases, and explicit boundaries explaining when to use one versus the other',
+      'Add routing logic that parses each agent\'s request and pre-selects the correct tool before the agent processes it',
+      'Consolidate both tools into a single analyze_anything tool to eliminate the selection problem'
+    ],
+    correct:1,
+    explanations:[
+      'Renaming alone without improving descriptions does not solve the problem. The issue is insufficient description quality, not the names themselves.',
+      'CORRECT. The exam guide explicitly discusses analyze_content vs analyze_document as an example of ambiguous overlapping descriptions causing misrouting. The fix is expanding descriptions with specific inputs, example queries, and boundary explanations.',
+      'A routing layer adds complexity and bypasses the LLM\'s natural language understanding — an over-engineering trap when description improvement would suffice.',
+      'Consolidation eliminates the selection problem but creates a single mega-tool that may be harder to maintain and may conflate distinct operations with different performance characteristics.'
+    ]
+  },
+  {
+    id:31, scenario:3, domain:'D5', taskStatement:'5.6', difficulty:'Hard',
+    context:'Your research synthesis agent combines findings from multiple sources. One source says "AI investment grew 45% in 2023" and another says "AI investment grew 23% in 2023." Both are credible publications. The synthesis agent currently picks one number and presents it as fact without noting the discrepancy.',
+    stem:'How should the synthesis agent correctly handle conflicting statistics from credible sources?',
+    options:[
+      'Average the two values and report "AI investment grew approximately 34% in 2023"',
+      'Choose the more conservative (lower) value to avoid overstating growth',
+      'Include both values with source attribution, explicitly annotate the conflict, and note possible methodological differences (different measurement periods, categories, or geographic scope)',
+      'Flag the entire report section as "unverified" and exclude it from the final synthesis'
+    ],
+    correct:2,
+    explanations:[
+      'Averaging conflicting data is statistically invalid. The values may measure different things, making arithmetic combination meaningless.',
+      'Conservative value selection is an arbitrary editorial decision that presents false precision and hides relevant information from the reader.',
+      'CORRECT. The exam guide states: "handle conflicting statistics from credible sources by annotating conflicts with source attribution rather than arbitrarily selecting one value." The reader deserves both data points and context for the discrepancy.',
+      'Excluding contested data means the final report is incomplete. The correct approach is to include the data while being transparent about the conflict.'
+    ]
+  },
+  {
+    id:32, scenario:3, domain:'D5', taskStatement:'5.6', difficulty:'Medium',
+    context:'Your document analysis subagent summarizes research papers and returns the summaries to the coordinator for synthesis. After synthesis, the final report contains claims but no indication of which papers they came from.',
+    stem:'What structural change would best preserve source attribution through the synthesis pipeline?',
+    options:[
+      'Add a bibliography section to the final report listing all papers that were analyzed',
+      'Require the document analysis subagent to output structured claim-source mappings — each finding paired with source document, relevant excerpt, and page/section reference — and require synthesis to preserve these mappings',
+      'Have the coordinator review the synthesis output and manually look up source papers for each claim',
+      'Include the full text of all analyzed papers in the synthesis prompt so it can reconstruct citations'
+    ],
+    correct:1,
+    explanations:[
+      'A bibliography lists sources but does not preserve the claim-to-source relationship. Readers cannot tell which specific claim came from which source.',
+      'CORRECT. The exam guide describes structured claim-source mappings as the solution to provenance loss. Each finding must carry its source metadata through every processing step. The synthesis agent must preserve (not discard) these mappings when combining findings.',
+      'Having the coordinator manually look up sources is error-prone, does not scale, and adds significant human effort that could be automated.',
+      'Including full paper texts consumes excessive context window and does not solve the structural problem. The synthesis agent would still need to extract and attribute claims correctly.'
+    ]
+  },
+  {
+    id:33, scenario:3, domain:'D1', taskStatement:'1.6', difficulty:'Medium',
+    context:'Your coordinator agent always decomposes research tasks into the same four steps: web search, document analysis, synthesis, report generation — in that order, regardless of the research topic. For a simple factual question with a definitive answer, it still runs all four steps.',
+    stem:'What decomposition improvement would make the coordinator more efficient?',
+    options:[
+      'Add a fifth step for quality verification to ensure all four steps were completed correctly',
+      'Have the coordinator analyze the query requirements first and dynamically select which subagents to invoke rather than always routing through the full pipeline',
+      'Run all four steps in parallel to reduce total latency regardless of topic complexity',
+      'Add a caching layer so repeated queries reuse prior step outputs'
+    ],
+    correct:1,
+    explanations:[
+      'Adding a verification step maintains the inefficiency of always running all steps and adds more overhead.',
+      'CORRECT. The exam guide states: "designing coordinator agents that analyze query requirements and dynamically select which subagents to invoke rather than always routing through the full pipeline." Not every query needs all four steps.',
+      'Running steps in parallel is a latency optimization but still performs unnecessary work. The fundamental issue is running steps that are not needed for a given query.',
+      'Caching helps with repeated queries but does not address the inefficiency of running unnecessary steps for new queries.'
+    ]
+  },
+  {
+    id:34, scenario:3, domain:'D2', taskStatement:'2.2', difficulty:'Medium',
+    context:'The WebSearchAgent encounters a timeout while fetching a result. It is unclear to the coordinator whether: (a) the search returned zero results, or (b) the search failed before any results were retrieved.',
+    stem:'Why is it important to distinguish these two cases and how should the error be structured?',
+    options:[
+      'They are functionally equivalent because in both cases the coordinator receives no data',
+      'A timeout (access failure) means the coordinator should consider retrying or using an alternative source. A genuine empty result means no documents exist and retrying is wasteful. Return structured error context distinguishing failure type from valid empty results',
+      'The coordinator should retry in both cases to maximize result coverage',
+      'The distinction only matters if the coordinator is tracking query completion statistics'
+    ],
+    correct:1,
+    explanations:[
+      'Functionally they appear the same (no data), but the recovery implications are completely different.',
+      'CORRECT. The exam guide explicitly distinguishes "access failures (needing retry decisions)" from "valid empty results (successful queries with no matches)." Conflating them leads to wasted retries on genuine no-result queries and missed opportunities to recover from failures.',
+      'Retrying genuine empty results wastes API costs and quota. Intelligent retry decisions require knowing whether the failure was an access problem or a genuine absence of data.',
+      'The distinction is operationally critical, not just for statistics. It directly affects whether the coordinator should retry, seek alternatives, or accept the absence of data.'
+    ]
+  },
+  {
+    id:35, scenario:3, domain:'D5', taskStatement:'5.4', difficulty:'Hard',
+    context:'Your research coordinator agent is 4 hours into exploring a large document corpus. The context window is filling up with verbose tool outputs. The agent starts giving inconsistent answers, sometimes referencing "typical patterns" instead of specific documents it analyzed earlier.',
+    stem:'What two techniques should be combined to address this degradation?',
+    options:[
+      'Restart the entire research session from scratch to avoid context degradation',
+      'Use /compact to reduce context usage and have the coordinator maintain scratchpad files recording key findings that can be referenced across context boundaries',
+      'Increase max_tokens to give the agent more context to work with',
+      'Switch to a model with a larger context window'
+    ],
+    correct:1,
+    explanations:[
+      'Restarting loses all research progress made in 4 hours. This is the wrong choice when techniques exist to manage context degradation while preserving work.',
+      'CORRECT. The exam guide recommends both: (1) /compact to reduce context usage during extended exploration, and (2) scratchpad files that persist key findings across context boundaries, allowing the agent to reference specific findings even after context compression.',
+      'max_tokens controls output length, not context window capacity. Increasing it does not solve context degradation.',
+      'Switching models interrupts the session and may not be feasible mid-task. The session management techniques (/compact + scratchpad files) are the in-session solutions.'
+    ]
+  },
+  {
+    id:36, scenario:3, domain:'D1', taskStatement:'1.5', difficulty:'Hard',
+    context:'Your research system has a business rule: no research report should include claims from sources older than 5 years (to ensure relevance). Currently, this rule is enforced via system prompt instruction, but 15% of reports still include outdated claims.',
+    stem:'What change would provide a deterministic guarantee against outdated source inclusion?',
+    options:[
+      'Add more emphatic language to the system prompt: "NEVER include sources older than 5 years"',
+      'Add a few-shot example in the system prompt demonstrating correct exclusion of outdated sources',
+      'Implement a PostToolUse hook that intercepts document analysis results and filters out any sources with publication dates older than 5 years before the agent processes them',
+      'Have the synthesis agent verify all source dates before finalizing the report'
+    ],
+    correct:2,
+    explanations:[
+      'Stronger language in the system prompt is still prompt-based guidance. The 15% failure rate shows prompts cannot guarantee compliance for this business rule.',
+      'Few-shot examples improve consistency but are still probabilistic. The exam guide explicitly distinguishes prompt-based (probabilistic) from hook-based (deterministic) enforcement.',
+      'CORRECT. A PostToolUse hook that filters sources by publication date provides a deterministic guarantee: outdated sources are removed before the agent ever processes them, regardless of LLM behavior. This is the documented use case for hooks over prompts.',
+      'Asking the synthesis agent to verify dates relies on model compliance — the same probabilistic approach that already shows a 15% failure rate.'
+    ]
+  },
+  {
+    id:37, scenario:3, domain:'D5', taskStatement:'5.3', difficulty:'Medium',
+    context:'The DocumentAnalysisAgent fails while processing a batch of 10 documents. It has successfully processed 7 of them before encountering an error on document 8. Currently it propagates a generic failure to the coordinator without any partial results.',
+    stem:'What error propagation pattern best enables the coordinator to maximize research quality?',
+    options:[
+      'Retry the entire batch of 10 documents after the error is resolved',
+      'Terminate the research workflow to ensure only complete data is used in the final report',
+      'Return structured error context to the coordinator including: documents successfully processed (1-7), the failure type on document 8, partial results from the successful documents, and what was attempted',
+      'Have the DocumentAnalysisAgent handle the error internally and return empty analysis for document 8'
+    ],
+    correct:2,
+    explanations:[
+      'Retrying all 10 documents wastes resources re-processing the 7 already completed and does not deliver the partial results to the coordinator.',
+      'Terminating the workflow discards 7 successfully processed documents. The exam guide identifies this as an anti-pattern.',
+      'CORRECT. The exam guide prescribes: returning structured error context including partial results and what was attempted. The coordinator can then proceed with the 7 successful analyses, note the coverage gap, and decide whether to retry document 8 or proceed with partial results.',
+      'Returning empty analysis for document 8 disguises the failure as a successful but empty result — the "silent suppression" anti-pattern identified in the exam guide.'
+    ]
+  },
+  {
+    id:38, scenario:3, domain:'D2', taskStatement:'2.5', difficulty:'Easy',
+    context:'Your research agent needs to find all Python files in the document corpus that contain the function process_document(). The codebase is organized with documents in various subdirectories.',
+    stem:'Which combination of built-in tools is most efficient for this task?',
+    options:[
+      'Read each Python file one by one until you find the function definition',
+      'Use Glob to find all .py files matching **/*.py, then use Grep to search for "process_document" in the results',
+      'Use Bash with find and grep commands to search the filesystem',
+      'Use Write to create a search script and then run it with Bash'
+    ],
+    correct:1,
+    explanations:[
+      'Reading files one by one is highly inefficient when Glob and Grep provide direct search capabilities.',
+      'CORRECT. Glob for file pattern matching (finding *.py files) followed by Grep for content search (finding the function name) is the recommended combination. Glob finds candidate files; Grep searches their contents.',
+      'While technically possible, the exam guide recommends using built-in tools (Glob, Grep) over Bash for these operations, as dedicated tools provide better UX and permissions handling.',
+      'Writing and running a search script adds unnecessary complexity when built-in tools handle this natively.'
+    ]
+  },
+  {
+    id:39, scenario:3, domain:'D1', taskStatement:'1.7', difficulty:'Medium',
+    context:'Your research system needs to compare two different synthesis strategies: "chronological narrative" versus "thematic clustering." You want to explore both strategies from the same analyzed document base without running the full analysis phase twice.',
+    stem:'What session management feature enables parallel exploration from a shared baseline?',
+    options:[
+      'Run two sequential sessions with the same inputs and compare outputs',
+      'Use fork_session to create two independent branches from the shared analysis baseline, then explore each synthesis strategy independently',
+      'Save the session state to a file and load it into a new session for each strategy',
+      'Use two separate coordinator agents with identical inputs but different synthesis instructions'
+    ],
+    correct:1,
+    explanations:[
+      'Sequential runs with identical inputs may produce slightly different outputs due to model randomness. This also requires running the analysis phase twice.',
+      'CORRECT. fork_session is the documented mechanism for creating independent exploration branches from a shared analysis baseline. Both branches start with the same analyzed corpus but can explore different synthesis approaches independently.',
+      'Session state export/import is not a documented Claude Code mechanism. fork_session is the designed solution.',
+      'Two separate coordinator agents require re-running the analysis phase for each, negating the benefit of the shared baseline.'
+    ]
+  },
+
+  // ===== SCENARIO 5: CI/CD Pipeline (Q40-50) =====
+  {
+    id:40, scenario:5, domain:'D3', taskStatement:'3.6', difficulty:'Medium',
+    context:'Your CI pipeline Claude Code review runs on every commit. Developers complain that after they address feedback from review run #1, the second run after new commits still flags the same already-addressed issues, filling PRs with duplicate comments.',
+    stem:'How should you modify the CI review to avoid duplicate findings?',
+    options:[
+      'Clear all previous review comments before each new run so the PR always shows only the latest review',
+      'Include prior review findings in the context when re-running, and instruct Claude to report only new issues or issues that were not yet addressed',
+      'Limit each PR to a single review run to prevent duplicates',
+      'Add a deduplication post-processor that compares new findings against prior findings and removes exact duplicates'
+    ],
+    correct:1,
+    explanations:[
+      'Clearing previous comments removes the record of prior feedback and removes addressed issues from the PR history, harming auditability.',
+      'CORRECT. The exam guide describes this exact pattern: "Including prior review findings in context when re-running reviews after new commits, instructing Claude to report only new or still-unaddressed issues to avoid duplicate comments."',
+      'Limiting to one review run means code changes after initial review get no review coverage — defeating the purpose of automated CI review.',
+      'String-matching deduplication is fragile and would miss paraphrased versions of the same finding. The correct approach is context-aware review that understands which issues have been addressed.'
+    ]
+  },
+  {
+    id:41, scenario:5, domain:'D4', taskStatement:'4.5', difficulty:'Medium',
+    context:'Your team runs two Claude-powered workflows: (1) a test quality audit that generates a report every Monday morning for the engineering team to review, and (2) a pre-merge security check that must complete before developers can merge code. Your VP of Engineering asks if both can use the Message Batches API to cut costs by 50%.',
+    stem:'How should you respond to this proposal?',
+    options:[
+      'Yes, switch both — polling for batch completion will give results in time for both use cases',
+      'Yes, switch both — use synchronous API with a timeout fallback if batches take longer than expected',
+      'No to the security check, yes to the test audit: batch processing\'s 24-hour window is incompatible with blocking pre-merge workflows but appropriate for overnight reports',
+      'No to both — batch processing has ordering issues that make it unreliable for code quality workflows'
+    ],
+    correct:2,
+    explanations:[
+      'Batch processing has up to 24-hour latency with no guaranteed SLA. Developers cannot wait 24 hours to merge code. "Polling" does not solve the latency issue.',
+      'Switching a blocking workflow to batch with a synchronous fallback adds complexity. The simpler correct answer is to never switch blocking workflows to batch.',
+      'CORRECT. This matches the exam guide sample question (Q11) answer. Batch API = latency-tolerant non-blocking workloads (overnight reports). Synchronous API = blocking workflows with immediate delivery requirements.',
+      'Batch results are correlated using custom_id fields. The exam guide explicitly calls out that ordering concerns are addressed by custom_id — this is not a valid reason to avoid batch processing.'
+    ]
+  },
+  {
+    id:42, scenario:5, domain:'D4', taskStatement:'4.6', difficulty:'Medium',
+    context:'Your CI review analyzes a 20-file pull request in one pass. The output shows: detailed feedback for files 1-5, progressively less detailed feedback for files 6-15, and superficial comments for files 16-20. Some files get contradictory feedback (pattern flagged as bad in file 3, approved in file 17).',
+    stem:'How should you restructure the review architecture?',
+    options:[
+      'Use a model with a larger context window to give all 20 files adequate attention simultaneously',
+      'Require developers to split PRs larger than 10 files into multiple smaller PRs',
+      'Split the review into focused passes: individual per-file passes for local issues, then a separate integration pass for cross-file patterns and data flow',
+      'Run the review three times and only report findings that appear in at least two of three runs'
+    ],
+    correct:2,
+    explanations:[
+      'The exam guide explicitly states: larger context windows do not solve attention quality issues. The problem is attention dilution, not context capacity.',
+      'Shifting the burden to developers does not fix the automated review system. Developers would not be able to merge refactoring PRs that inherently touch many files.',
+      'CORRECT. This is the exam guide\'s (Q12) recommended solution: per-file local passes ensure consistent depth; a separate integration pass catches cross-file issues. This directly addresses attention dilution and contradictory findings.',
+      'Requiring consensus on findings would suppress detection of real bugs that are only caught intermittently. This approach would significantly worsen recall.'
+    ]
+  },
+  {
+    id:43, scenario:5, domain:'D4', taskStatement:'4.2', difficulty:'Medium',
+    context:'Your CI test generation prompt says "generate comprehensive tests with good coverage." The output is inconsistent: sometimes detailed unit tests, sometimes high-level integration tests, sometimes just basic smoke tests. The test format also varies widely across runs.',
+    stem:'What is the most effective technique to achieve consistent test format and coverage level?',
+    options:[
+      'Add more detailed instructions to the prompt: "generate unit tests with 90% line coverage, including edge cases and error paths"',
+      'Add 2-4 few-shot examples showing exactly the test format, coverage level, and edge case handling you want, including examples of acceptable and unacceptable test patterns',
+      'Set temperature to 0 to eliminate randomness in test generation',
+      'Add "be consistent" to the system prompt'
+    ],
+    correct:1,
+    explanations:[
+      'More detailed instructions help but the exam guide identifies few-shot examples as more effective than instructions alone when detailed instructions produce inconsistent results.',
+      'CORRECT. The exam guide identifies few-shot examples as "the most effective technique for achieving consistently formatted, actionable output when detailed instructions alone produce inconsistent results." Examples demonstrate the desired output concretely.',
+      'Temperature 0 reduces randomness but does not define what "comprehensive tests" means to the model. The model still has no clear target format to converge on.',
+      '"Be consistent" is an instruction without semantic content. It tells the model to be consistent without defining what consistency looks like.'
+    ]
+  },
+  {
+    id:44, scenario:5, domain:'D4', taskStatement:'4.1', difficulty:'Hard',
+    context:'Your CI code review generates findings with severity levels (Critical, High, Medium, Low). Developers report that severity labels are applied inconsistently: the same type of SQL injection vulnerability is labeled Critical in one PR and Medium in another.',
+    stem:'What prompt engineering technique would most improve severity classification consistency?',
+    options:[
+      'Add "always be conservative with severity ratings" to the prompt',
+      'Define explicit severity criteria for each level with concrete code examples: "Critical = directly exploitable without authentication, like this example: [code snippet]"',
+      'Use a separate classifier model trained specifically on vulnerability severity classification',
+      'Reduce severity to two levels (High/Low) to reduce classification ambiguity'
+    ],
+    correct:1,
+    explanations:[
+      'Conservative rating instructions are vague. The exam guide identifies vague guidance as ineffective for consistency — specific categorical criteria are needed.',
+      'CORRECT. The exam guide states: "Define explicit severity criteria with concrete code examples for each severity level to achieve consistent classification." Code examples ground abstract criteria in concrete cases.',
+      'A separate classifier model is over-engineering when prompt improvement with concrete examples has not been tried. The exam guide consistently recommends optimizing prompts before adding infrastructure.',
+      'Reducing to two severity levels simplifies the problem but discards useful information. The better fix is to define clear criteria for all levels.'
+    ]
+  },
+  {
+    id:45, scenario:5, domain:'D4', taskStatement:'4.3', difficulty:'Medium',
+    context:'Your CI pipeline generates code review findings as structured JSON using tool_use. The schema requires: finding_type (enum: bug/security/performance/style), severity (enum: critical/high/medium/low), file_path, line_number, description, suggested_fix. Occasionally the output contains "finding_type": "database-issue" which breaks downstream parsers.',
+    stem:'What schema design would handle novel finding categories without breaking parsers?',
+    options:[
+      'Add a strict enum validation that rejects any finding with a type not in the predefined list',
+      'Change finding_type from a strict enum to a free-text string field',
+      'Expand the finding_type enum to include all possible categories you can anticipate',
+      'Change finding_type to an enum containing standard values plus "other", paired with a finding_type_detail free-text field for cases that do not fit'
+    ],
+    correct:3,
+    explanations:[
+      'Strict rejection means novel findings are lost entirely. Real codebases will encounter issues that do not fit predefined categories (e.g., database query patterns in a new framework).',
+      'A free-text string field eliminates the benefits of structured categorization and breaks downstream filtering and reporting logic.',
+      'Anticipating all possible categories is impossible for a general code review tool. New categories will always emerge.',
+      'CORRECT. The exam guide specifically describes the "other" + detail field pattern for extensible categorization. Standard values enable reliable downstream processing; "other" + free-text preserves novel findings without breaking parsers.'
+    ]
+  },
+  {
+    id:46, scenario:5, domain:'D4', taskStatement:'4.4', difficulty:'Hard',
+    context:'Your CI pipeline extracts structured data from pull request descriptions using tool_use. Validation fails for 30% of extractions: some have semantic errors (e.g., the affected_components list contains the PR author\'s name instead of component names), and some have empty required fields despite the information being present in the PR description.',
+    stem:'Which validation-retry approach is correct for semantic errors versus missing data errors?',
+    options:[
+      'Retry all failures with the same prompt — the model will eventually produce correct output',
+      'For semantic errors: retry with a follow-up that includes the original PR description, the failed extraction, and the specific error description. For empty required fields: first verify the information exists in the source; if not present, do not retry',
+      'Switch to a stricter JSON schema to eliminate all errors at the schema level',
+      'Accept semantic errors as inevitable and only retry schema validation failures'
+    ],
+    correct:1,
+    explanations:[
+      'Retrying with the same prompt produces the same errors. The model needs specific error feedback to self-correct.',
+      'CORRECT. The exam guide distinguishes: (1) format/structural errors are resolvable via retry with specific error feedback; (2) errors from absent information are not resolvable via retry. Retrying when the source document simply does not contain the required data wastes API calls.',
+      'Strict schemas eliminate JSON syntax errors but not semantic errors (wrong field values, incorrect field assignments). Semantic validation requires additional logic.',
+      'Retrying only schema failures ignores semantic errors. Semantic errors (wrong values in correct fields) can often be fixed with targeted feedback.'
+    ]
+  },
+  {
+    id:47, scenario:5, domain:'D4', taskStatement:'4.5', difficulty:'Hard',
+    context:'You are designing a batch processing system for a CI analysis workflow. Requirements: PRs must receive analysis results within 30 hours of submission. The Message Batches API has a processing window of up to 24 hours. PRs are submitted continuously throughout the day.',
+    stem:'How frequently must you submit batches to guarantee the 30-hour SLA?',
+    options:[
+      'Submit one batch per day at midnight, since 24 hours is within the 30-hour SLA',
+      'Submit a batch every 6 hours, guaranteeing delivery within 6 + 24 = 30 hours for any PR',
+      'Submit a batch every 2 hours to provide a comfortable buffer',
+      'Use synchronous API since the 30-hour SLA is too tight for batch processing'
+    ],
+    correct:1,
+    explanations:[
+      'A PR submitted just after midnight would wait until the next midnight batch (24 hours) plus up to 24 hours processing = 48 hours. This violates the 30-hour SLA.',
+      'CORRECT. The exam guide describes this calculation: SLA window (30h) minus batch processing window (24h) = 6-hour maximum time before batch submission. A PR submitted at most 6 hours before batch submission + 24h processing = 30h total.',
+      'While 2-hour submission intervals provide more buffer, the minimum required frequency to guarantee the SLA is every 6 hours. The exam tests the specific calculation.',
+      'A 6-hour submission interval meets the 30-hour SLA. Synchronous API is not required when batch can meet the SLA with the correct submission frequency.'
+    ]
+  },
+  {
+    id:48, scenario:5, domain:'D3', taskStatement:'3.6', difficulty:'Medium',
+    context:'Your CI pipeline runs Claude Code for test generation. The generated tests are good but frequently suggest test scenarios that already exist in the test suite, creating redundant tests that slow down the test suite.',
+    stem:'What is the most effective way to prevent Claude from suggesting tests that already exist?',
+    options:[
+      'Instruct Claude in the prompt: "do not generate duplicate tests"',
+      'Post-process the generated tests and remove duplicates after generation',
+      'Provide existing test files in context so Claude can see what is already covered before generating new tests',
+      'Limit test generation to one new test per pull request to minimize duplication risk'
+    ],
+    correct:2,
+    explanations:[
+      'Without seeing the existing tests, Claude cannot know what is a duplicate. "Do not generate duplicates" without the ability to check is an instruction Claude cannot reliably follow.',
+      'Post-processing can remove exact duplicates but misses semantic duplicates (tests that cover the same scenario with different code). This is a downstream fix rather than a root cause solution.',
+      'CORRECT. The exam guide states: "Providing existing test files in context so test generation avoids suggesting duplicate scenarios already covered by the test suite." Context-awareness prevents duplicates at generation time.',
+      'Limiting to one test per PR severely reduces the value of automated test generation for complex changes.'
+    ]
+  },
+  {
+    id:49, scenario:5, domain:'D4', taskStatement:'4.4', difficulty:'Medium',
+    context:'Your CI pipeline developer tools team wants to track why certain code review findings are being dismissed by developers to improve the review system over time. Currently, findings only include a description and severity.',
+    stem:'What schema addition would best enable systematic analysis of false positive patterns?',
+    options:[
+      'Add a developer_dismissed boolean that is set to true when a developer closes the comment',
+      'Add a detected_pattern field to each finding that records the specific code pattern that triggered the finding, enabling analysis of which patterns have high dismissal rates',
+      'Add a confidence_score field so developers can filter out low-confidence findings',
+      'Add a feedback_url field where developers can submit detailed feedback about why they dismissed a finding'
+    ],
+    correct:1,
+    explanations:[
+      'A dismissed boolean tells you a finding was dismissed but not why or what code triggered it. This is insufficient for pattern analysis.',
+      'CORRECT. The exam guide describes detected_pattern fields as enabling "systematic analysis of dismissal patterns when developers dismiss findings." Tracking which code patterns trigger dismissed findings reveals false positive patterns that can be fixed.',
+      'Confidence scores help routing but do not reveal which patterns generate false positives. You need to know what code pattern was detected, not how confident the model was.',
+      'Free-form developer feedback is qualitative and hard to aggregate. Structured detected_pattern fields enable quantitative analysis at scale.'
+    ]
+  },
+  {
+    id:50, scenario:5, domain:'D5', taskStatement:'5.5', difficulty:'Hard',
+    context:'Your CI pipeline achieves 97% overall extraction accuracy for structured data from PR descriptions. Based on this metric, your team wants to remove human review entirely and automate 100% of the processing.',
+    stem:'What concern should give you pause before eliminating human review?',
+    options:[
+      'The 97% accuracy is impressively high; removing human review is reasonable if it reduces costs',
+      'Aggregate accuracy metrics may mask poor performance on specific PR types or fields. You should validate accuracy by PR category and field segment using stratified sampling before eliminating review',
+      'Human review should never be eliminated for AI-generated outputs regardless of accuracy',
+      'Removing human review is appropriate only after achieving 99% accuracy'
+    ],
+    correct:1,
+    explanations:[
+      'The exam guide explicitly warns against making decisions based solely on aggregate accuracy metrics.',
+      'CORRECT. The exam guide states: "the risk that aggregate accuracy metrics may mask poor performance on specific document types or fields." 97% overall may hide 60% accuracy for edge-case PR types. Stratified sampling by PR category and field segment is required before eliminating human review.',
+      'This is an overcorrection. Human review is appropriate where error risk justifies the cost. The question is about the validation methodology, not an absolute principle.',
+      '99% is an arbitrary threshold with no analytical basis. The correct approach is to validate accuracy by segment, not to wait for a higher overall average.'
+    ]
+  }
+];
+
+const DOMAIN_LABELS = {D1:'D1: Agentic Architecture',D2:'D2: Tool Design & MCP',D3:'D3: Claude Code Config',D4:'D4: Prompt Engineering',D5:'D5: Context & Reliability'};
+const SCENARIO_LABELS = {1:'S1: Customer Support',2:'S2: Code Generation',3:'S3: Multi-Agent Research',5:'S5: CI/CD Pipeline'};
+const DOMAIN_WEIGHTS = {D1:0.27,D2:0.18,D3:0.20,D4:0.20,D5:0.15};
+
+let timerInterval = null, timeLeft = 90*60, examStarted = false, submitted = false, retryMode = false;
+let answers = {}, flagged = new Set(), retrySet = [];
+
+function startExam() {
+  const mins = parseInt(document.getElementById('timer-input').value) || 90;
+  timeLeft = mins * 60;
+  document.getElementById('config-modal').classList.remove('show');
+  document.getElementById('exam-ui').style.display = 'block';
+  examStarted = true;
+  renderQuestions();
+  renderNav();
+  startTimer();
+  scrollToQuestion(1);
+}
+
+function startTimer() {
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerDisplay();
+    if(timeLeft <= 0) { clearInterval(timerInterval); autoSubmit(); }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timeLeft/60), s = timeLeft%60;
+  const el = document.getElementById('timer-box');
+  el.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  el.className = timeLeft <= 300 ? 'danger' : timeLeft <= 900 ? 'warning' : '';
+}
+
+function autoSubmit() { submitted = true; showResults(); }
+
+function confirmSubmit() {
+  const unanswered = QUESTIONS.length - Object.keys(answers).length;
+  const msg = unanswered > 0 ? `You have ${unanswered} unanswered questions. Submit anyway?` : 'Submit exam?';
+  if(confirm(msg)) { clearInterval(timerInterval); submitted = true; showResults(); }
+}
+
+function renderQuestions() {
+  const container = document.getElementById('content-area');
+  container.innerHTML = '';
+  let currentScenario = null;
+  const questionsToShow = retryMode ? QUESTIONS.filter(q => retrySet.includes(q.id)) : QUESTIONS;
+  questionsToShow.forEach(q => {
+    if(q.scenario !== currentScenario) {
+      currentScenario = q.scenario;
+      const sh = document.createElement('div');
+      sh.className = 'scenario-header';
+      sh.innerHTML = `<h2>${SCENARIO_LABELS[q.scenario]}</h2><p>${getScenarioDesc(q.scenario)}</p>`;
+      container.appendChild(sh);
+    }
+    container.appendChild(buildQuestionCard(q));
+  });
+}
+
+function getScenarioDesc(s) {
+  const d = {
+    1:'You are building a customer support resolution agent using the Claude Agent SDK. The agent handles returns, billing disputes, and account issues using MCP tools.',
+    2:'You are using Claude Code to accelerate software development with custom slash commands, CLAUDE.md configurations, and CI/CD integration.',
+    3:'A coordinator agent delegates to specialized subagents: WebSearchAgent, DocumentAnalysisAgent, SynthesisAgent, and ReportGeneratorAgent.',
+    5:'You are integrating Claude Code into your CI/CD pipeline for automated code review, test generation, and pull request feedback.'
+  };
+  return d[s]||'';
+}
+
+function buildQuestionCard(q) {
+  const card = document.createElement('div');
+  card.className = 'question-card';
+  card.id = 'card-'+q.id;
+  const diffClass = q.difficulty==='Easy'?'tag-diff-easy':q.difficulty==='Medium'?'tag-diff-medium':'tag-diff-hard';
+  card.innerHTML = `
+    <div class="q-header">
+      <span class="q-number">Question ${q.id}</span>
+      <div class="q-tags">
+        <span class="q-tag tag-domain">${DOMAIN_LABELS[q.domain]}</span>
+        <span class="q-tag tag-domain">${q.taskStatement}</span>
+        <span class="q-tag ${diffClass}">${q.difficulty}</span>
+      </div>
+    </div>
+    <div class="q-context">${q.context}</div>
+    <div class="q-stem">${q.stem}</div>
+    <ul class="options-list" id="opts-${q.id}">
+      ${q.options.map((opt,i)=>`
+        <li class="option-item" id="opt-${q.id}-${i}" onclick="selectAnswer(${q.id},${i})">
+          <input type="radio" name="q${q.id}" value="${i}" ${answers[q.id]===i?'checked':''}>
+          <span class="option-letter">${String.fromCharCode(65+i)})</span>
+          <span>${opt}</span>
+        </li>`).join('')}
+    </ul>
+    <div class="q-footer">
+      <button class="flag-btn ${flagged.has(q.id)?'active':''}" id="flag-${q.id}" onclick="toggleFlag(${q.id})">
+        ${flagged.has(q.id)?'Unflag':'Flag for Review'}
+      </button>
+    </div>
+    <div class="explanation-box" id="exp-${q.id}"></div>
+  `;
+  if(answers[q.id]!==undefined) {
+    card.classList.add('answered');
+    if(flagged.has(q.id)) card.classList.add('flagged');
+  }
+  if(flagged.has(q.id) && answers[q.id]===undefined) card.classList.add('flagged');
+  return card;
+}
+
+function selectAnswer(qid, optIdx) {
+  if(submitted) return;
+  answers[qid] = optIdx;
+  const card = document.getElementById('card-'+qid);
+  card.classList.add('answered');
+  document.querySelectorAll(`#opts-${qid} .option-item`).forEach((el,i) => {
+    el.classList.toggle('selected', i===optIdx);
+    el.querySelector('input').checked = (i===optIdx);
+  });
+  updateProgress();
+  renderNav();
+}
+
+function toggleFlag(qid) {
+  if(submitted) return;
+  if(flagged.has(qid)) { flagged.delete(qid); } else { flagged.add(qid); }
+  const card = document.getElementById('card-'+qid);
+  const btn = document.getElementById('flag-'+qid);
+  if(flagged.has(qid)) { card.classList.add('flagged'); btn.classList.add('active'); btn.textContent='Unflag'; }
+  else { card.classList.remove('flagged'); btn.classList.remove('active'); btn.textContent='Flag for Review'; }
+  renderNav();
+}
+
+function renderNav() {
+  const grid = document.getElementById('q-grid');
+  const questionsToShow = retryMode ? QUESTIONS.filter(q => retrySet.includes(q.id)) : QUESTIONS;
+  grid.innerHTML = questionsToShow.map(q => {
+    let cls = 'q-btn';
+    if(submitted) { cls += answers[q.id]===q.correct?' correct':' incorrect'; }
+    else if(flagged.has(q.id)) cls += ' flagged';
+    else if(answers[q.id]!==undefined) cls += ' answered';
+    return `<button class="${cls}" onclick="scrollToQuestion(${q.id})" title="Q${q.id}">${q.id}</button>`;
+  }).join('');
+}
+
+function scrollToQuestion(qid) {
+  const el = document.getElementById('card-'+qid);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.question-card').forEach(c => c.classList.remove('current'));
+  if(el) el.classList.add('current');
+  renderNav();
+  const btn = document.querySelector(`#q-grid .q-btn:nth-child(${qid})`);
+  if(btn) btn.classList.add('current');
+}
+
+function updateProgress() {
+  const cnt = Object.keys(answers).length;
+  document.getElementById('progress-text').textContent = `${cnt} / ${QUESTIONS.length} answered`;
+}
+
+function showResults() {
+  document.getElementById('exam-ui').style.display = 'none';
+  const screen = document.getElementById('results-screen');
+  screen.style.display = 'block';
+
+  const questionsToScore = retryMode ? QUESTIONS.filter(q => retrySet.includes(q.id)) : QUESTIONS;
+  let correct = 0, domainStats = {}, scenarioStats = {}, taskStats = {};
+
+  Object.keys(DOMAIN_LABELS).forEach(d => domainStats[d]={correct:0,total:0,weight:DOMAIN_WEIGHTS[d]});
+  Object.keys(SCENARIO_LABELS).forEach(s => scenarioStats[s]={correct:0,total:0});
+
+  questionsToScore.forEach(q => {
+    const isCorrect = answers[q.id] === q.correct;
+    if(isCorrect) correct++;
+    if(!domainStats[q.domain]) domainStats[q.domain]={correct:0,total:0,weight:DOMAIN_WEIGHTS[q.domain]};
+    domainStats[q.domain].total++;
+    if(isCorrect) domainStats[q.domain].correct++;
+    const sk = q.scenario.toString();
+    if(!scenarioStats[sk]) scenarioStats[sk]={correct:0,total:0};
+    scenarioStats[sk].total++;
+    if(isCorrect) scenarioStats[sk].correct++;
+    if(!taskStats[q.taskStatement]) taskStats[q.taskStatement]={correct:0,total:0,domain:q.domain};
+    taskStats[q.taskStatement].total++;
+    if(isCorrect) taskStats[q.taskStatement].correct++;
+  });
+
+  const total = questionsToScore.length;
+  const pct = Math.round((correct/total)*100);
+  const scaled = Math.round(100 + (correct/total)*900);
+  const pass = scaled >= 720;
+
+  let domainBars = Object.entries(domainStats).filter(([,v])=>v.total>0).map(([d,v])=>{
+    const p = v.total>0?Math.round((v.correct/v.total)*100):0;
+    const cls = p>=75?'good':p>=60?'mid':'low';
+    return `<div class="domain-row">
+      <div class="domain-row-header"><span class="domain-name">${DOMAIN_LABELS[d]}</span><span class="domain-pct" style="color:${p>=75?'#388e3c':p>=60?'#f57c00':'#c62828'}">${p}% (${v.correct}/${v.total})</span></div>
+      <div class="bar-bg"><div class="bar-fill ${cls}" style="width:${p}%"></div></div>
+    </div>`;
+  }).join('');
+
+  let scenarioRows = Object.entries(scenarioStats).filter(([,v])=>v.total>0).map(([s,v])=>{
+    const p = v.total>0?Math.round((v.correct/v.total)*100):0;
+    return `<div class="scenario-row"><span>${SCENARIO_LABELS[parseInt(s)]||'Scenario '+s}</span><span style="font-weight:700;color:${p>=75?'#388e3c':p>=60?'#f57c00':'#c62828'}">${p}% (${v.correct}/${v.total})</span></div>`;
+  }).join('');
+
+  const weakTasks = Object.entries(taskStats).filter(([,v])=>v.total>0&&(v.correct/v.total)<0.6)
+    .sort((a,b)=>(a[1].correct/a[1].total)-(b[1].correct/b[1].total));
+  const okTasks = Object.entries(taskStats).filter(([,v])=>v.total>0&&(v.correct/v.total)>=0.6&&(v.correct/v.total)<0.8);
+  const strongTasks = Object.entries(taskStats).filter(([,v])=>v.total>0&&(v.correct/v.total)>=0.8);
+
+  const heatmapItems = [
+    ...weakTasks.map(([t,v])=>`<div class="heatmap-item weak"><strong>${t}</strong> — ${Math.round((v.correct/v.total)*100)}% (${DOMAIN_LABELS[v.domain]})</div>`),
+    ...okTasks.map(([t,v])=>`<div class="heatmap-item ok"><strong>${t}</strong> — ${Math.round((v.correct/v.total)*100)}% (${DOMAIN_LABELS[v.domain]})</div>`),
+    ...strongTasks.map(([t,v])=>`<div class="heatmap-item strong"><strong>${t}</strong> — ${Math.round((v.correct/v.total)*100)}% (${DOMAIN_LABELS[v.domain]})</div>`)
+  ].join('');
+
+  const studyRecs = weakTasks.slice(0,5).map(([t,v])=>`<li>Review <strong>${t}</strong> (${DOMAIN_LABELS[v.domain]}) — scored below 60%</li>`).join('');
+
+  const incorrectIds = questionsToScore.filter(q=>answers[q.id]!==q.correct).map(q=>q.id);
+
+  screen.innerHTML = `
+    <div class="results-card">
+      <div class="results-header">
+        <h2>Exam Results — Mock Exam A</h2>
+        <div class="score-circle ${pass?'pass':'fail'}">
+          <span class="score-number">${scaled}</span>
+          <span class="score-label">/1000</span>
+        </div>
+        <div><span class="pass-fail-badge ${pass?'pass-badge':'fail-badge'}">${pass?'PASS':'FAIL'}</span></div>
+        <p style="color:#555;margin-top:8px">${correct}/${total} correct (${pct}%) &bull; Passing threshold: 720/1000</p>
+        ${!pass?`<p style="color:#c62828;font-size:.85rem;margin-top:4px">You need approximately ${Math.ceil((720-scaled)/9)} more correct answers to pass.</p>`:''}
+      </div>
+    </div>
+    <div class="results-card">
+      <div class="domain-bars">
+        <h3>Domain Performance</h3>
+        ${domainBars}
+      </div>
+      <div class="scenario-breakdown">
+        <h3 style="margin-bottom:12px">Scenario Performance</h3>
+        ${scenarioRows}
+      </div>
+    </div>
+    <div class="results-card">
+      <h3 style="margin-bottom:12px">Task Statement Heatmap</h3>
+      <div style="font-size:.8rem;color:#666;margin-bottom:8px"><span style="color:#c62828">Red = below 60%</span> &bull; <span style="color:#f57c00">Amber = 60-79%</span> &bull; <span style="color:#388e3c">Green = 80%+</span></div>
+      <div class="heatmap-grid">${heatmapItems||'<p style="color:#888">No data available</p>'}</div>
+    </div>
+    ${weakTasks.length>0?`<div class="results-card"><div class="study-next"><h3>What To Study Next</h3><ul>${studyRecs}</ul></div></div>`:''}
+    <div class="results-card">
+      <h3 style="margin-bottom:16px">Review Questions</h3>
+      ${buildReviewQuestions(questionsToScore)}
+    </div>
+    <div class="results-actions">
+      <button class="action-btn btn-primary" onclick="location.reload()">Retake Exam</button>
+      ${incorrectIds.length>0?`<button class="action-btn btn-secondary" onclick="startRetryMode(${JSON.stringify(incorrectIds)})">Retry Incorrect (${incorrectIds.length})</button>`:''}
+    </div>
+  `;
+}
+
+function buildReviewQuestions(questions) {
+  return questions.map(q=>{
+    const userAns = answers[q.id];
+    const isCorrect = userAns === q.correct;
+    const optLetters = ['A','B','C','D'];
+    const optItems = q.options.map((opt,i)=>{
+      let cls = 'option-item';
+      if(i===q.correct) cls += ' correct-answer';
+      if(i===userAns && !isCorrect) cls += ' wrong-selected';
+      const expCls = i===q.correct?'exp-correct-label':'exp-wrong-label';
+      return `<li class="${cls}" style="cursor:default;margin-bottom:6px">
+        <span class="option-letter">${optLetters[i]})</span>
+        <div><div>${opt}</div>
+        <div style="font-size:.8rem;margin-top:4px;color:${i===q.correct?'#2e7d32':'#555'}">${q.explanations[i]}</div></div>
+      </li>`;
+    }).join('');
+    return `<div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #f0f2f5">
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:.8rem;font-weight:700;color:#0f3460">Q${q.id}</span>
+        <span class="q-tag tag-domain">${q.taskStatement}</span>
+        <span class="q-tag ${isCorrect?'tag-diff-easy':'tag-diff-hard'}">${isCorrect?'Correct':'Incorrect'}</span>
+      </div>
+      <div class="q-context" style="margin-bottom:8px">${q.context}</div>
+      <div class="q-stem" style="margin-bottom:12px">${q.stem}</div>
+      <ul class="options-list">${optItems}</ul>
+    </div>`;
+  }).join('');
+}
+
+function startRetryMode(incorrectIds) {
+  retrySet = incorrectIds;
+  retryMode = true;
+  answers = {};
+  flagged.clear();
+  submitted = false;
+  document.getElementById('results-screen').style.display = 'none';
+  document.getElementById('exam-ui').style.display = 'block';
+  document.getElementById('retry-mode-banner').style.display = 'block';
+  document.getElementById('retry-mode-banner').textContent = `Retry Mode: ${incorrectIds.length} questions`;
+  renderQuestions();
+  renderNav();
+  updateProgress();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error Handling, Escalation & Recovery Patterns</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d0d1a; color: #e2e8f0; min-height: 100vh; }
+  h1 { text-align: center; font-size: 1.6rem; font-weight: 800; padding: 2rem 1rem 0.5rem; background: linear-gradient(135deg, #ef4444, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .subtitle { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+  .section { max-width: 1100px; margin: 0 auto 3rem; padding: 0 1.5rem; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: #f87171; margin-bottom: 1.25rem; padding-bottom: 0.5rem; border-bottom: 1px solid #3a1010; text-transform: uppercase; letter-spacing: 0.05em; }
+  svg text { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .note-box { background: #160808; border: 1px solid #7f1d1d; border-radius: 0.75rem; padding: 1rem 1.5rem; margin-top: 1rem; font-size: 0.85rem; line-height: 1.6; color: #fca5a5; }
+  .note-box strong { color: #f87171; }
+  .error-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+  .error-card { border-radius: 0.75rem; padding: 1.25rem; }
+  .error-card .etype { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .error-card .eaction { font-size: 0.78rem; font-weight: 700; margin-bottom: 0.4rem; padding: 0.2rem 0.5rem; border-radius: 0.3rem; display: inline-block; }
+  .error-card p { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 0.4rem; }
+  .error-card .examples { font-size: 0.75rem; color: #64748b; margin-top: 0.4rem; }
+  code { background: #0a1628; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.85em; }
+  @media (max-width: 768px) { .error-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .error-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>Error Handling, Escalation & Recovery</h1>
+<p class="subtitle">Domain 2, 5 — Task Statements 2.2, 5.2, 5.3</p>
+
+<!-- Section 1: Error Category Taxonomy -->
+<div class="section">
+  <div class="section-title">Error Category Taxonomy (TS 2.2)</div>
+  <div class="error-grid">
+    <div class="error-card" style="background:#0c1a0c;border:2px solid #16a34a">
+      <div class="etype" style="color:#4ade80">TRANSIENT</div>
+      <div class="eaction" style="background:#14532d;color:#86efac">Action: RETRY</div>
+      <p>Temporary failures that may succeed on retry. Service is functioning but temporarily unavailable.</p>
+      <div class="examples">
+        Examples: database timeout, network blip, rate limit (429), service overload (503)
+      </div>
+      <div style="margin-top:0.75rem;background:#0a1208;border-radius:0.4rem;padding:0.5rem">
+        <div style="font-size:0.75rem;color:#4ade80;font-weight:700">Schema:</div>
+        <div style="font-size:0.72rem;font-family:monospace;color:#16a34a;line-height:1.8">
+          isError: true<br>
+          errorCategory: "transient"<br>
+          isRetryable: true<br>
+          retryAfterMs: 2000
+        </div>
+      </div>
+    </div>
+
+    <div class="error-card" style="background:#1c1002;border:2px solid #d97706">
+      <div class="etype" style="color:#fbbf24">VALIDATION</div>
+      <div class="eaction" style="background:#78350f;color:#fde68a">Action: FIX INPUT</div>
+      <p>Client sent invalid data. Retrying with same input won't help — the input must be corrected.</p>
+      <div class="examples">
+        Examples: invalid email format, missing required field, value out of range, malformed JSON
+      </div>
+      <div style="margin-top:0.75rem;background:#120a02;border-radius:0.4rem;padding:0.5rem">
+        <div style="font-size:0.75rem;color:#fbbf24;font-weight:700">Schema:</div>
+        <div style="font-size:0.72rem;font-family:monospace;color:#d97706;line-height:1.8">
+          isError: true<br>
+          errorCategory: "validation"<br>
+          isRetryable: false<br>
+          invalidField: "email"
+        </div>
+      </div>
+    </div>
+
+    <div class="error-card" style="background:#14020a;border:2px solid #dc2626">
+      <div class="etype" style="color:#f87171">BUSINESS</div>
+      <div class="eaction" style="background:#7f1d1d;color:#fca5a5">Action: EXPLAIN</div>
+      <p>Request violates business rules or policy. Not a technical error — must be communicated to user.</p>
+      <div class="examples">
+        Examples: refund exceeds limit, order outside return window, policy doesn't allow this action
+      </div>
+      <div style="margin-top:0.75rem;background:#0c0104;border-radius:0.4rem;padding:0.5rem">
+        <div style="font-size:0.75rem;color:#f87171;font-weight:700">Schema:</div>
+        <div style="font-size:0.72rem;font-family:monospace;color:#dc2626;line-height:1.8">
+          isError: true<br>
+          errorCategory: "business"<br>
+          isRetryable: false<br>
+          customerMessage: "..."
+        </div>
+      </div>
+    </div>
+
+    <div class="error-card" style="background:#0a0a1e;border:2px solid #7c3aed">
+      <div class="etype" style="color:#c4b5fd">PERMISSION</div>
+      <div class="eaction" style="background:#4c1d95;color:#ddd6fe">Action: ESCALATE</div>
+      <p>Action requires elevated permissions or human authorization. Agent cannot self-authorize.</p>
+      <div class="examples">
+        Examples: requires manager approval, above agent authority threshold, compliance escalation needed
+      </div>
+      <div style="margin-top:0.75rem;background:#06021a;border-radius:0.4rem;padding:0.5rem">
+        <div style="font-size:0.75rem;color:#c4b5fd;font-weight:700">Schema:</div>
+        <div style="font-size:0.72rem;font-family:monospace;color:#7c3aed;line-height:1.8">
+          isError: true<br>
+          errorCategory: "permission"<br>
+          isRetryable: false<br>
+          escalateTo: "manager"
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box" style="margin-top:1.5rem">
+    <strong>Anti-Pattern:</strong> Generic "Operation failed" responses prevent intelligent recovery. The coordinator has no basis to distinguish a retry-worthy timeout from a policy violation. Structured error metadata (<code>errorCategory</code>, <code>isRetryable</code>) enables programmatic recovery decisions.
+  </div>
+</div>
+
+<!-- Section 2: Escalation Decision Flow -->
+<div class="section">
+  <div class="section-title">Escalation Decision Flow (TS 5.2)</div>
+  <svg viewBox="0 0 900 380" width="100%" style="max-width:900px;display:block;margin:0 auto">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+      </marker>
+      <marker id="arr-r" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+      </marker>
+      <marker id="arr-g" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+      </marker>
+    </defs>
+
+    <!-- Incoming Request -->
+    <ellipse cx="450" cy="35" rx="110" ry="22" fill="#1e1b4b" stroke="#7c3aed" stroke-width="2"/>
+    <text x="450" y="40" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">Customer Request</text>
+
+    <!-- Q1: Explicit human request? -->
+    <line x1="450" y1="57" x2="450" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <polygon points="450,90 545,115 450,140 355,115" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+    <text x="450" y="109" text-anchor="middle" fill="#fca5a5" font-size="10">Did customer EXPLICITLY</text>
+    <text x="450" y="124" text-anchor="middle" fill="#fca5a5" font-size="10">request a human agent?</text>
+
+    <!-- YES → Escalate immediately -->
+    <line x1="545" y1="115" x2="660" y2="115" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-r)"/>
+    <text x="602" y="108" fill="#ef4444" font-size="10" font-weight="700">YES</text>
+    <rect x="660" y="90" width="200" height="55" rx="10" fill="#160808" stroke="#ef4444" stroke-width="2.5"/>
+    <text x="760" y="113" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="800">ESCALATE</text>
+    <text x="760" y="128" text-anchor="middle" fill="#dc2626" font-size="9">IMMEDIATELY. No investigation.</text>
+    <text x="760" y="140" text-anchor="middle" fill="#dc2626" font-size="9">Honor the explicit request.</text>
+
+    <!-- NO → Q2 -->
+    <line x1="450" y1="140" x2="450" y2="175" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="460" y="162" fill="#64748b" font-size="10">NO</text>
+
+    <!-- Q2: Policy gap? -->
+    <polygon points="450,175 545,200 450,225 355,200" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="450" y="194" text-anchor="middle" fill="#fde68a" font-size="10">Policy gap or</text>
+    <text x="450" y="209" text-anchor="middle" fill="#fde68a" font-size="10">policy exception needed?</text>
+
+    <!-- YES → Escalate -->
+    <line x1="545" y1="200" x2="660" y2="200" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="602" y="193" fill="#f59e0b" font-size="10" font-weight="700">YES</text>
+    <rect x="660" y="175" width="200" height="55" rx="10" fill="#1c1002" stroke="#f59e0b" stroke-width="2"/>
+    <text x="760" y="198" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800">ESCALATE</text>
+    <text x="760" y="213" text-anchor="middle" fill="#d97706" font-size="9">Policy is silent or ambiguous.</text>
+    <text x="760" y="225" text-anchor="middle" fill="#d97706" font-size="9">Don't guess — escalate.</text>
+
+    <!-- NO → Q3 -->
+    <line x1="450" y1="225" x2="450" y2="260" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="460" y="247" fill="#64748b" font-size="10">NO</text>
+
+    <!-- Q3: No progress possible? -->
+    <polygon points="450,260 545,285 450,310 355,285" fill="#1e293b" stroke="#a78bfa" stroke-width="2"/>
+    <text x="450" y="279" text-anchor="middle" fill="#c4b5fd" font-size="10">Unable to make</text>
+    <text x="450" y="294" text-anchor="middle" fill="#c4b5fd" font-size="10">meaningful progress?</text>
+
+    <!-- YES → Escalate -->
+    <line x1="545" y1="285" x2="660" y2="285" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="602" y="278" fill="#a78bfa" font-size="10" font-weight="700">YES</text>
+    <rect x="660" y="260" width="200" height="55" rx="10" fill="#0a0a1e" stroke="#a78bfa" stroke-width="2"/>
+    <text x="760" y="283" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="800">ESCALATE</text>
+    <text x="760" y="298" text-anchor="middle" fill="#8b5cf6" font-size="9">Stuck despite attempts.</text>
+    <text x="760" y="310" text-anchor="middle" fill="#8b5cf6" font-size="9">Forward with context.</text>
+
+    <!-- NO → Resolve -->
+    <line x1="450" y1="310" x2="450" y2="348" stroke="#10b981" stroke-width="2" marker-end="url(#arr-g)"/>
+    <text x="460" y="334" fill="#10b981" font-size="10" font-weight="700">NO</text>
+    <rect x="350" y="348" width="200" height="22" rx="8" fill="#031a0e" stroke="#10b981" stroke-width="2"/>
+    <text x="450" y="363" text-anchor="middle" fill="#10b981" font-size="11" font-weight="800">RESOLVE AUTONOMOUSLY</text>
+
+    <!-- Anti-patterns -->
+    <rect x="20" y="175" width="300" height="130" rx="10" fill="#0d0808" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="5,3"/>
+    <text x="170" y="197" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Unreliable Escalation Triggers</text>
+    <text x="35" y="218" fill="#ef4444" font-size="9">✗ Sentiment analysis — frustration ≠ complexity</text>
+    <text x="35" y="235" fill="#ef4444" font-size="9">✗ Self-reported confidence scores — miscalibrated</text>
+    <text x="35" y="252" fill="#ef4444" font-size="9">✗ "Escalate complex cases" — no shared definition</text>
+    <text x="35" y="269" fill="#ef4444" font-size="9">✗ Tone of voice / emotion-based rules</text>
+    <text x="35" y="289" fill="#10b981" font-size="9" font-weight="700">✓ Reliable: Explicit request, policy gap, no progress</text>
+  </svg>
+</div>
+
+<!-- Section 3: Error Propagation in Multi-Agent Systems -->
+<div class="section">
+  <div class="section-title">Error Propagation in Multi-Agent Systems (TS 5.3)</div>
+  <svg viewBox="0 0 900 300" width="100%" style="max-width:900px;display:block;margin:0 auto">
+    <defs>
+      <marker id="arrow2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#94a3b8"/>
+      </marker>
+      <marker id="arr-g2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#10b981"/>
+      </marker>
+      <marker id="arr-r2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3 z" fill="#ef4444"/>
+      </marker>
+    </defs>
+
+    <!-- Subagent -->
+    <rect x="20" y="100" width="160" height="100" rx="10" fill="#0c1a2e" stroke="#3b82f6" stroke-width="2"/>
+    <text x="100" y="125" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">Subagent</text>
+    <text x="100" y="143" text-anchor="middle" fill="#3b82f6" font-size="10">Encounters failure</text>
+    <text x="100" y="158" text-anchor="middle" fill="#3b82f6" font-size="10">during execution</text>
+    <text x="100" y="178" text-anchor="middle" fill="#1d4ed8" font-size="9">Attempts local recovery</text>
+    <text x="100" y="192" text-anchor="middle" fill="#1d4ed8" font-size="9">for transient errors</text>
+
+    <!-- Arrow: transient handled locally -->
+    <path d="M180,115 C220,100 220,70 180,80" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#arr-g2)" stroke-dasharray="5,3"/>
+    <text x="230" y="90" fill="#10b981" font-size="9" text-anchor="middle">Local retry</text>
+    <text x="230" y="103" fill="#10b981" font-size="9" text-anchor="middle">for transient</text>
+
+    <!-- Arrow: unresolvable propagates up -->
+    <line x1="180" y1="150" x2="340" y2="150" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow2)"/>
+    <text x="260" y="143" fill="#f59e0b" font-size="9">Structured error context</text>
+
+    <!-- Structured error block -->
+    <rect x="340" y="80" width="200" height="140" rx="10" fill="#0c0c02" stroke="#d97706" stroke-width="2"/>
+    <text x="440" y="102" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">Error Context</text>
+    <line x1="360" y1="110" x2="520" y2="110" stroke="#78350f" stroke-width="1"/>
+    <text x="350" y="128" fill="#f59e0b" font-size="9" font-family="monospace">failure_type: "timeout"</text>
+    <text x="350" y="144" fill="#f59e0b" font-size="9" font-family="monospace">attempted_query: "..."</text>
+    <text x="350" y="160" fill="#f59e0b" font-size="9" font-family="monospace">partial_results: [...]</text>
+    <text x="350" y="176" fill="#f59e0b" font-size="9" font-family="monospace">coverage: "60%"</text>
+    <text x="350" y="192" fill="#f59e0b" font-size="9" font-family="monospace">alternatives: ["backup-db"]</text>
+    <text x="350" y="208" fill="#d97706" font-size="9" font-family="monospace">isError: true</text>
+
+    <!-- Arrow to coordinator -->
+    <line x1="540" y1="150" x2="640" y2="150" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow2)"/>
+
+    <!-- Coordinator -->
+    <rect x="640" y="80" width="160" height="140" rx="10" fill="#1e1b4b" stroke="#7c3aed" stroke-width="2"/>
+    <text x="720" y="105" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700">Coordinator</text>
+    <text x="720" y="123" text-anchor="middle" fill="#8b5cf6" font-size="10">Recovery Decision:</text>
+    <text x="720" y="142" text-anchor="middle" fill="#6d28d9" font-size="9">Timeout → retry</text>
+    <text x="720" y="158" text-anchor="middle" fill="#6d28d9" font-size="9">with modified query?</text>
+    <text x="720" y="174" text-anchor="middle" fill="#6d28d9" font-size="9">Use partial results?</text>
+    <text x="720" y="190" text-anchor="middle" fill="#6d28d9" font-size="9">Try alternative source?</text>
+    <text x="720" y="206" text-anchor="middle" fill="#6d28d9" font-size="9">Flag gap in output?</text>
+
+    <!-- Anti-patterns -->
+    <rect x="30" y="220" width="550" height="60" rx="8" fill="#0d0808" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="5,3"/>
+    <text x="300" y="238" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Anti-Patterns in Error Propagation</text>
+    <text x="40" y="257" fill="#ef4444" font-size="9">✗ Return empty array as success (silently hides failure — coordinator proceeds with incomplete data)</text>
+    <text x="40" y="272" fill="#ef4444" font-size="9">✗ Return generic "search unavailable" (hides whether it's a timeout, network issue, or auth failure — no informed recovery)</text>
+    <text x="40" y="285" fill="#ef4444" font-size="9">✗ Propagate raw exception (terminates entire workflow; better to include partial results and structured context)</text>
+  </svg>
+
+  <div class="note-box">
+    <strong>Key Distinction:</strong> Access failures (database timeout, service unreachable) need retry decisions. Valid empty results (query succeeded, no matches found) represent successful completion. These must return distinct structured responses — both returning an empty array makes them indistinguishable to the coordinator.
+  </div>
+</div>
+
+</body>
+</html>

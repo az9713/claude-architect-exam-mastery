@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Certified Architect – Flashcards</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #e94560;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --d1: #6366f1;
+    --d2: #06b6d4;
+    --d3: #10b981;
+    --d4: #f59e0b;
+    --d5: #ec4899;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* HEADER */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  header h1 { font-size: 1rem; font-weight: 700; }
+  header h1 span { color: var(--accent); }
+  .stats-bar { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+  .stat { text-align: center; }
+  .stat-value { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+  .stat-label { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--yellow); }
+  .streak-badge { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--yellow); padding: 4px 10px; border-radius: 20px; font-size: 0.76rem; font-weight: 700; display: none; }
+
+  /* TABS */
+  .tabs { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 2px; overflow-x: auto; }
+  .tab { padding: 9px 15px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; font-weight: 500; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.2s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); }
+  .tab[data-domain="all"].active { border-bottom-color: var(--accent); }
+  .tab[data-domain="1"].active { border-bottom-color: var(--d1); color: var(--d1); }
+  .tab[data-domain="2"].active { border-bottom-color: var(--d2); color: var(--d2); }
+  .tab[data-domain="3"].active { border-bottom-color: var(--d3); color: var(--d3); }
+  .tab[data-domain="4"].active { border-bottom-color: var(--d4); color: var(--d4); }
+  .tab[data-domain="5"].active { border-bottom-color: var(--d5); color: var(--d5); }
+
+  /* PROGRESS */
+  .domain-progress { background: var(--surface); padding: 10px 24px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; flex-wrap: wrap; }
+  .dpi { display: flex; flex-direction: column; gap: 4px; min-width: 100px; flex: 1; }
+  .dpi-header { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); }
+  .dpi-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .dpi-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  /* CONTROLS */
+  .controls { padding: 10px 24px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.78rem; font-weight: 500; transition: all 0.15s; }
+  .btn:hover { background: var(--surface2); border-color: var(--accent); }
+  .btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .spacer { flex: 1; }
+  .card-counter { font-size: 0.8rem; color: var(--text-muted); }
+  .kbd-hint { font-size: 0.68rem; color: var(--text-muted); }
+
+  /* CARD */
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card-area { width: 100%; max-width: 720px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .card-scene { width: 100%; height: 340px; perspective: 1000px; cursor: pointer; }
+  .card-inner { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+  .card-scene.flipped .card-inner { transform: rotateY(180deg); }
+  .card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; border: 1px solid var(--border); }
+  .card-front { background: var(--surface); }
+  .card-back { background: var(--surface2); transform: rotateY(180deg); }
+  .card-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .badge-domain { font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge-type { font-size: 0.66rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; }
+  .badge-ts { font-size: 0.66rem; color: var(--text-muted); margin-left: auto; }
+  .card-result-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-got { background: var(--green); }
+  .dot-review { background: var(--red); }
+  .dot-none { background: var(--border); }
+  .card-question { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.12rem; font-weight: 600; line-height: 1.55; }
+  .card-hint { text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 14px; }
+  .card-answer { flex: 1; font-size: 0.92rem; line-height: 1.6; overflow-y: auto; }
+  .card-answer strong { color: #93c5fd; }
+  .card-answer code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.87em; font-family: monospace; color: #86efac; }
+  .card-answer ul, .card-answer ol { padding-left: 18px; }
+  .card-answer li { margin-bottom: 4px; }
+  .card-answer::-webkit-scrollbar { width: 4px; }
+  .card-answer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ACTION BUTTONS */
+  .action-buttons { display: flex; gap: 12px; width: 100%; max-width: 720px; }
+  .action-buttons.hidden { visibility: hidden; pointer-events: none; }
+  .btn-action { flex: 1; padding: 13px; border-radius: 10px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .btn-gotit { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-gotit:hover { background: rgba(34,197,94,0.22); border-color: var(--green); }
+  .btn-review { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-review:hover { background: rgba(239,68,68,0.22); border-color: var(--red); }
+
+  /* NAV */
+  .nav-row { display: flex; gap: 12px; align-items: center; }
+  .btn-nav { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .btn-nav:hover { background: var(--surface2); border-color: var(--accent); }
+  .btn-nav:disabled { opacity: 0.3; cursor: default; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Claude Certified Architect <span>— Flashcards</span></h1>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value" id="s-reviewed">0</div><div class="stat-label">Reviewed</div></div>
+    <div class="stat"><div class="stat-value green" id="s-got">0</div><div class="stat-label">Got It</div></div>
+    <div class="stat"><div class="stat-value red" id="s-needs">0</div><div class="stat-label">Review</div></div>
+    <div class="stat"><div class="stat-value yellow" id="s-acc">—</div><div class="stat-label">Accuracy</div></div>
+    <div class="streak-badge" id="streak-badge">🔥 <span id="streak-count">0</span> streak</div>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-domain="all">All · 120</button>
+  <button class="tab" data-domain="1">D1 · Agentic · 28</button>
+  <button class="tab" data-domain="2">D2 · Tools · 20</button>
+  <button class="tab" data-domain="3">D3 · Config · 24</button>
+  <button class="tab" data-domain="4">D4 · Prompts · 24</button>
+  <button class="tab" data-domain="5">D5 · Context · 24</button>
+</div>
+
+<div class="domain-progress">
+  <div class="dpi"><div class="dpi-header"><span style="color:var(--d1)">D1 Agentic</span><span id="dp1p">0%</span></div><div class="dpi-bar"><div class="dpi-fill" id="dp1b" style="background:var(--d1);width:0%"></div></div></div>
+  <div class="dpi"><div class="dpi-header"><span style="color:var(--d2)">D2 Tools</span><span id="dp2p">0%</span></div><div class="dpi-bar"><div class="dpi-fill" id="dp2b" style="background:var(--d2);width:0%"></div></div></div>
+  <div class="dpi"><div class="dpi-header"><span style="color:var(--d3)">D3 Config</span><span id="dp3p">0%</span></div><div class="dpi-bar"><div class="dpi-fill" id="dp3b" style="background:var(--d3);width:0%"></div></div></div>
+  <div class="dpi"><div class="dpi-header"><span style="color:var(--d4)">D4 Prompts</span><span id="dp4p">0%</span></div><div class="dpi-bar"><div class="dpi-fill" id="dp4b" style="background:var(--d4);width:0%"></div></div></div>
+  <div class="dpi"><div class="dpi-header"><span style="color:var(--d5)">D5 Context</span><span id="dp5p">0%</span></div><div class="dpi-bar"><div class="dpi-fill" id="dp5b" style="background:var(--d5);width:0%"></div></div></div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="btn-shuffle">⇄ Shuffle</button>
+  <button class="btn" id="btn-weak">⚑ Weak Cards</button>
+  <button class="btn" id="btn-reset">↺ Reset Session</button>
+  <div class="spacer"></div>
+  <span class="kbd-hint">Space=flip · G=got it · R=review · ←→=navigate</span>
+  &nbsp;
+  <span class="card-counter" id="card-counter">Card 1 of 120</span>
+</div>
+
+<main>
+  <div class="card-area">
+    <div class="card-scene" id="card-scene">
+      <div class="card-inner">
+        <div class="card-face card-front">
+          <div class="card-meta">
+            <span class="badge-domain" id="f-domain"></span>
+            <span class="badge-type" id="f-type"></span>
+            <span class="badge-ts" id="f-ts"></span>
+            <span class="card-result-dot dot-none" id="f-dot"></span>
+          </div>
+          <div class="card-question" id="card-q"></div>
+          <div class="card-hint">Click card or press Space to reveal answer</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-meta">
+            <span class="badge-domain" id="b-domain"></span>
+            <span class="badge-type" id="b-type"></span>
+            <span class="badge-ts" id="b-ts"></span>
+          </div>
+          <div class="card-answer" id="card-a"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-buttons hidden" id="action-btns">
+      <button class="btn-action btn-review" id="btn-needs">✗ Need Review  <kbd style="font-size:0.7em;opacity:0.6">[R]</kbd></button>
+      <button class="btn-action btn-gotit" id="btn-got">✓ Got It  <kbd style="font-size:0.7em;opacity:0.6">[G]</kbd></button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-nav" id="btn-prev">←</button>
+      <button class="btn-nav" id="btn-next">→</button>
+    </div>
+  </div>
+</main>
+
+<script>
+// ============================================================
+// CARD DATA — 120 cards
+// ============================================================
+const CARDS = [
+// D1 — TS 1.1 Agentic Loop (4)
+{id:1,d:1,ts:"1.1",t:"Definition",q:"What are the two stop_reason values in the agentic loop and what does each trigger?",a:`<strong>"tool_use"</strong> → continue the loop: execute the requested tools, append results to conversation history, send updated messages back to Claude.<br><br><strong>"end_turn"</strong> → terminate the loop: present the final response to the user. The model has completed its work.`},
+{id:2,d:1,ts:"1.1",t:"Anti-pattern",q:"Name three agentic loop termination anti-patterns to avoid.",a:`<ul><li>Parsing <strong>natural language signals</strong> (e.g., detecting "I'm done") to decide when to stop</li><li>Setting <strong>arbitrary iteration caps</strong> as the primary stopping mechanism</li><li>Checking for <strong>assistant text content</strong> as a completion indicator</li></ul>Always use <code>stop_reason === "end_turn"</code> as the termination signal.`},
+{id:3,d:1,ts:"1.1",t:"Concept",q:"Why must tool results be appended to conversation history before the next loop iteration?",a:`Claude needs to see the tool results to <strong>reason about what to do next</strong>. Without appending them, the model has no knowledge of what the tools returned and cannot incorporate that information into its next decision.<br><br>Tool results are appended as <strong>"user" role messages</strong> following the assistant's tool_use response.`},
+{id:4,d:1,ts:"1.1",t:"Comparison",q:"Model-driven decision-making vs pre-configured decision trees — what is the key difference?",a:`<strong>Model-driven:</strong> Claude reasons about which tool to call next based on context and prior results. The agent adapts to new information.<br><br><strong>Pre-configured:</strong> a fixed tool sequence executes in a predetermined order regardless of what prior steps found.<br><br>The Agent SDK uses model-driven decision-making.`},
+// D1 — TS 1.2 Multi-Agent Orchestration (4)
+{id:5,d:1,ts:"1.2",t:"Definition",q:"What is hub-and-spoke architecture in multi-agent systems?",a:`A <strong>coordinator agent</strong> sits at the center (hub) and manages all inter-subagent communication, error handling, and information routing. Subagents (spokes) do not communicate directly with each other.<br><br><strong>Benefits:</strong> observability, consistent error handling, controlled information flow.`},
+{id:6,d:1,ts:"1.2",t:"Anti-pattern",q:"What is the most common root cause of incomplete coverage in a multi-agent research system?",a:`<strong>Overly narrow task decomposition by the coordinator.</strong><br><br>Example: researching "creative industries," the coordinator decomposes into visual arts only — missing music, writing, film. Subagents executed correctly within their assigned scope. The problem is what they were assigned.<br><br>Fix: broaden coordinator decomposition or implement a coverage-gap detection loop.`},
+{id:7,d:1,ts:"1.2",t:"Skill",q:"How should the coordinator handle synthesis output with coverage gaps?",a:`Implement an <strong>iterative refinement loop</strong>:<ol style="padding-left:16px"><li>Coordinator evaluates synthesis for gaps</li><li>Re-delegates targeted queries to search/analysis agents for missing areas</li><li>Re-invokes synthesis with new findings</li><li>Repeats until coverage is sufficient</li></ol>The synthesis agent should include a <code>coverage_gaps</code> field to enable this detection.`},
+{id:8,d:1,ts:"1.2",t:"Concept",q:"Do subagents automatically inherit the coordinator's conversation history?",a:`<strong>No.</strong> Subagents operate with <strong>isolated context</strong> — they do not automatically receive the coordinator's conversation history or other subagents' findings.<br><br>All context must be <strong>explicitly provided in the subagent's prompt</strong>. This is a common source of bugs when building multi-agent systems.`},
+// D1 — TS 1.3 Subagent Invocation (4)
+{id:9,d:1,ts:"1.3",t:"Configuration",q:"What is the Task tool and what configuration is required to use it?",a:`The <strong>Task tool</strong> is the mechanism for spawning subagents in the Claude Agent SDK.<br><br>Requirement: the coordinator's <code>allowedTools</code> must include <code>"Task"</code>. Without this, the coordinator cannot spawn subagents even if the Task tool is defined.`},
+{id:10,d:1,ts:"1.3",t:"Skill",q:"How do you spawn two subagents in parallel (not sequentially)?",a:`Emit <strong>multiple Task tool calls in a single coordinator response</strong> — not across separate turns.<br><br>When the coordinator's response contains two Task calls simultaneously, the SDK executes them concurrently. Emitting them in separate turns creates sequential execution, not parallel.`},
+{id:11,d:1,ts:"1.3",t:"Concept",q:"What format should you use when passing context from a search agent to a synthesis agent?",a:`Use <strong>structured data formats</strong> that separate content from metadata:<br><br><code>{claim, source_url, document_name, page_number, publication_date, relevant_excerpt}</code><br><br>This preserves attribution through the synthesis step and ensures accurate downstream citations.`},
+{id:12,d:1,ts:"1.3",t:"Judgment",q:"Coordinator prompts should specify __ rather than __ to enable subagent adaptability.",a:`Coordinator prompts should specify <strong>research goals and quality criteria</strong> rather than <strong>step-by-step procedural instructions</strong>.<br><br>Goal-oriented prompts let subagents choose their approach based on what they discover. Procedural instructions reduce adaptability and may not apply to every case.`},
+// D1 — TS 1.4 Workflows (4)
+{id:13,d:1,ts:"1.4",t:"Comparison",q:"Programmatic enforcement vs prompt-based guidance for workflow ordering — when does each apply?",a:`<strong>Prompt-based:</strong> probabilistic — usually followed but has a non-zero failure rate. Acceptable for low-risk rules.<br><br><strong>Programmatic enforcement:</strong> deterministic — a prerequisite gate blocks downstream tool calls until prior steps complete. Required for financial, legal, or safety-critical sequences (e.g., verify identity before processing refunds).`},
+{id:14,d:1,ts:"1.4",t:"Skill",q:"What must a structured handoff summary include when escalating to a human agent?",a:`The human agent has no access to the transcript, so the handoff must be self-contained:<ul><li>Customer ID and verified identity</li><li>Root cause analysis</li><li>What was attempted and what failed</li><li>Disputed or refund amount</li><li>Recommended action</li></ul>`},
+{id:15,d:1,ts:"1.4",t:"Skill",q:"How should a multi-concern customer request (3 separate issues) be handled?",a:`<ol style="padding-left:16px"><li>Decompose into <strong>distinct items</strong></li><li>Investigate each in <strong>parallel using shared context</strong> (one get_customer call establishes identity for all)</li><li>Synthesize a <strong>unified resolution</strong> addressing all issues</li></ol>Sequential processing multiplies latency; parallel investigation with shared context is efficient.`},
+{id:16,d:1,ts:"1.4",t:"Anti-pattern",q:"Why do prompt instructions alone fail for critical business rule enforcement?",a:`Prompt instructions are <strong>probabilistic</strong>. Even clear instructions have a non-zero failure rate. If a rule is violated 8% of the time with prompt guidance, adding more prompt text reduces but cannot eliminate violations.<br><br>For <strong>deterministic compliance</strong> (financial limits, identity verification), only programmatic enforcement provides 100% reliability.`},
+// D1 — TS 1.5 Hooks (4)
+{id:17,d:1,ts:"1.5",t:"Definition",q:"What is a PostToolUse hook and what is its primary use case?",a:`A <strong>PostToolUse hook</strong> intercepts tool results after execution, before the model processes them.<br><br>Primary use: <strong>data normalization</strong> — converting Unix timestamps to ISO 8601, normalizing status codes, trimming verbose responses to relevant fields. Ensures Claude always receives clean, consistent data.`},
+{id:18,d:1,ts:"1.5",t:"Definition",q:"What does a pre-call hook do and when should you use it?",a:`A <strong>pre-call hook</strong> intercepts outgoing tool calls before execution. It can:<ul><li>Allow the call (return null)</li><li>Block and return an alternative result</li><li>Redirect to a different workflow</li></ul>Use for <strong>business rule enforcement</strong>: blocking refunds above a threshold, enforcing prerequisites, guaranteed compliance.`},
+{id:19,d:1,ts:"1.5",t:"Comparison",q:"Hooks vs prompt instructions — what does each guarantee?",a:`<strong>Prompt instructions:</strong> probabilistic compliance. The model usually follows the rule but may violate it in unusual contexts.<br><br><strong>Hooks:</strong> deterministic compliance. Hooks execute at the code level before/after tool calls, outside the model's control. Cannot be bypassed by the model's reasoning.`},
+{id:20,d:1,ts:"1.5",t:"Skill",q:"What normalization tasks should a PostToolUse hook perform on order lookup results?",a:`<ul><li>Convert <strong>Unix timestamps</strong> to ISO 8601</li><li>Convert <strong>numeric status codes</strong> to human-readable strings</li><li><strong>Trim verbose fields</strong> — keep only the 5–8 relevant fields from a 40-field record</li></ul>Reduces context usage and ensures consistent data format for the model.`},
+// D1 — TS 1.6 Task Decomposition (4)
+{id:21,d:1,ts:"1.6",t:"Comparison",q:"Prompt chaining vs dynamic adaptive decomposition — when does each apply?",a:`<strong>Prompt chaining:</strong> fixed sequential pipeline. Best for predictable multi-aspect tasks where each step is known upfront (e.g., per-file analysis then integration pass).<br><br><strong>Dynamic adaptive:</strong> subtasks generated based on discoveries at each step. Best for open-ended investigations where later steps depend on earlier findings.`},
+{id:22,d:1,ts:"1.6",t:"Skill",q:"How should a large code review (14 files) be structured to avoid attention dilution?",a:`<strong>Pass 1 — Per-file local analysis:</strong> analyze each file individually for local bugs, security issues, logic errors.<br><br><strong>Pass 2 — Cross-file integration pass:</strong> examine data flow across files — type mismatches, inconsistent return values, broken interface contracts.<br><br>Two focused passes catch more issues than one large pass.`},
+{id:23,d:1,ts:"1.6",t:"Skill",q:"How do you decompose 'add comprehensive tests to a legacy codebase'?",a:`Dynamic adaptive decomposition:<ol style="padding-left:16px"><li><strong>Map structure</strong> — explore modules, existing tests, entry points</li><li><strong>Identify high-impact areas</strong> — most-used, highest-risk, least-tested code</li><li><strong>Create prioritized plan</strong> that adapts as dependencies are discovered</li></ol>Do not start writing tests before mapping the structure.`},
+{id:24,d:1,ts:"1.6",t:"Concept",q:"Why is a single-pass review of 14 files insufficient?",a:`The model distributes <strong>attention inconsistently</strong> across many files: detailed feedback for some, superficial treatment for others, and contradictory findings (flagging a pattern in one file while approving identical code in another).<br><br>Per-file passes guarantee <strong>consistent depth</strong> for local issues.`},
+// D1 — TS 1.7 Session Management (4)
+{id:25,d:1,ts:"1.7",t:"Configuration",q:"How do you resume a named Claude Code session?",a:`Use the <code>--resume</code> flag with the session name:<br><br><code>claude --resume "session-name"</code><br><br>This restores the prior conversation context, allowing you to continue where you left off.`},
+{id:26,d:1,ts:"1.7",t:"Definition",q:"What is fork_session used for?",a:`<strong>fork_session</strong> creates an independent branch from a shared analysis baseline. Use it to explore <strong>divergent approaches</strong> without mixing their contexts.<br><br>Example: after analyzing a codebase, fork to explore "Approach A: extract to services" and "Approach B: add middleware" — each fork has the shared analysis but develops independently.`},
+{id:27,d:1,ts:"1.7",t:"Judgment",q:"When should you resume a prior session vs start fresh with injected summaries?",a:`<strong>Resume</strong> when prior context is mostly valid — code hasn't changed significantly, prior tool results are still accurate.<br><br><strong>Start fresh with injected summary</strong> when prior tool results are stale — files changed, code was restructured. Stale tool results can mislead Claude into answers based on outdated state.`},
+{id:28,d:1,ts:"1.7",t:"Skill",q:"When resuming a session after code modifications, what should you tell Claude?",a:`Tell Claude about the <strong>specific file changes</strong> since the last session rather than requiring full re-exploration.<br><br>Example: "Since our last session, auth.js was refactored — validateToken is now in tokenValidator.js. All other files are unchanged."<br><br>Enables targeted re-analysis of only what changed.`},
+
+// D2 — TS 2.1 Tool Interface Design (4)
+{id:29,d:2,ts:"2.1",t:"Definition",q:"Why are tool descriptions the most important factor in tool selection reliability?",a:`<strong>Tool descriptions are the primary mechanism LLMs use for tool selection.</strong><br><br>When descriptions are minimal ("Retrieves customer information"), the model lacks context to differentiate between similar tools and makes incorrect selections.<br><br>Rich descriptions with input formats, examples, edge cases, and explicit boundaries are essential.`},
+{id:30,d:2,ts:"2.1",t:"Skill",q:"What must a well-written tool description include to prevent misrouting?",a:`<ul><li><strong>Purpose:</strong> what the tool does and returns</li><li><strong>Input formats:</strong> what identifiers or parameters it accepts</li><li><strong>Example queries:</strong> concrete examples of when to call this tool</li><li><strong>Edge cases:</strong> unusual inputs and how they are handled</li><li><strong>Boundary:</strong> when to use this tool vs similar alternatives</li></ul>`},
+{id:31,d:2,ts:"2.1",t:"Anti-pattern",q:"Two tools 'analyze_content' and 'analyze_document' have near-identical descriptions. What should you do?",a:`<strong>Rename</strong> to reflect distinct purposes (e.g., <code>extract_web_results</code> and <code>extract_document_claims</code>) and update descriptions to explicitly state what each handles, what inputs it expects, and when to use it vs the other.<br><br>Ambiguous overlapping descriptions cause misrouting.`},
+{id:32,d:2,ts:"2.1",t:"Skill",q:"When should you split a generic tool into specific tools?",a:`When a generic tool is being misused due to overlapping scope. Example: replace <code>analyze_document</code> with <code>extract_data_points</code>, <code>summarize_content</code>, and <code>verify_claim_against_source</code>.<br><br>More specific tools with narrower, well-defined purposes are generally more reliable for selection.`},
+// D2 — TS 2.2 Structured Errors (4)
+{id:33,d:2,ts:"2.2",t:"Definition",q:"What fields should a structured MCP tool error response include?",a:`<ul><li><code>errorCategory</code>: transient, validation, permission, or business</li><li><code>isRetryable</code>: boolean</li><li>Human-readable error description</li><li>Customer-friendly message (if applicable)</li><li><code>partial_results</code>: any data retrieved before the failure</li><li><code>attempted_operation</code>: what was tried</li></ul>`},
+{id:34,d:2,ts:"2.2",t:"Anti-pattern",q:"Why does a generic 'Operation failed' error prevent intelligent recovery?",a:`It hides the information the agent needs to decide what to do:<ul><li>Is this a <strong>timeout</strong> (retry after a moment)?</li><li>A <strong>validation error</strong> (fix the input)?</li><li>A <strong>business rule</strong> (escalate, don't retry)?</li></ul>Without knowing error category and retryability, the agent can't make a sound recovery decision.`},
+{id:35,d:2,ts:"2.2",t:"Comparison",q:"How are access failures different from valid empty results in error reporting?",a:`<strong>Access failure:</strong> the tool failed to retrieve data (timeout, permission denied). The coordinator should consider retry or alternatives.<br><br><strong>Valid empty result:</strong> the tool succeeded but found no matching data. This is correct behavior — treating it as an error would trigger unnecessary retries.`},
+{id:36,d:2,ts:"2.2",t:"Skill",q:"How should a subagent handle a transient failure vs propagate it to the coordinator?",a:`<strong>Local recovery first:</strong> retry transient failures locally before propagating.<br><br><strong>Propagate only what can't be resolved locally</strong>, including: what was attempted, partial results obtained, error category and retryability, and alternative approaches the coordinator could try.`},
+// D2 — TS 2.3 Tool Distribution (4)
+{id:37,d:2,ts:"2.3",t:"Anti-pattern",q:"Why does giving an agent 18 tools instead of 4–5 degrade performance?",a:`More tools increases <strong>decision complexity</strong> for tool selection. The model must evaluate all 18 options for each decision, raising the probability of selecting the wrong tool.<br><br>Agents with tools outside their specialization tend to misuse them (e.g., a synthesis agent attempting web searches).`},
+{id:38,d:2,ts:"2.3",t:"Configuration",q:"What are the three tool_choice options and when is each used?",a:`<ul><li><code>"auto"</code>: model decides tool or text response</li><li><code>"any"</code>: model must call at least one tool (chooses which) — guarantees tool calling</li><li>Forced <code>{"type":"tool","name":"..."}</code>: model must call that specific tool — ensures a particular tool runs first</li></ul>`},
+{id:39,d:2,ts:"2.3",t:"Skill",q:"The synthesis agent causes 40% latency increase from coordinator round-trips for fact-checking. How do you fix it?",a:`Give the synthesis agent a <strong>scoped verify_fact tool</strong> for simple lookups (85% of cases). Complex verifications continue routing through the coordinator.<br><br>Principle of least privilege: give the agent only what it needs for the common case, preserve coordination for complex cases.`},
+{id:40,d:2,ts:"2.3",t:"Skill",q:"How does tool_choice: 'any' differ from forced tool selection?",a:`<code>"any"</code>: must call a tool, <strong>chooses which</strong>. Useful when multiple valid tools exist and you want to guarantee tool calling without knowing which applies.<br><br><strong>Forced tool</strong>: must call that specific named tool. Useful when a specific tool must always run first (e.g., extract_metadata before enrichment steps).`},
+// D2 — TS 2.4 MCP Integration (4)
+{id:41,d:2,ts:"2.4",t:"Configuration",q:"Where does project-level vs user-level MCP configuration go?",a:`<strong>Project-level (team-shared):</strong> <code>.mcp.json</code> in the project root. Committed to version control. All team members receive it.<br><br><strong>User-level (personal):</strong> <code>~/.claude.json</code>. Not version-controlled. Only available on your machine.`},
+{id:42,d:2,ts:"2.4",t:"Configuration",q:"How should API tokens be stored in .mcp.json without committing secrets?",a:`Use <strong>environment variable expansion</strong>: write <code>${GITHUB_TOKEN}</code> in the config file. The value is read from the shell environment at runtime — not stored in the file itself.<br><br>This allows the config file to be safely committed to version control.`},
+{id:43,d:2,ts:"2.4",t:"Concept",q:"What are MCP resources and when should you expose data as a resource vs a tool?",a:`<strong>MCP resources</strong> expose content catalogs (issue summaries, documentation hierarchies, database schemas) giving the agent visibility into what is available without requiring exploratory tool calls.<br><br>Use resources when the agent needs to know <strong>what's available before deciding what to fetch</strong>.`},
+{id:44,d:2,ts:"2.4",t:"Judgment",q:"When should you build a custom MCP server vs use an existing community server?",a:`<strong>Use community servers</strong> for standard integrations (GitHub, Jira, Slack) — maintained, tested, no engineering overhead.<br><br><strong>Build custom servers</strong> only for team-specific workflows that no existing server covers (proprietary internal APIs, custom data pipelines). The maintenance cost rarely justifies custom builds for standard integrations.`},
+// D2 — TS 2.5 Built-in Tools (4)
+{id:45,d:2,ts:"2.5",t:"Comparison",q:"Grep vs Glob — what does each search?",a:`<strong>Grep:</strong> searches file <em>contents</em> for patterns — function names, import statements, error messages, any string within files.<br><br><strong>Glob:</strong> matches file <em>paths</em> by name or extension pattern — finding files named a certain way.<br><br>Finding callers of a function → Grep. Finding all test files → Glob.`},
+{id:46,d:2,ts:"2.5",t:"Skill",q:"When should you use Read + Write instead of Edit?",a:`Use <strong>Read + Write as a fallback</strong> when Edit fails because the anchor text is not unique in the file.<br><br>Edit requires unique text to match. When the same string appears multiple times, Edit cannot determine which to modify. Read + Write reliably loads the full file, makes changes, and writes it back.`},
+{id:47,d:2,ts:"2.5",t:"Skill",q:"What is the recommended incremental approach for exploring an unfamiliar codebase?",a:`<ol style="padding-left:16px"><li><strong>Grep</strong> to find entry points and key function names</li><li><strong>Read</strong> to follow imports and trace data flows from those entry points</li></ol>Avoid reading all files upfront — it loads irrelevant content. Targeted incremental exploration is more efficient.`},
+{id:48,d:2,ts:"2.5",t:"Skill",q:"How do you trace a function's usage across wrapper and re-export modules?",a:`<ol style="padding-left:16px"><li>Identify all <strong>exported names</strong> from the module (Read the barrel/index file)</li><li>Search for each exported name <strong>across the codebase</strong> using Grep</li></ol>This handles cases where functions are re-exported with different names or wrapped in adapters.`},
+
+// D3 — TS 3.1 CLAUDE.md Hierarchy (4)
+{id:49,d:3,ts:"3.1",t:"Configuration",q:"What are the three levels of the CLAUDE.md configuration hierarchy?",a:`<ol style="padding-left:16px"><li><strong>User-level:</strong> <code>~/.claude/CLAUDE.md</code> — personal, not shared via version control</li><li><strong>Project-level:</strong> root <code>CLAUDE.md</code> or <code>.claude/CLAUDE.md</code> — committed to repo, all team members</li><li><strong>Directory-level:</strong> subdirectory <code>CLAUDE.md</code> — loaded when editing files in that directory</li></ol>`},
+{id:50,d:3,ts:"3.1",t:"Anti-pattern",q:"A new team member isn't following coding standards you wrote in ~/.claude/CLAUDE.md. What is the bug?",a:`<strong>Bug:</strong> User-level config (<code>~/.claude/CLAUDE.md</code>) is personal and not shared via version control. New team members don't receive it when they clone the repo.<br><br><strong>Fix:</strong> Move team coding standards to the project-level <code>CLAUDE.md</code> (committed to the repo).`},
+{id:51,d:3,ts:"3.1",t:"Configuration",q:"What does the @import syntax do in CLAUDE.md?",a:`<code>@import</code> references an external file to include its contents. Keeps CLAUDE.md <strong>modular</strong> — instead of one monolithic file, import only the standards relevant to each package or directory.<br><br>Example: <code>@import ./api-conventions.md</code> in the API package's CLAUDE.md.`},
+{id:52,d:3,ts:"3.1",t:"Skill",q:"How do you diagnose why Claude Code is behaving inconsistently across sessions?",a:`Run <code>/memory</code> inside Claude Code. It displays which CLAUDE.md files and rule files are currently loaded.<br><br>Common causes: instructions in user-level config (not shared), directory-level CLAUDE.md loading only from certain paths, conflicting instructions at different levels.`},
+// D3 — TS 3.2 Commands & Skills (4)
+{id:53,d:3,ts:"3.2",t:"Configuration",q:"Where do team-shared slash commands go vs personal slash commands?",a:`<strong>Team-shared:</strong> <code>.claude/commands/</code> in the project repository. Version-controlled — available to all developers who clone the repo.<br><br><strong>Personal:</strong> <code>~/.claude/commands/</code> in the home directory. Not version-controlled — only on your machine.`},
+{id:54,d:3,ts:"3.2",t:"Definition",q:"What does 'context: fork' do in a SKILL.md frontmatter?",a:`<code>context: fork</code> runs the skill in an <strong>isolated subagent context</strong>. The skill's verbose output and exploration stay in that isolated context. Only a summary is returned to the main conversation.<br><br>Prevents verbose skill output from polluting and degrading subsequent interactions.`},
+{id:55,d:3,ts:"3.2",t:"Configuration",q:"What are the three frontmatter options in SKILL.md?",a:`<ul><li><code>context: fork</code> — run in isolated subagent context</li><li><code>allowed-tools: [...]</code> — restrict which tools the skill can use</li><li><code>argument-hint: "..."</code> — prompt for required parameters when skill is invoked without arguments</li></ul>`},
+{id:56,d:3,ts:"3.2",t:"Comparison",q:"When should you use a CLAUDE.md instruction vs create a skill?",a:`<strong>CLAUDE.md:</strong> always-loaded universal standards — coding conventions, architecture rules, naming standards. Apply to every interaction.<br><br><strong>Skills:</strong> on-demand task-specific workflows invoked explicitly — code generation, analysis tasks, repetitive multi-step operations.<br><br>Always apply → CLAUDE.md. Invoke explicitly → skill.`},
+// D3 — TS 3.3 Path Rules (4)
+{id:57,d:3,ts:"3.3",t:"Configuration",q:"How do you create a path-specific rule that loads only for Terraform files?",a:`Create a file in <code>.claude/rules/</code> with YAML frontmatter:<br><br><code>---<br>paths: ["terraform/**/*", "infra/**/*"]<br>---<br># Terraform Conventions...</code><br><br>Loads only when Claude Code is editing files matching those glob patterns.`},
+{id:58,d:3,ts:"3.3",t:"Comparison",q:"Path-specific rules vs directory-level CLAUDE.md — when is each better?",a:`<strong>Directory-level CLAUDE.md:</strong> good for conventions that apply to all files in one specific directory.<br><br><strong>Path-specific rules:</strong> better when conventions must apply to <strong>files spread across multiple directories</strong> — e.g., test files scattered throughout the codebase. Use glob patterns like <code>**/*.test.tsx</code>.`},
+{id:59,d:3,ts:"3.3",t:"Concept",q:"What is the token efficiency benefit of path-specific rules?",a:`Path-specific rules load <strong>only when editing matching files</strong>. React rules don't load when editing Terraform. Terraform rules don't load when editing React.<br><br>Reduces irrelevant context and token usage compared to a single monolithic CLAUDE.md with all conventions.`},
+{id:60,d:3,ts:"3.3",t:"Skill",q:"Test conventions must apply to test files in src/, tests/, and __tests__/ directories. What mechanism?",a:`Path-specific rules with glob patterns in <code>.claude/rules/tests.md</code>:<br><br><code>paths: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "__tests__/**/*"]</code><br><br>Matches test files anywhere in the tree regardless of directory.`},
+// D3 — TS 3.4 Plan Mode (4)
+{id:61,d:3,ts:"3.4",t:"Judgment",q:"What criteria determine when to use plan mode vs direct execution?",a:`<strong>Plan mode:</strong> large-scale changes, multiple valid approaches, architectural decisions, multi-file modifications, library migrations, restructurings.<br><br><strong>Direct execution:</strong> simple well-scoped single-file changes, clear stack traces with obvious fixes, adding one validation rule or conditional.`},
+{id:62,d:3,ts:"3.4",t:"Anti-pattern",q:"Starting in direct execution and switching to plan mode 'if unexpected complexity emerges' — what is wrong?",a:`If requirements already state large-scale changes or architectural decisions, the complexity is <strong>known upfront</strong> — not something that might emerge later.<br><br>Starting in direct execution when complexity is known risks costly rework when wrong dependencies are discovered mid-implementation.`},
+{id:63,d:3,ts:"3.4",t:"Definition",q:"What is the Explore subagent and when should you use it?",a:`The <strong>Explore subagent</strong> isolates verbose discovery output from the main conversation context. It explores a question and returns a concise summary.<br><br>Use during the discovery phase of complex tasks to prevent context window exhaustion — verbose exploration stays in the subagent's isolated context.`},
+{id:64,d:3,ts:"3.4",t:"Skill",q:"How should you combine plan mode and direct execution for a library migration?",a:`<ol style="padding-left:16px"><li><strong>Plan mode:</strong> explore all usages, understand impact, design the migration approach, get alignment before any changes</li><li><strong>Direct execution:</strong> implement the planned approach file by file</li></ol>Plan prevents surprises; direct execution is efficient once the plan is clear.`},
+// D3 — TS 3.5 Iterative Refinement (4)
+{id:65,d:3,ts:"3.5",t:"Skill",q:"When prose descriptions produce inconsistent results, what is the most effective fix?",a:`Provide <strong>2–3 concrete input/output examples</strong> showing exactly what the transformation should produce for representative cases, including edge cases.<br><br>Examples remove ambiguity that prose creates and show the exact format and logic without relying on the model's interpretation.`},
+{id:66,d:3,ts:"3.5",t:"Definition",q:"What is the interview pattern and when should you use it?",a:`The <strong>interview pattern</strong>: ask Claude to ask you questions before implementing. Claude surfaces considerations you may not have anticipated.<br><br>Use in <strong>unfamiliar domains</strong> where you don't know all design considerations upfront (caching strategies, failure modes, edge cases).<br><br>Not needed when you already know exactly what you want.`},
+{id:67,d:3,ts:"3.5",t:"Skill",q:"When should you address multiple issues in a single message vs sequentially?",a:`<strong>Single message:</strong> when issues are <strong>interacting</strong> — fixing one affects another.<br><br><strong>Sequential iteration:</strong> when issues are <strong>independent</strong> — fixing one doesn't affect others. Keeps each change focused and easier to verify.`},
+{id:68,d:3,ts:"3.5",t:"Concept",q:"Why is test-driven iteration particularly effective with Claude Code?",a:`Tests establish <strong>unambiguous expected behavior</strong>. When tests fail, sharing the exact failure output gives Claude precise information — not vague descriptions.<br><br>Cycle: write tests → implement → share failures → fix → repeat. Each iteration has a concrete, verifiable target.`},
+// D3 — TS 3.6 CI/CD (4)
+{id:69,d:3,ts:"3.6",t:"Configuration",q:"What flag runs Claude Code non-interactively in a CI pipeline?",a:`The <code>-p</code> (or <code>--print</code>) flag. It processes the prompt, outputs to stdout, and exits without waiting for user input.<br><br>Without <code>-p</code>, Claude Code hangs waiting for interactive input — causing CI jobs to time out indefinitely.`},
+{id:70,d:3,ts:"3.6",t:"Configuration",q:"What CLI flags produce machine-parseable structured output for CI?",a:`<code>--output-format json</code> combined with <code>--json-schema schema.json</code><br><br>Enforces structured output matching the schema — suitable for automated parsing and posting as inline PR comments.`},
+{id:71,d:3,ts:"3.6",t:"Concept",q:"Why is an independent review instance better than self-review in CI?",a:`A model that generated code retains <strong>reasoning context</strong> — it knows why it made each decision and is less likely to question those decisions.<br><br>An <strong>independent review instance</strong> (fresh session, no generation context) approaches the code without this bias and catches issues the generator would rationalize away.`},
+{id:72,d:3,ts:"3.6",t:"Skill",q:"How do you prevent duplicate findings when a PR has multiple review runs?",a:`Include <strong>prior review findings in context</strong> and instruct Claude to report only:<ul><li>New issues not in the previous list</li><li>Previous issues still present and unaddressed</li></ul>You cannot skip what you cannot compare against — the previous findings list must be provided.`},
+
+// D4 — TS 4.1 Explicit Criteria (4)
+{id:73,d:4,ts:"4.1",t:"Anti-pattern",q:"Why does 'be conservative' or 'only report high-confidence findings' fail to reduce false positives?",a:`These are <strong>vague instructions</strong> that don't define categories. The model doesn't know which types of findings are high or low confidence in your specific domain.<br><br>What works: <strong>specific categorical criteria</strong> — explicitly list which issue types to report (security, bugs) and which to skip (naming conventions, style).`},
+{id:74,d:4,ts:"4.1",t:"Concept",q:"How do false positives in one category affect trust in accurate categories?",a:`<strong>High false positive rates in one category undermine developer trust in ALL categories.</strong><br><br>If style findings are 35% false positives, developers start dismissing all feedback — including the accurate security findings. The noise erodes confidence in the entire system.<br><br>Fix: disable the noisy category while improving it.`},
+{id:75,d:4,ts:"4.1",t:"Skill",q:"What makes severity criteria effective for consistent classification?",a:`Severity criteria need <strong>concrete code examples</strong> for each level, not just abstract definitions:<br><br><strong>CRITICAL:</strong> direct SQL injection via string concatenation — exploitable now<br><strong>HIGH:</strong> missing transaction wrapper — data corruption risk<br><strong>MEDIUM:</strong> null check missing for edge case inputs<br><strong>LOW:</strong> mutable default argument — future risk`},
+{id:76,d:4,ts:"4.1",t:"Skill",q:"A review system has 35% false positives in naming conventions but accurate security findings. What is the correct immediate action?",a:`<strong>Temporarily disable the naming conventions category</strong> to stop trust erosion while improving its specific criteria.<br><br>This preserves developer trust in accurate security findings (valuable) without waiting for the naming category to be fixed. Improving it is a separate parallel effort.`},
+// D4 — TS 4.2 Few-Shot (4)
+{id:77,d:4,ts:"4.2",t:"Definition",q:"What two things do few-shot examples accomplish that instructions alone cannot?",a:`<ol style="padding-left:16px"><li><strong>Format demonstration:</strong> show the exact output structure (location, issue, severity, suggested fix)</li><li><strong>Ambiguous-case judgment calibration:</strong> demonstrate why one action was chosen over plausible alternatives — enabling generalization to novel patterns</li></ol>`},
+{id:78,d:4,ts:"4.2",t:"Skill",q:"How many few-shot examples should you include, and must you include negative examples?",a:`<strong>2–4 targeted examples</strong> for ambiguous scenarios showing reasoning for the chosen action.<br><br><strong>Yes — include negative examples</strong> (what to skip). A "skip this" example is as important as "report this" for calibrating the decision boundary.`},
+{id:79,d:4,ts:"4.2",t:"Concept",q:"Why are few-shot examples better than detailed instructions for extraction from varied document formats?",a:`Instructions describe abstract rules. When formats vary (inline citations vs bibliographies), the model must interpret how the rule applies to each format.<br><br>Few-shot examples <strong>show correct extraction for specific formats</strong>, enabling generalization to similar but novel formats not seen in examples.`},
+{id:80,d:4,ts:"4.2",t:"Skill",q:"How do you use few-shot examples to prevent value fabrication for absent fields?",a:`Include examples that demonstrate <strong>correct null extraction</strong> for missing information:<br><br><em>Document has no contract value stated.</em><br><code>contract_value: null</code> (correct — do not fabricate)<br><br>These examples show the model that returning null is expected behavior when information is absent.`},
+// D4 — TS 4.3 Structured Output (4)
+{id:81,d:4,ts:"4.3",t:"Definition",q:"Why is tool use with JSON schemas more reliable than prompt-based JSON output?",a:`<strong>Tool use eliminates JSON syntax errors</strong> — the SDK enforces schema compliance at the API level. The model cannot produce malformed JSON.<br><br>Prompt-based JSON output is probabilistic — the model may add prose before the JSON, deviate from the schema, or produce syntax errors.`},
+{id:82,d:4,ts:"4.3",t:"Concept",q:"What is the limitation of tool use / JSON schemas for structured output?",a:`Tool use eliminates <strong>syntax errors</strong> but does NOT prevent <strong>semantic errors</strong>:<ul><li>Line items that don't sum to the stated total</li><li>Values placed in the wrong fields</li><li>Logical inconsistencies between related fields</li></ul>Semantic validation requires separate programmatic cross-field checks.`},
+{id:83,d:4,ts:"4.3",t:"Skill",q:"How should you design a schema field for a category that has mostly standard values but some unusual cases?",a:`Use the <strong>enum + "other" + detail string pattern</strong>:<ul><li>Enum with standard values plus <code>"other"</code></li><li>Separate <code>category_detail</code> string field — required when category is "other"</li></ul>Gives reliable categorical values for standard cases while honestly handling unusual ones.`},
+{id:84,d:4,ts:"4.3",t:"Skill",q:"When should a schema field be nullable vs required?",a:`Make a field <strong>nullable</strong> when source documents may not contain the information. A required field pressures the model to fabricate a value.<br><br>Examples of nullable fields: <code>po_number</code> (not always on invoices), <code>effective_date</code> (some contracts use payment due dates), <code>contract_value</code> (hourly contracts have no fixed value).`},
+// D4 — TS 4.4 Validation & Retry (4)
+{id:85,d:4,ts:"4.4",t:"Skill",q:"What three elements must a retry-with-error-feedback prompt include?",a:`<ol style="padding-left:16px"><li>The <strong>original document</strong> (so the model can re-examine the source)</li><li>The <strong>failed extraction</strong> (so the model knows what was wrong)</li><li>The <strong>specific validation error</strong> (so the model knows exactly what to fix)</li></ol>A vague "please fix the extraction" gives no useful guidance.`},
+{id:86,d:4,ts:"4.4",t:"Judgment",q:"When will retrying an extraction fail to fix the problem?",a:`Retries are ineffective when the <strong>required information is absent from the source document</strong>.<br><br>Example: a contract references "Exhibit A for pricing" but Exhibit A wasn't provided. Retrying with the same document cannot produce the missing price.<br><br>Retries work for: format mismatches, structural errors, field misplacement.`},
+{id:87,d:4,ts:"4.4",t:"Concept",q:"What is a detected_pattern field and why add it to structured review findings?",a:`<code>detected_pattern</code> records <strong>which code construct triggered the finding</strong> (e.g., "string_concatenation_in_query").<br><br>When developers dismiss findings, analyzing <code>detected_pattern</code> values of dismissed items reveals which patterns produce false positives — enabling systematic prompt improvement.`},
+{id:88,d:4,ts:"4.4",t:"Skill",q:"How do you design self-correction validation for financial extraction?",a:`Extract both the <strong>calculated value</strong> and the <strong>stated value</strong>:<ul><li><code>stated_total</code>: from the document's "Total Due" field</li><li><code>calculated_total</code>: sum of line items</li><li><code>total_conflict</code>: boolean — true when they don't match</li></ul>Surfaces discrepancies automatically without separate programmatic checks.`},
+// D4 — TS 4.5 Batch Processing (4)
+{id:89,d:4,ts:"4.5",t:"Definition",q:"What are the key characteristics of the Message Batches API?",a:`<ul><li><strong>50% cost savings</strong> vs real-time API</li><li><strong>Up to 24-hour processing</strong> — no guaranteed latency SLA</li><li><strong>Does NOT support</strong> multi-turn tool calling within a single request</li><li><code>custom_id</code> for correlating request/response pairs</li></ul>`},
+{id:90,d:4,ts:"4.5",t:"Judgment",q:"Pre-merge check vs overnight technical debt report — which uses the batch API?",a:`<strong>Pre-merge check → real-time API only.</strong> Blocking workflow — developers wait. A 24-hour processing window is unacceptable.<br><br><strong>Overnight report → Message Batches API.</strong> Non-blocking, results needed by morning, well within 24-hour window. 50% cost savings are valuable here.`},
+{id:91,d:4,ts:"4.5",t:"Skill",q:"How do you handle failures when batch-processing 500 documents?",a:`Use <code>custom_id</code> to identify failed documents:<ol style="padding-left:16px"><li>Compare batch response IDs against submitted IDs</li><li>Isolate failed documents by their <code>custom_id</code></li><li>Resubmit <strong>only failed documents</strong> with modifications (e.g., chunk oversized documents)</li></ol>Never resubmit the entire batch — only reprocess failures.`},
+{id:92,d:4,ts:"4.5",t:"Skill",q:"Given a 30-hour SLA and 24-hour batch processing window, what is the maximum submission lag?",a:`Maximum submission lag: 30 − 24 = <strong>6 hours</strong>.<br><br>Batches must be submitted within 6 hours of the request to guarantee results within the 30-hour SLA.<br><br>In practice: submit immediately or on a regular schedule every 4–5 hours to leave margin.`},
+// D4 — TS 4.6 Multi-Instance Review (4)
+{id:93,d:4,ts:"4.6",t:"Concept",q:"Why is self-review less effective than independent review?",a:`A model that generated code retains <strong>reasoning context</strong> — it remembers why it made each decision and is less likely to question those decisions.<br><br>An independent instance has no generation context and is more likely to catch subtle issues the generator would rationalize away.`},
+{id:94,d:4,ts:"4.6",t:"Skill",q:"How does multi-pass review work for a PR with 14 modified files?",a:`<strong>Pass 1 — Per-file local analysis:</strong> analyze each file individually for bugs, security, local logic errors.<br><br><strong>Pass 2 — Cross-file integration pass:</strong> examine data flow — type mismatches, inconsistent return values, broken interface contracts.<br><br>Two focused passes catch more issues than one pass on all 14 files simultaneously.`},
+{id:95,d:4,ts:"4.6",t:"Anti-pattern",q:"You require a finding to appear in 2 of 3 independent review runs before reporting it. What is the problem?",a:`This <strong>suppresses real bugs</strong>. Genuine issues may only be caught intermittently — appearing in 1 of 3 runs due to attention or sampling patterns.<br><br>A missed CRITICAL bug that appeared in only 1 run is far worse than a false positive that appeared in 2. Consensus-based filtering discards real findings.`},
+{id:96,d:4,ts:"4.6",t:"Skill",q:"How should confidence scoring be used for routing review findings?",a:`<ul><li><strong>High confidence</strong> → auto-post as PR comment</li><li><strong>Low confidence</strong> → queue for human architect review</li><li><strong>Critical severity</strong> → block regardless of confidence (cost of missing a critical issue exceeds cost of a false positive)</li></ul>`},
+
+// D5 — TS 5.1 Context Preservation (4)
+{id:97,d:5,ts:"5.1",t:"Anti-pattern",q:"What is the risk of progressive summarization in customer support conversations?",a:`Progressive summarization condenses <strong>transactional facts</strong> into vague descriptions:<ul><li>Specific amounts become "the disputed amount"</li><li>Exact dates become "recently"</li><li>Customer-stated expectations are paraphrased or dropped</li></ul>Fix: extract key facts (amounts, dates, order numbers, statuses) into a persistent <strong>case facts block</strong> included in every prompt.`},
+{id:98,d:5,ts:"5.1",t:"Definition",q:"What is the 'lost in the middle' effect?",a:`Models reliably process information at the <strong>beginning and end</strong> of long inputs but may <strong>omit findings from middle sections</strong>.<br><br>Mitigations:<ul><li>Place key findings summaries <strong>at the beginning</strong> of aggregated inputs</li><li>Organize with <strong>explicit section headers</strong></li><li>Use persistent case facts blocks rather than relying on position</li></ul>`},
+{id:99,d:5,ts:"5.1",t:"Skill",q:"How do you reduce context usage from verbose tool outputs?",a:`Use a <strong>PostToolUse hook</strong> to trim tool responses to only relevant fields before appending to conversation history.<br><br>Example: order lookup with 40+ fields → keep only the 5–8 relevant to the current issue (status, amount, refund_eligible, dates).<br><br>Prevents tool results from consuming disproportionate context tokens.`},
+{id:100,d:5,ts:"5.1",t:"Skill",q:"How should subagent outputs be structured to support accurate downstream synthesis?",a:`Require subagents to include <strong>metadata in structured outputs</strong>:<ul><li>Publication/collection dates</li><li>Source locations (URL, document name, page number)</li><li>Methodological context</li></ul>Without metadata, the synthesis agent cannot correctly interpret or cite findings.`},
+// D5 — TS 5.2 Escalation (4)
+{id:101,d:5,ts:"5.2",t:"Definition",q:"What are the three appropriate escalation triggers for a customer support agent?",a:`<ol style="padding-left:16px"><li><strong>Customer explicitly requests a human</strong> — honor immediately, do not attempt resolution first</li><li><strong>Policy gap or exception</strong> — case requires a decision the policy doesn't cover</li><li><strong>Unable to make meaningful progress</strong> — multiple attempts failed, options exhausted</li></ol>`},
+{id:102,d:5,ts:"5.2",t:"Anti-pattern",q:"Why is sentiment-based escalation an unreliable proxy for case complexity?",a:`Sentiment measures how frustrated the customer is — not how complex the case is.<br><br>A very frustrated customer may have a <strong>simple, solvable problem</strong>. A calm customer may have an <strong>unsolvable policy exception</strong>.<br><br>Escalating based on sentiment escalates the wrong cases while under-escalating genuinely complex ones.`},
+{id:103,d:5,ts:"5.2",t:"Skill",q:"How should you handle a frustrated customer whose issue is within the agent's capability?",a:`<ol style="padding-left:16px"><li><strong>Acknowledge the frustration</strong></li><li><strong>Offer to resolve</strong> the specific issue (since it is within capability)</li><li><strong>Escalate only if</strong> the customer reiterates their preference for a human after the offer</li></ol>Do not immediately escalate based on tone for solvable cases — that wastes human capacity.`},
+{id:104,d:5,ts:"5.2",t:"Skill",q:"A lookup returns multiple customer matches for the same name. What should the agent do?",a:`<strong>Ask for additional identifiers</strong> — do not select based on heuristics (most recent, closest match).<br><br>Examples: email address, phone number, account number, recent order number, zip code.<br><br>Heuristic selection risks operating on the wrong customer's account.`},
+// D5 — TS 5.3 Error Propagation (4)
+{id:105,d:5,ts:"5.3",t:"Skill",q:"What structured context should a failing subagent return to the coordinator?",a:`<ul><li><code>failure_type</code>: timeout, access_denied, partial_success</li><li><code>attempted_query</code>: exactly what was tried</li><li><code>partial_results</code>: any data retrieved before failure</li><li><code>alternatives</code>: other approaches the coordinator could try</li></ul>Enables intelligent recovery decisions rather than blind failure.`},
+{id:106,d:5,ts:"5.3",t:"Anti-pattern",q:"A subagent silently returns empty results when it fails. What is the problem?",a:`Marking failure as success <strong>masks the failure</strong>:<ul><li>The coordinator thinks the search succeeded with no results</li><li>No recovery is attempted</li><li>The final report has gaps with no indication of why</li></ul>Fix: return explicit error context including what was attempted.`},
+{id:107,d:5,ts:"5.3",t:"Anti-pattern",q:"A subagent times out and the system terminates the entire research workflow. What is wrong?",a:`Terminating the entire workflow on a single subagent failure <strong>discards all valid results</strong> from agents that succeeded.<br><br>Better: the coordinator receives the structured error, proceeds with partial results from other agents, and annotates the final output indicating which coverage areas have gaps.`},
+{id:108,d:5,ts:"5.3",t:"Skill",q:"How should synthesis output indicate which findings have limited source support?",a:`Include <strong>coverage annotations</strong>:<br><br><code>{finding, well_supported: true/false, source_count: N, coverage_note: "Limited to academic sources only — no industry data found"}</code><br><br>Distinguishes findings with strong multi-source support from those with partial coverage.`},
+// D5 — TS 5.4 Large Codebase Context (4)
+{id:109,d:5,ts:"5.4",t:"Anti-pattern",q:"What are signs that context has degraded in a long Claude Code session?",a:`<ul><li>Claude starts referencing <strong>"typical patterns"</strong> rather than specific classes discovered earlier</li><li>Answers become <strong>inconsistent</strong> — contradicting earlier statements</li><li>Specific function names or module paths are <strong>forgotten or confused</strong></li></ul>These indicate prior analysis is being pushed out of effective attention.`},
+{id:110,d:5,ts:"5.4",t:"Skill",q:"What is a scratchpad file and how does it help with context degradation?",a:`A <strong>scratchpad file</strong> is where the agent writes key findings during exploration (module purposes, dependency relationships, safe modification points).<br><br>When context degrades or a new session begins, reading the scratchpad file instantly restores accumulated knowledge without re-exploring the codebase.`},
+{id:111,d:5,ts:"5.4",t:"Skill",q:"How should crash recovery be designed for a multi-agent system?",a:`<strong>Structured state persistence:</strong><ul><li>Each agent exports its state to a known location</li><li>Coordinator maintains a manifest of all agent states</li><li>On resume/crash, coordinator loads the manifest and injects agent states into prompts</li></ul>Allows recovery without re-doing completed work.`},
+{id:112,d:5,ts:"5.4",t:"Configuration",q:"When should you use /compact during a Claude Code session?",a:`Use <code>/compact</code> when the session context fills with <strong>verbose discovery output</strong> — extensive file reads, exploration results, analysis chains no longer needed but consuming context space.<br><br>Compresses prior conversation content, freeing budget for continued work. Use before context is completely full.`},
+// D5 — TS 5.5 Human Review Workflows (4)
+{id:113,d:5,ts:"5.5",t:"Anti-pattern",q:"Your extraction system has 97% overall accuracy. You reduce human review. Your teammate objects. Why?",a:`97% overall accuracy can mask <strong>poor performance on specific document types or fields</strong>.<br><br>The system might be 99.9% accurate on standard invoices but 72% on complex multi-page contracts. Reducing review exposes worst-performing segments without oversight.<br><br>Always validate accuracy <strong>by document type and field</strong> before reducing review.`},
+{id:114,d:5,ts:"5.5",t:"Definition",q:"What is stratified random sampling in human review calibration?",a:`<strong>Stratified sampling</strong>: sampling from distinct segments (document types, field categories, confidence ranges) rather than random whole-pool sampling.<br><br>Even after reducing review of high-confidence items, stratified sampling of those items <strong>detects novel error patterns</strong> that aggregate metrics would miss.`},
+{id:115,d:5,ts:"5.5",t:"Skill",q:"How should field-level confidence scores be calibrated for routing decisions?",a:`<ol style="padding-left:16px"><li>Have the model output <strong>field-level confidence scores</strong> (0.0–1.0)</li><li>Collect a <strong>labeled validation set</strong> (ground truth for a sample)</li><li>Compare model confidence scores against actual accuracy at each threshold</li><li>Set routing thresholds based on <strong>empirical calibration</strong> — not intuition</li></ol>`},
+{id:116,d:5,ts:"5.5",t:"Skill",q:"How should limited human review capacity be prioritized?",a:`Route to human review:<ul><li>Extractions with <strong>low model confidence</strong> on any field</li><li>Documents with <strong>ambiguous or contradictory source data</strong></li><li>Document types where <strong>accuracy validation is incomplete</strong></li></ul>High-confidence extractions from validated document types can proceed automatically.`},
+// D5 — TS 5.6 Provenance (4)
+{id:117,d:5,ts:"5.6",t:"Anti-pattern",q:"During synthesis, the agent produces a report with no source citations. Where in the pipeline is attribution lost?",a:`<strong>During the summarization step</strong> — findings were compressed into prose without preserving claim-source mappings.<br><br>Fix: require structured outputs with <code>{claim, source_url, document_name, page, publication_date}</code> that must be preserved through synthesis (not converted to undifferentiated prose).`},
+{id:118,d:5,ts:"5.6",t:"Skill",q:"Two credible sources give conflicting statistics on the same topic. How should the synthesis agent handle this?",a:`<strong>Preserve both values with source attribution and annotate the conflict</strong> — do not arbitrarily select one.<br><br>Example: "Study A (2024): 42% adoption. Study B (2025): 67% adoption. Note: different methodologies and survey populations."<br><br>Let the coordinator or reader decide how to reconcile.`},
+{id:119,d:5,ts:"5.6",t:"Concept",q:"Why must subagent outputs include publication dates for research findings?",a:`Different publication dates may explain apparent contradictions. Without dates, a synthesis agent may interpret <strong>temporal differences as factual conflicts</strong>.<br><br>Example: AI adoption at 15% (2020) vs 67% (2025) — not a conflict, a trend. Without dates this looks like contradictory data.`},
+{id:120,d:5,ts:"5.6",t:"Skill",q:"How should a research report distinguish well-established from contested findings?",a:`Structure with <strong>explicit sections</strong>:<ul><li><strong>Well-established:</strong> claims supported by multiple independent sources with consistent methodology</li><li><strong>Contested:</strong> claims where credible sources conflict — present all positions with source attribution and methodological context</li><li><strong>Coverage gaps:</strong> topics where source data was insufficient</li></ul>`},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+const DC = {1:'var(--d1)',2:'var(--d2)',3:'var(--d3)',4:'var(--d4)',5:'var(--d5)'};
+const DN = {1:'D1 Agentic',2:'D2 Tools',3:'D3 Config',4:'D4 Prompts',5:'D5 Context'};
+
+let S = {
+  domain: 'all', deck: [...CARDS], idx: 0, flipped: false,
+  shuffle: false, weak: false,
+  results: {}, reviewed: 0, got: 0, needs: 0, streak: 0,
+};
+
+function loadStorage() {
+  try {
+    const d = JSON.parse(localStorage.getItem('cca-fc-v2') || '{}');
+    S.results = d.results || {};
+    S.reviewed = d.reviewed || 0;
+    S.got = d.got || 0;
+    S.needs = d.needs || 0;
+    S.streak = d.streak || 0;
+  } catch(e) {}
+}
+
+function save() {
+  try { localStorage.setItem('cca-fc-v2', JSON.stringify({results:S.results,reviewed:S.reviewed,got:S.got,needs:S.needs,streak:S.streak})); } catch(e) {}
+}
+
+function getFiltered() {
+  let c = CARDS;
+  if (S.domain !== 'all') c = c.filter(x => x.d === +S.domain);
+  if (S.weak) {
+    const w = c.filter(x => S.results[x.id] === 'review' || !S.results[x.id]);
+    if (w.length) c = w;
+  }
+  return c;
+}
+
+function shuffle(a) { const r=[...a]; for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];} return r; }
+
+function renderCard() {
+  const cards = S.deck;
+  if (!cards.length) return;
+  const c = cards[S.idx];
+  if (!c) return;
+
+  const col = DC[c.d];
+  const domBadge = (id) => {
+    const el = document.getElementById(id);
+    el.textContent = DN[c.d];
+    el.style.cssText = `background:${col}22;color:${col};border:1px solid ${col}44`;
+  };
+  domBadge('f-domain'); domBadge('b-domain');
+  document.getElementById('f-type').textContent = c.t;
+  document.getElementById('b-type').textContent = c.t;
+  document.getElementById('f-ts').textContent = 'TS ' + c.ts;
+  document.getElementById('b-ts').textContent = 'TS ' + c.ts;
+
+  // Result dot
+  const dot = document.getElementById('f-dot');
+  const res = S.results[c.id];
+  dot.className = 'card-result-dot ' + (res === 'got' ? 'dot-got' : res === 'review' ? 'dot-review' : 'dot-none');
+
+  document.getElementById('card-q').textContent = c.q;
+  document.getElementById('card-a').innerHTML = c.a;
+  document.getElementById('card-counter').textContent = `Card ${S.idx+1} of ${cards.length}`;
+
+  // Reset flip
+  if (S.flipped) {
+    S.flipped = false;
+    document.getElementById('card-scene').classList.remove('flipped');
+    document.getElementById('action-btns').classList.add('hidden');
+  }
+  document.getElementById('btn-prev').disabled = S.idx === 0;
+  document.getElementById('btn-next').disabled = S.idx === cards.length - 1;
+}
+
+function renderStats() {
+  document.getElementById('s-reviewed').textContent = S.reviewed;
+  document.getElementById('s-got').textContent = S.got;
+  document.getElementById('s-needs').textContent = S.needs;
+  document.getElementById('s-acc').textContent = S.reviewed > 0 ? Math.round(S.got/S.reviewed*100)+'%' : '—';
+  const sb = document.getElementById('streak-badge');
+  sb.style.display = S.streak >= 3 ? 'flex' : 'none';
+  document.getElementById('streak-count').textContent = S.streak;
+
+  [1,2,3,4,5].forEach(d => {
+    const total = CARDS.filter(c=>c.d===d).length;
+    const done = CARDS.filter(c=>c.d===d && S.results[c.id]).length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    document.getElementById(`dp${d}p`).textContent = pct+'%';
+    document.getElementById(`dp${d}b`).style.width = pct+'%';
+  });
+}
+
+function advance() {
+  if (S.idx < S.deck.length - 1) {
+    S.idx++;
+    renderCard();
+  } else {
+    document.getElementById('card-q').textContent = 'End of deck! Reset session or switch filters to continue.';
+    document.getElementById('card-a').innerHTML = `<strong>Session complete!</strong><br><br>Cards reviewed: ${S.reviewed}<br>Got it: ${S.got}<br>Need review: ${S.needs}<br>Accuracy: ${S.reviewed > 0 ? Math.round(S.got/S.reviewed*100)+'%' : 'N/A'}`;
+    document.getElementById('action-btns').classList.add('hidden');
+  }
+}
+
+function markCard(result) {
+  const c = S.deck[S.idx];
+  if (!c) return;
+  const prev = S.results[c.id];
+  S.results[c.id] = result;
+  if (!prev) {
+    S.reviewed++;
+    if (result === 'got') { S.got++; S.streak++; }
+    else { S.needs++; S.streak = 0; }
+  } else {
+    if (prev !== result) {
+      if (result === 'got') { S.got++; S.needs = Math.max(0, S.needs-1); S.streak++; }
+      else { S.needs++; S.got = Math.max(0, S.got-1); S.streak = 0; }
+    }
+  }
+  save();
+  renderStats();
+  advance();
+}
+
+// Flip
+document.getElementById('card-scene').addEventListener('click', () => {
+  S.flipped = !S.flipped;
+  document.getElementById('card-scene').classList.toggle('flipped', S.flipped);
+  document.getElementById('action-btns').classList.toggle('hidden', !S.flipped);
+});
+
+// Action buttons
+document.getElementById('btn-got').addEventListener('click', e => { e.stopPropagation(); markCard('got'); });
+document.getElementById('btn-needs').addEventListener('click', e => { e.stopPropagation(); markCard('review'); });
+
+// Nav
+document.getElementById('btn-prev').addEventListener('click', () => { if(S.idx>0){S.idx--;renderCard();} });
+document.getElementById('btn-next').addEventListener('click', () => { if(S.idx<S.deck.length-1){S.idx++;renderCard();} });
+
+// Tabs
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab'); if(!tab) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  S.domain = tab.dataset.domain; S.idx = 0; S.flipped = false;
+  document.getElementById('card-scene').classList.remove('flipped');
+  document.getElementById('action-btns').classList.add('hidden');
+  S.deck = S.shuffle ? shuffle(getFiltered()) : getFiltered();
+  renderCard();
+});
+
+// Controls
+document.getElementById('btn-shuffle').addEventListener('click', () => {
+  S.shuffle = !S.shuffle;
+  document.getElementById('btn-shuffle').classList.toggle('active', S.shuffle);
+  S.deck = S.shuffle ? shuffle(getFiltered()) : getFiltered();
+  S.idx = 0; renderCard();
+});
+
+document.getElementById('btn-weak').addEventListener('click', () => {
+  S.weak = !S.weak;
+  document.getElementById('btn-weak').classList.toggle('active', S.weak);
+  S.deck = S.shuffle ? shuffle(getFiltered()) : getFiltered();
+  S.idx = 0; renderCard();
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if(!confirm('Reset session stats? Card results (got it / need review) will be preserved.')) return;
+  S.reviewed = 0; S.got = 0; S.needs = 0; S.streak = 0; S.idx = 0;
+  S.deck = S.shuffle ? shuffle(getFiltered()) : getFiltered();
+  save(); renderStats(); renderCard();
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === 'l') { if(S.idx<S.deck.length-1){S.idx++;renderCard();} }
+  else if (e.key === 'ArrowLeft' || e.key === 'h') { if(S.idx>0){S.idx--;renderCard();} }
+  else if (e.key === ' ' || e.key === 'f') {
+    e.preventDefault();
+    S.flipped = !S.flipped;
+    document.getElementById('card-scene').classList.toggle('flipped', S.flipped);
+    document.getElementById('action-btns').classList.toggle('hidden', !S.flipped);
+  } else if (e.key === 'g' && S.flipped) { markCard('got'); }
+  else if (e.key === 'r' && S.flipped) { markCard('review'); }
+});
+
+// Init
+loadStorage();
+S.deck = getFiltered();
+renderCard();
+renderStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept Map – Claude Certified Architect</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #080810; color: #e2e8f0; overflow: hidden; height: 100vh; }
+#header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,20,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #1e1e3a; padding: 0.6rem 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+#header h1 { font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.scenarios { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.scenario-btn { padding: 0.25rem 0.6rem; border-radius: 999px; border: 1px solid; cursor: pointer; font-size: 0.7rem; font-weight: 700; transition: all 0.2s; opacity: 0.6; }
+.scenario-btn.active { opacity: 1; }
+.controls { display: flex; gap: 0.4rem; }
+.ctrl-btn { background: #1a1a2e; border: 1px solid #2a2a4a; color: #94a3b8; padding: 0.25rem 0.6rem; border-radius: 0.4rem; cursor: pointer; font-size: 0.75rem; }
+.ctrl-btn:hover { border-color: #7c3aed; color: white; }
+#canvas-wrap { position: fixed; top: 50px; left: 0; right: 0; bottom: 0; overflow: hidden; cursor: grab; }
+#canvas-wrap.grabbing { cursor: grabbing; }
+#canvas { position: absolute; transform-origin: 0 0; }
+/* Tooltip */
+#tooltip { position: fixed; z-index: 200; background: rgba(15,15,30,0.97); border: 1px solid #2a2a4a; border-radius: 0.75rem; padding: 0.75rem 1rem; max-width: 280px; pointer-events: none; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+#tooltip h3 { font-size: 0.9rem; font-weight: 800; margin-bottom: 0.3rem; }
+#tooltip p { font-size: 0.78rem; line-height: 1.5; color: #94a3b8; }
+#tooltip .ts-label { font-size: 0.68rem; color: #64748b; margin-top: 0.3rem; font-style: italic; }
+/* Legend -->
+#legend { position: fixed; bottom: 1rem; right: 1rem; background: rgba(10,10,20,0.95); border: 1px solid #1e1e3a; border-radius: 0.75rem; padding: 0.75rem 1rem; z-index: 100; font-size: 0.75rem; }
+#legend h4 { color: #94a3b8; margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.legend-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; color: #94a3b8; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-line { width: 20px; height: 2px; }
+</style>
+</head>
+<body>
+<div id="header">
+  <div>
+    <h1>Claude Certified Architect – Concept Map</h1>
+  </div>
+  <div class="scenarios" id="scenarios"></div>
+  <div class="controls">
+    <button class="ctrl-btn" onclick="clearScenario()">Clear Scenario</button>
+    <button class="ctrl-btn" onclick="resetView()">Reset View</button>
+    <button class="ctrl-btn" onclick="zoomIn()">+ Zoom</button>
+    <button class="ctrl-btn" onclick="zoomOut()">- Zoom</button>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="canvas"></svg>
+</div>
+
+<div id="tooltip">
+  <h3 id="tt-title"></h3>
+  <p id="tt-body"></p>
+  <div class="ts-label" id="tt-ts"></div>
+</div>
+
+<div id="legend">
+  <h4>Legend</h4>
+  <div class="legend-row"><div class="legend-dot" style="background:#fbbf24;width:16px;height:16px;border-radius:50%"></div>Central (Certification)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#7c3aed"></div>Domain 1: Agentic (27%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#0891b2"></div>Domain 2: Tools/MCP (18%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#059669"></div>Domain 3: Claude Code (20%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#d97706"></div>Domain 4: Prompts (20%)</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#dc2626"></div>Domain 5: Context (15%)</div>
+  <div class="legend-row"><div class="legend-line" style="background:#475569"></div>Domain link</div>
+  <div class="legend-row"><div class="legend-line" style="background:#fbbf24;border-top:2px dashed #fbbf24;background:none"></div>Cross-domain link</div>
+  <div style="color:#64748b;font-size:0.68rem;margin-top:0.4rem">Click nodes · Drag to pan · Scroll to zoom</div>
+</div>
+
+<script>
+const DOMAINS = [
+  { id: 1, label: 'Agentic Architecture\n& Orchestration', short: 'D1: Agentic', pct: '27%', color: '#7c3aed', x: 400, y: 200 },
+  { id: 2, label: 'Tool Design &\nMCP Integration', short: 'D2: Tools/MCP', pct: '18%', color: '#0891b2', x: 800, y: 350 },
+  { id: 3, label: 'Claude Code Config\n& Workflows', short: 'D3: Claude Code', pct: '20%', color: '#059669', x: 750, y: 700 },
+  { id: 4, label: 'Prompt Engineering\n& Structured Output', short: 'D4: Prompts', pct: '20%', color: '#d97706', x: 300, y: 750 },
+  { id: 5, label: 'Context Management\n& Reliability', short: 'D5: Context', pct: '15%', color: '#dc2626', x: 100, y: 450 },
+];
+
+const TASKS = [
+  // D1
+  { id: 't1.1', d: 1, label: '1.1\nAgentic Loops', short: '1.1', desc: 'Design agentic loops: stop_reason logic, tool result appending, loop termination patterns. Anti-patterns: NLP parsing, arbitrary caps.', x: 350, y: 80 },
+  { id: 't1.2', d: 1, label: '1.2\nMulti-Agent Orch.', short: '1.2', desc: 'Hub-and-spoke architecture: coordinator manages all routing, subagent isolation, task decomposition, iterative refinement.', x: 200, y: 130 },
+  { id: 't1.3', d: 1, label: '1.3\nSubagent Spawning', short: '1.3', desc: 'Task tool, allowedTools: ["Task"], parallel spawning (single response), explicit context passing, fork_session.', x: 150, y: 230 },
+  { id: 't1.4', d: 1, label: '1.4\nWorkflow Handoffs', short: '1.4', desc: 'Programmatic vs prompt-based enforcement, prerequisite gates, structured handoff summaries for escalation.', x: 200, y: 330 },
+  { id: 't1.5', d: 1, label: '1.5\nSDK Hooks', short: '1.5', desc: 'PostToolUse hooks for normalization, PreToolUse hooks for policy enforcement, deterministic vs probabilistic compliance.', x: 300, y: 390 },
+  { id: 't1.6', d: 1, label: '1.6\nTask Decomposition', short: '1.6', desc: 'Prompt chaining (predictable workflows) vs dynamic decomposition (open-ended). Per-file + cross-file code review.', x: 490, y: 340 },
+  { id: 't1.7', d: 1, label: '1.7\nSession Management', short: '1.7', desc: '--resume, fork_session, session resumption vs fresh start with summary, informing agent about file changes.', x: 550, y: 220 },
+  // D2
+  { id: 't2.1', d: 2, label: '2.1\nTool Interfaces', short: '2.1', desc: 'Tool descriptions as selection mechanism. Clear descriptions with input formats, examples, boundaries. Splitting generic tools.', x: 980, y: 230 },
+  { id: 't2.2', d: 2, label: '2.2\nStructured Errors', short: '2.2', desc: 'isError flag, errorCategory (transient/validation/business/permission), isRetryable, access failure vs empty result distinction.', x: 1000, y: 380 },
+  { id: 't2.3', d: 2, label: '2.3\nTool Distribution', short: '2.3', desc: 'Scoped tool access per agent role, tool_choice (auto/any/forced), limiting tools to prevent misuse.', x: 950, y: 480 },
+  { id: 't2.4', d: 2, label: '2.4\nMCP Integration', short: '2.4', desc: '.mcp.json (project) vs ~/.claude.json (user), env var expansion, MCP resources vs tools, tool descriptions.', x: 820, y: 520 },
+  { id: 't2.5', d: 2, label: '2.5\nBuilt-in Tools', short: '2.5', desc: 'Grep (content search) vs Glob (path matching). Read+Write fallback when Edit anchor fails. Incremental exploration.', x: 770, y: 420 },
+  // D3
+  { id: 't3.1', d: 3, label: '3.1\nCLAUDE.md Hierarchy', short: '3.1', desc: 'User (~/.claude/) vs project (.claude/) vs directory levels. @import syntax, .claude/rules/, version control implications.', x: 870, y: 780 },
+  { id: 't3.2', d: 3, label: '3.2\nSlash Commands', short: '3.2', desc: '.claude/commands/ (shared) vs ~/.claude/commands/ (personal). Skills with context:fork, allowed-tools, argument-hint frontmatter.', x: 780, y: 860 },
+  { id: 't3.3', d: 3, label: '3.3\nPath-Scoped Rules', short: '3.3', desc: '.claude/rules/ with YAML frontmatter paths: glob patterns. Conditional loading, cross-directory conventions.', x: 650, y: 900 },
+  { id: 't3.4', d: 3, label: '3.4\nPlan Mode', short: '3.4', desc: 'Plan mode (complex, multi-file, architectural) vs direct execution (single-file, clear scope). Explore subagent.', x: 570, y: 820 },
+  { id: 't3.5', d: 3, label: '3.5\nIterative Refinement', short: '3.5', desc: 'Examples > prose for transformations. Test-driven iteration. Interview pattern for unfamiliar domains. Interacting vs independent fixes.', x: 520, y: 730 },
+  { id: 't3.6', d: 3, label: '3.6\nCI/CD Integration', short: '3.6', desc: '-p flag (non-interactive), --output-format json + --json-schema, independent review instances, CLAUDE.md for CI context.', x: 650, y: 660 },
+  // D4
+  { id: 't4.1', d: 4, label: '4.1\nExplicit Criteria', short: '4.1', desc: 'Explicit categorical criteria vs vague instructions. False positive impact on developer trust. Severity definitions with examples.', x: 180, y: 700 },
+  { id: 't4.2', d: 4, label: '4.2\nFew-Shot Prompting', short: '4.2', desc: 'Most effective technique for output consistency. Ambiguous case handling, format demonstration, hallucination reduction.', x: 120, y: 790 },
+  { id: 't4.3', d: 4, label: '4.3\nStructured Output', short: '4.3', desc: 'tool_use + JSON schema for guaranteed structure. Syntax vs semantic errors. Nullable fields, enum+other patterns.', x: 230, y: 870 },
+  { id: 't4.4', d: 4, label: '4.4\nValidation & Retry', short: '4.4', desc: 'Retry-with-error-feedback. When retries fail (absent data). detected_pattern tracking. Self-correction validation flows.', x: 370, y: 900 },
+  { id: 't4.5', d: 4, label: '4.5\nBatch Processing', short: '4.5', desc: 'Message Batches API: 50% cost, 24h window. Non-blocking workloads. custom_id for partial resubmission. SLA calculation.', x: 460, y: 870 },
+  { id: 't4.6', d: 4, label: '4.6\nMulti-Pass Review', short: '4.6', desc: 'Self-review limitations (retained context). Independent review instances. Per-file + integration passes. Confidence reporting.', x: 400, y: 800 },
+  // D5
+  { id: 't5.1', d: 5, label: '5.1\nContext Management', short: '5.1', desc: 'Progressive summarization risks. Lost-in-the-middle effect. Tool output trimming. Case facts block. Structured subagent outputs.', x: -100, y: 320 },
+  { id: 't5.2', d: 5, label: '5.2\nEscalation Patterns', short: '5.2', desc: 'Reliable triggers: explicit request, policy gap, no progress. Unreliable: sentiment, confidence scores. Few-shot escalation examples.', x: -130, y: 450 },
+  { id: 't5.3', d: 5, label: '5.3\nError Propagation', short: '5.3', desc: 'Structured error context to coordinator. Access failure vs empty result. Local recovery first. No silent suppression or full termination.', x: -80, y: 570 },
+  { id: 't5.4', d: 5, label: '5.4\nCodebase Exploration', short: '5.4', desc: 'Context degradation in long sessions. Scratchpad files for persistence. Crash recovery manifests. /compact usage.', x: 30, y: 650 },
+  { id: 't5.5', d: 5, label: '5.5\nHuman Review', short: '5.5', desc: 'Stratified sampling for QA. Segment-specific accuracy validation. Field-level confidence calibration. Review routing prioritization.', x: 100, y: 720 },
+  { id: 't5.6', d: 5, label: '5.6\nProvenance', short: '5.6', desc: 'Claim-source mappings preserved through pipeline. Conflicting sources annotated, not resolved. Publication dates for temporal data.', x: -20, y: 800 },
+];
+
+const CROSS_LINKS = [
+  { from: 't1.5', to: 't1.4', label: 'hooks enforce\nworkflow order', color: '#f59e0b' },
+  { from: 't1.4', to: 't2.2', label: 'structured errors\nfor escalation', color: '#f59e0b' },
+  { from: 't3.6', to: 't4.1', label: 'CI criteria &\nexplicit rules', color: '#60a5fa' },
+  { from: 't4.1', to: 't4.6', label: 'criteria drives\nmulti-pass review', color: '#60a5fa' },
+  { from: 't1.2', to: 't2.3', label: 'coordinator tool\ndistribution', color: '#a78bfa' },
+  { from: 't2.3', to: 't5.3', label: 'scoped tools →\nstructured errors', color: '#a78bfa' },
+  { from: 't5.1', to: 't5.4', label: 'context mgmt\nleads to scratchpad', color: '#f87171' },
+  { from: 't5.4', to: 't1.7', label: 'exploration → session\nmanagement', color: '#f87171' },
+  { from: 't4.3', to: 't4.4', label: 'schema → retry\nvalidation flow', color: '#34d399' },
+  { from: 't4.4', to: 't5.5', label: 'validation loops →\nhuman review', color: '#34d399' },
+];
+
+const SCENARIOS = [
+  {
+    name: 'Customer Support Agent',
+    color: '#7c3aed',
+    nodes: ['t1.1', 't1.2', 't1.4', 't1.5', 't2.2', 't5.2', 't5.3'],
+    desc: 'Scenario 1'
+  },
+  {
+    name: 'Code Gen / CI',
+    color: '#059669',
+    nodes: ['t3.4', 't3.5', 't3.6', 't4.1', 't4.6', 't4.2'],
+    desc: 'Scenario 2 & 5'
+  },
+  {
+    name: 'Multi-Agent Research',
+    color: '#0891b2',
+    nodes: ['t1.2', 't1.3', 't1.6', 't2.1', 't2.3', 't5.3', 't5.6'],
+    desc: 'Scenario 3'
+  },
+  {
+    name: 'Developer Productivity',
+    color: '#d97706',
+    nodes: ['t2.4', 't2.5', 't3.1', 't3.2', 't1.3', 't3.4'],
+    desc: 'Scenario 4'
+  },
+  {
+    name: 'Structured Extraction',
+    color: '#dc2626',
+    nodes: ['t4.3', 't4.4', 't4.2', 't5.5', 't5.6', 't4.5'],
+    desc: 'Scenario 6'
+  },
+  {
+    name: 'Context & Reliability',
+    color: '#f59e0b',
+    nodes: ['t5.1', 't5.2', 't5.3', 't5.4', 't1.7', 't2.2'],
+    desc: 'Cross-domain'
+  },
+];
+
+// Offset to center the map
+const OX = 580, OY = 430;
+
+// SVG state
+let zoom = 1, panX = 0, panY = 0;
+let isDragging = false, lastX, lastY;
+let activeScenario = null;
+let highlightedNodes = new Set();
+
+const svg = document.getElementById('canvas');
+const wrap = document.getElementById('canvas-wrap');
+
+function applyTransform() {
+  svg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+function resetView() {
+  zoom = 0.85; panX = 0; panY = 0;
+  applyTransform();
+}
+
+function zoomIn() { zoom = Math.min(zoom * 1.2, 3); applyTransform(); }
+function zoomOut() { zoom = Math.max(zoom / 1.2, 0.3); applyTransform(); }
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  zoom = Math.min(Math.max(zoom * factor, 0.3), 3);
+  applyTransform();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => {
+  isDragging = true; lastX = e.clientX; lastY = e.clientY;
+  wrap.classList.add('grabbing');
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  panX += e.clientX - lastX; panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { isDragging = false; wrap.classList.remove('grabbing'); });
+
+// Touch support
+wrap.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+}, { passive: true });
+wrap.addEventListener('touchmove', e => {
+  if (!isDragging || e.touches.length !== 1) return;
+  panX += e.touches[0].clientX - lastX; panY += e.touches[0].clientY - lastY;
+  lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+  applyTransform();
+}, { passive: true });
+wrap.addEventListener('touchend', () => { isDragging = false; });
+
+function nx(x) { return x + OX; }
+function ny(y) { return y + OY; }
+
+function buildScenarioButtons() {
+  const container = document.getElementById('scenarios');
+  SCENARIOS.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'scenario-btn';
+    btn.textContent = s.desc + ': ' + s.name;
+    btn.style.borderColor = s.color;
+    btn.style.color = s.color;
+    btn.onclick = () => toggleScenario(i, btn);
+    container.appendChild(btn);
+  });
+}
+
+function toggleScenario(idx, btn) {
+  if (activeScenario === idx) {
+    clearScenario();
+    return;
+  }
+  activeScenario = idx;
+  highlightedNodes = new Set(SCENARIOS[idx].nodes);
+  document.querySelectorAll('.scenario-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === idx);
+  });
+  renderHighlights();
+}
+
+function clearScenario() {
+  activeScenario = null;
+  highlightedNodes = new Set();
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+  renderHighlights();
+}
+
+function renderHighlights() {
+  // Update node opacities
+  document.querySelectorAll('.task-node').forEach(el => {
+    const id = el.getAttribute('data-id');
+    if (highlightedNodes.size === 0 || highlightedNodes.has(id)) {
+      el.style.opacity = '1';
+      el.querySelector('circle').style.filter = highlightedNodes.has(id) ? 'drop-shadow(0 0 8px currentColor)' : '';
+    } else {
+      el.style.opacity = '0.2';
+    }
+  });
+  document.querySelectorAll('.domain-node').forEach(el => {
+    const d = parseInt(el.getAttribute('data-d'));
+    const domainTasks = TASKS.filter(t => t.d === d).map(t => t.id);
+    const hasHighlight = domainTasks.some(tid => highlightedNodes.has(tid));
+    el.style.opacity = highlightedNodes.size === 0 || hasHighlight ? '1' : '0.25';
+  });
+  // Cross links
+  document.querySelectorAll('.cross-link').forEach(el => {
+    const from = el.getAttribute('data-from');
+    const to = el.getAttribute('data-to');
+    if (highlightedNodes.size === 0 || (highlightedNodes.has(from) && highlightedNodes.has(to))) {
+      el.style.opacity = '0.8';
+    } else {
+      el.style.opacity = '0.1';
+    }
+  });
+}
+
+function showTooltip(e, title, body, ts) {
+  const tt = document.getElementById('tooltip');
+  document.getElementById('tt-title').textContent = title;
+  document.getElementById('tt-body').textContent = body;
+  document.getElementById('tt-ts').textContent = ts || '';
+  tt.style.display = 'block';
+  const x = Math.min(e.clientX + 15, window.innerWidth - 300);
+  const y = Math.min(e.clientY - 10, window.innerHeight - 200);
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+function buildSVG() {
+  const W = 1400, H = 1100;
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // Defs
+  svg.innerHTML = `<defs>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#475569"/>
+    </marker>
+    ${DOMAINS.map(d => `<filter id="glow${d.id}">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>`).join('')}
+    <filter id="glow-center">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  const defs = svg.querySelector('defs');
+
+  // Domain to domain connection lines (faint)
+  const domainLinks = [[1,2],[1,3],[1,4],[1,5],[2,3],[2,4],[3,4],[3,5],[4,5]];
+  domainLinks.forEach(([a, b]) => {
+    const da = DOMAINS.find(d => d.id === a);
+    const db = DOMAINS.find(d => d.id === b);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', nx(da.x)); line.setAttribute('y1', ny(da.y));
+    line.setAttribute('x2', nx(db.x)); line.setAttribute('y2', ny(db.y));
+    line.setAttribute('stroke', '#1e1e3a');
+    line.setAttribute('stroke-width', '1.5');
+    svg.appendChild(line);
+  });
+
+  // Task to domain lines
+  TASKS.forEach(t => {
+    const d = DOMAINS.find(dom => dom.id === t.d);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', nx(d.x)); line.setAttribute('y1', ny(d.y));
+    line.setAttribute('x2', nx(t.x)); line.setAttribute('y2', ny(t.y));
+    line.setAttribute('stroke', d.color + '44');
+    line.setAttribute('stroke-width', '1.5');
+    svg.appendChild(line);
+  });
+
+  // Cross-domain links (dashed)
+  CROSS_LINKS.forEach(link => {
+    const ft = TASKS.find(t => t.id === link.from);
+    const tt = TASKS.find(t => t.id === link.to);
+    if (!ft || !tt) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'cross-link');
+    g.setAttribute('data-from', link.from);
+    g.setAttribute('data-to', link.to);
+    g.style.opacity = '0.7';
+
+    const mx = (nx(ft.x) + nx(tt.x)) / 2;
+    const my = (ny(ft.y) + ny(tt.y)) / 2;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const dx = nx(tt.x) - nx(ft.x), dy = ny(tt.y) - ny(ft.y);
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const cx1 = nx(ft.x) + dx * 0.3 + (-dy / dist * 30);
+    const cy1 = ny(ft.y) + dy * 0.3 + (dx / dist * 30);
+    const cx2 = nx(ft.x) + dx * 0.7 + (-dy / dist * 30);
+    const cy2 = ny(ft.y) + dy * 0.7 + (dx / dist * 30);
+    path.setAttribute('d', `M${nx(ft.x)},${ny(ft.y)} C${cx1},${cy1} ${cx2},${cy2} ${nx(tt.x)},${ny(tt.y)}`);
+    path.setAttribute('stroke', link.color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-dasharray', '6,4');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('opacity', '0.7');
+
+    const labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const bx = nx(ft.x) + dx * 0.5 + (-dy / dist * 35);
+    const by = ny(ft.y) + dy * 0.5 + (dx / dist * 35);
+    labelEl.setAttribute('x', bx);
+    labelEl.setAttribute('y', by);
+    labelEl.setAttribute('text-anchor', 'middle');
+    labelEl.setAttribute('fill', link.color);
+    labelEl.setAttribute('font-size', '8');
+    labelEl.setAttribute('font-style', 'italic');
+    labelEl.setAttribute('opacity', '0.8');
+    const lines = link.label.split('\n');
+    lines.forEach((line, i) => {
+      const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.setAttribute('x', bx);
+      tspan.setAttribute('dy', i === 0 ? '0' : '12');
+      tspan.textContent = line;
+      labelEl.appendChild(tspan);
+    });
+
+    g.appendChild(path);
+    g.appendChild(labelEl);
+    svg.appendChild(g);
+  });
+
+  // Central node
+  const cg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  cg.setAttribute('class', 'domain-node');
+  cg.setAttribute('data-d', '0');
+  cg.style.cursor = 'pointer';
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  bg.setAttribute('cx', nx(550)); bg.setAttribute('cy', ny(470));
+  bg.setAttribute('r', '55');
+  bg.setAttribute('fill', '#1a1505');
+  bg.setAttribute('stroke', '#fbbf24');
+  bg.setAttribute('stroke-width', '3');
+  bg.setAttribute('filter', 'url(#glow-center)');
+  cg.appendChild(bg);
+
+  const lines2 = ['Claude', 'Certified', 'Architect'];
+  lines2.forEach((line, i) => {
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', nx(550)); t.setAttribute('y', ny(455) + i * 16);
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', '#fbbf24');
+    t.setAttribute('font-size', '12'); t.setAttribute('font-weight', '800');
+    t.textContent = line;
+    cg.appendChild(t);
+  });
+  cg.addEventListener('mouseenter', e => showTooltip(e, 'Claude Certified Architect – Foundations', 'Validates ability to make informed tradeoff decisions when implementing real-world solutions with Claude. Tests 5 domains across Claude Code, Agent SDK, Claude API, and MCP.', 'Passing score: 720/1000'));
+  cg.addEventListener('mouseleave', hideTooltip);
+  svg.appendChild(cg);
+
+  // Domain nodes
+  DOMAINS.forEach(d => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'domain-node');
+    g.setAttribute('data-d', d.id);
+    g.style.cursor = 'pointer';
+
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    bg.setAttribute('cx', nx(d.x)); bg.setAttribute('cy', ny(d.y));
+    bg.setAttribute('r', '48');
+    bg.setAttribute('fill', d.color + '15');
+    bg.setAttribute('stroke', d.color);
+    bg.setAttribute('stroke-width', '2.5');
+    bg.setAttribute('filter', `url(#glow${d.id})`);
+    g.appendChild(bg);
+
+    const labelLines = d.label.split('\n');
+    labelLines.forEach((line, i) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', nx(d.x)); t.setAttribute('y', ny(d.y) - 8 + i * 15);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', d.color);
+      t.setAttribute('font-size', '10'); t.setAttribute('font-weight', '700');
+      t.textContent = line;
+      g.appendChild(t);
+    });
+
+    const pct = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    pct.setAttribute('x', nx(d.x)); pct.setAttribute('y', ny(d.y) + 24);
+    pct.setAttribute('text-anchor', 'middle'); pct.setAttribute('fill', d.color + 'aa');
+    pct.setAttribute('font-size', '9');
+    pct.textContent = d.pct + ' of exam';
+    g.appendChild(pct);
+
+    // Domain to center line
+    const dc = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    dc.setAttribute('x1', nx(d.x)); dc.setAttribute('y1', ny(d.y));
+    dc.setAttribute('x2', nx(550)); dc.setAttribute('y2', ny(470));
+    dc.setAttribute('stroke', d.color + '30');
+    dc.setAttribute('stroke-width', '2');
+    svg.insertBefore(dc, svg.firstChild);
+
+    g.addEventListener('mouseenter', e => showTooltip(e, d.short, TASKS.filter(t => t.d === d.id).map(t => t.short + ': ' + t.label.split('\n')[1]).join(', '), d.pct + ' of scored content'));
+    g.addEventListener('mouseleave', hideTooltip);
+    svg.appendChild(g);
+  });
+
+  // Task nodes
+  TASKS.forEach(t => {
+    const d = DOMAINS.find(dom => dom.id === t.d);
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'task-node');
+    g.setAttribute('data-id', t.id);
+    g.style.cursor = 'pointer';
+
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    bg.setAttribute('cx', nx(t.x)); bg.setAttribute('cy', ny(t.y));
+    bg.setAttribute('r', '28');
+    bg.setAttribute('fill', d.color + '12');
+    bg.setAttribute('stroke', d.color);
+    bg.setAttribute('stroke-width', '1.5');
+    g.appendChild(bg);
+
+    const labelLines = t.label.split('\n');
+    labelLines.forEach((line, i) => {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      el.setAttribute('x', nx(t.x)); el.setAttribute('y', ny(t.y) - 4 + i * 13);
+      el.setAttribute('text-anchor', 'middle'); el.setAttribute('fill', d.color);
+      el.setAttribute('font-size', i === 0 ? '9' : '8');
+      el.setAttribute('font-weight', i === 0 ? '800' : '600');
+      el.textContent = line;
+      g.appendChild(el);
+    });
+
+    g.addEventListener('mouseenter', e => {
+      if (!isDragging) showTooltip(e, 'TS ' + t.id + ': ' + t.label.split('\n')[1], t.desc, 'Domain ' + t.d);
+    });
+    g.addEventListener('mouseleave', hideTooltip);
+    svg.appendChild(g);
+  });
+}
+
+buildScenarioButtons();
+buildSVG();
+resetView();
+</script>
+</body>
+</html>

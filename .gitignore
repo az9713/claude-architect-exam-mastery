@@ -1,0 +1,15 @@
+# Source extraction artifacts
+exam_guide_text.txt
+skills_guide_text.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

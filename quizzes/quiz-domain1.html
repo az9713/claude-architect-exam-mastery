@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain 1 Quiz – Agentic Architecture & Orchestration</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --border: #2a2a4a;
+    --accent: #7c3aed;
+    --accent2: #4f46e5;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --easy: #10b981;
+    --medium: #f59e0b;
+    --hard: #ef4444;
+  }
+  .light {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+  header .meta { font-size: 0.8rem; color: var(--text-muted); }
+  .theme-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
+  .score-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .score-item { text-align: center; }
+  .score-item .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .score-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+  .progress-wrap { flex: 1; min-width: 200px; }
+  .progress-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 100%; border-radius: 999px; transition: width 0.4s; }
+  .progress-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+  .question-card.answered-correct { border-color: var(--green); }
+  .question-card.answered-wrong { border-color: var(--red); }
+  .q-header { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem; }
+  .q-num { background: var(--accent); color: white; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 0.3rem; white-space: nowrap; }
+  .q-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tag { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+  .tag.easy { border-color: var(--easy); color: var(--easy); }
+  .tag.medium { border-color: var(--medium); color: var(--medium); }
+  .tag.hard { border-color: var(--hard); color: var(--hard); }
+  .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 1.25rem; font-weight: 500; }
+  .options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .option { background: var(--surface2); border: 2px solid var(--border); border-radius: 0.5rem; padding: 0.85rem 1rem; cursor: pointer; display: flex; gap: 0.75rem; align-items: flex-start; transition: all 0.2s; font-size: 0.92rem; line-height: 1.5; }
+  .option:hover:not(.disabled) { border-color: var(--accent2); background: var(--surface); }
+  .option.selected { border-color: var(--accent); background: rgba(124, 58, 237, 0.08); }
+  .option.correct { border-color: var(--green); background: rgba(16, 185, 129, 0.08); }
+  .option.wrong { border-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+  .option.disabled { cursor: default; }
+  .opt-letter { font-weight: 700; min-width: 1.5rem; color: var(--text-muted); }
+  .option.correct .opt-letter { color: var(--green); }
+  .option.wrong .opt-letter { color: var(--red); }
+  .q-actions { margin-top: 1rem; display: flex; gap: 0.75rem; }
+  .btn { padding: 0.5rem 1.2rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+  .btn-submit { background: var(--accent); color: white; }
+  .btn-submit:hover { background: var(--accent2); }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+  .explanation { margin-top: 1rem; background: var(--surface2); border-radius: 0.5rem; overflow: hidden; }
+  .expl-toggle { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+  .expl-body { padding: 0 1rem 1rem; display: none; }
+  .expl-body.open { display: block; }
+  .expl-body p { font-size: 0.88rem; line-height: 1.6; margin-top: 0.75rem; color: var(--text-muted); }
+  .expl-body .correct-note { color: var(--green); font-weight: 600; margin-bottom: 0.5rem; }
+  .expl-option { margin-top: 0.6rem; padding: 0.5rem; background: var(--surface); border-radius: 0.4rem; }
+  .expl-option .expl-opt-lbl { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+  .expl-option .expl-opt-lbl.c { color: var(--green); }
+  .expl-option .expl-opt-lbl.w { color: var(--red); }
+  .expl-option p { margin-top: 0; font-size: 0.83rem; }
+  .summary { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2rem; text-align: center; }
+  .summary.show { display: block; }
+  .summary h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+  .summary .big-score { font-size: 4rem; font-weight: 800; color: var(--accent); }
+  .summary .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .breakdown-item { background: var(--surface2); border-radius: 0.5rem; padding: 1rem; }
+  .breakdown-item .val { font-size: 1.5rem; font-weight: 700; }
+  .breakdown-item .lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .btn-retry { background: var(--accent); color: white; padding: 0.75rem 2rem; font-size: 1rem; border-radius: 0.5rem; border: none; cursor: pointer; margin-top: 1rem; }
+  @media (max-width: 640px) { main { padding: 1rem; } header { padding: 0.75rem 1rem; } .score-bar { padding: 0.75rem 1rem; gap: 1rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Domain 1: Agentic Architecture & Orchestration</h1>
+    <div class="meta">Claude Certified Architect – Foundations &nbsp;|&nbsp; 27% of exam</div>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()">Toggle Theme</button>
+</header>
+<div class="score-bar">
+  <div class="score-item"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="score-item"><div class="val" id="pct-val">0%</div><div class="lbl">Accuracy</div></div>
+  <div class="score-item"><div class="val" id="ans-val">0/12</div><div class="lbl">Answered</div></div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 of 12 questions answered</div>
+  </div>
+</div>
+<main id="main-quiz"></main>
+<div class="summary" id="summary">
+  <h2>Quiz Complete!</h2>
+  <div class="big-score" id="sum-score"></div>
+  <div style="color:var(--text-muted);margin-top:0.5rem">out of 12 questions</div>
+  <div class="breakdown" id="sum-breakdown"></div>
+  <button class="btn-retry" onclick="retryQuiz()">Shuffle & Retry</button>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id: 1,
+    ts: "1.1",
+    difficulty: "Easy",
+    text: "Your agentic loop implementation should continue iterating when it receives a stop_reason of 'tool_use'. Which condition should trigger loop termination?",
+    options: [
+      { letter: "A", text: "The assistant message contains phrases like 'I have completed the task'" },
+      { letter: "B", text: "stop_reason equals 'end_turn' in the API response" },
+      { letter: "C", text: "The loop has executed more than 10 tool calls" },
+      { letter: "D", text: "No tool_use blocks appear in the last assistant response" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The agentic loop must rely on the structured stop_reason field to determine when to terminate. 'end_turn' is the authoritative signal from the model that it has no further tool calls to make.",
+      options: {
+        A: { correct: false, text: "Parsing natural language signals is an anti-pattern — the model may include completion phrases mid-task or phrase things differently, causing premature or missed termination." },
+        B: { correct: true, text: "stop_reason='end_turn' is the correct, structured signal that the model has finished processing. This is the canonical pattern for loop termination." },
+        C: { correct: false, text: "Arbitrary iteration caps as the primary stopping mechanism is an anti-pattern. Caps may be useful as safety guards but should not be the primary termination logic." },
+        D: { correct: false, text: "While 'end_turn' usually means no tool calls, checking assistant content for tool_use blocks is an indirect approach that can miss edge cases and doesn't handle streaming correctly." }
+      }
+    }
+  },
+  {
+    id: 2,
+    ts: "1.1",
+    difficulty: "Medium",
+    text: "Between agentic loop iterations, your code calls a tool and gets results. What must happen before you invoke the model again?",
+    options: [
+      { letter: "A", text: "Clear the conversation history and provide only the tool result as context" },
+      { letter: "B", text: "Append the tool result as a user message with role 'tool' to the conversation history" },
+      { letter: "C", text: "Store the result in a separate cache and pass it via the system prompt" },
+      { letter: "D", text: "Summarize the tool result and append it as an assistant message" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Tool results must be appended to the conversation history so the model can reason about them in context. The API uses a structured 'tool' role for these messages.",
+      options: {
+        A: { correct: false, text: "Clearing history would remove all the model's prior reasoning context, preventing it from building on previous steps." },
+        B: { correct: true, text: "Tool results are appended as messages with the tool role, containing the tool_use_id and content. This is how the model receives and reasons about tool outputs." },
+        C: { correct: false, text: "Passing tool results through the system prompt bypasses the structured conversation format and can cause attribution issues." },
+        D: { correct: false, text: "Summarizing as an assistant message would misrepresent the source of the information and break the expected tool_use / tool_result pairing." }
+      }
+    }
+  },
+  {
+    id: 3,
+    ts: "1.2",
+    difficulty: "Medium",
+    text: "In a hub-and-spoke multi-agent system, subagent A completes analysis and needs to share its findings with subagent B. What is the correct architectural approach?",
+    options: [
+      { letter: "A", text: "Give subagent A a direct communication channel to send results to subagent B's message queue" },
+      { letter: "B", text: "Store subagent A's results in shared memory that all subagents can read" },
+      { letter: "C", text: "Return subagent A's results to the coordinator, which passes relevant findings to subagent B" },
+      { letter: "D", text: "Have subagent A and B share the same conversation context so both can see all prior messages" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Hub-and-spoke architecture requires all inter-subagent communication to route through the coordinator. This ensures observability, consistent error handling, and controlled information flow.",
+      options: {
+        A: { correct: false, text: "Direct subagent-to-subagent communication bypasses the coordinator, making the system harder to observe and debug, and removing the coordinator's ability to filter or transform the data." },
+        B: { correct: false, text: "Shared memory creates implicit coupling between agents and can lead to race conditions or stale data issues." },
+        C: { correct: true, text: "Routing through the coordinator maintains the hub-and-spoke topology. The coordinator can verify, transform, and selectively pass findings to ensure appropriate information flow." },
+        D: { correct: false, text: "Subagents operate with isolated contexts. Sharing full conversation history between all subagents would violate the isolation principle and could expose irrelevant or sensitive data." }
+      }
+    }
+  },
+  {
+    id: 4,
+    ts: "1.2",
+    difficulty: "Hard",
+    text: "Your research coordinator agent is tasked with 'analyzing climate policy impacts globally.' After running, the final report covers only Europe and North America, completely missing Asia, Africa, and Latin America. Subagent logs show each worked correctly on its assigned region. What is the most likely root cause?",
+    options: [
+      { letter: "A", text: "The web search subagent had insufficient search depth and missed non-English sources" },
+      { letter: "B", text: "The synthesis subagent's prompt didn't require global coverage verification" },
+      { letter: "C", text: "The coordinator's task decomposition only assigned European and North American regions to subagents" },
+      { letter: "D", text: "The document analysis subagent applied overly restrictive relevance filters to non-Western sources" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "When subagents execute their assigned tasks correctly but the result is incomplete, the issue is almost always in the coordinator's task decomposition. The coordinator assigned too-narrow scope, never giving subagents the missing regions.",
+      options: {
+        A: { correct: false, text: "Search depth and language coverage are downstream issues. If the coordinator never assigned Asian/African/Latin American research, search quality is irrelevant." },
+        B: { correct: false, text: "Synthesis verification is a downstream step. The synthesis agent can't cover what it was never given. The gap originates in decomposition, not synthesis." },
+        C: { correct: true, text: "Overly narrow task decomposition by the coordinator is the canonical cause. The subagents did their jobs correctly — they just weren't assigned the full scope needed." },
+        D: { correct: false, text: "Relevance filtering could explain reduced coverage within a region but not the complete absence of entire continents. The coordinator never assigned these regions." }
+      }
+    }
+  },
+  {
+    id: 5,
+    ts: "1.3",
+    difficulty: "Easy",
+    text: "A coordinator agent needs to spawn subagents. Which configuration is required for the coordinator to use the Task tool?",
+    options: [
+      { letter: "A", text: "The coordinator's system prompt must include 'You may spawn subagents'" },
+      { letter: "B", text: "'Task' must be included in the coordinator's allowedTools configuration" },
+      { letter: "C", text: "The coordinator must be initialized with a subagentFactory parameter" },
+      { letter: "D", text: "The coordinator's model must be claude-opus for subagent spawning capability" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The Task tool is the mechanism for spawning subagents in the Claude Agent SDK. Like any tool, it must be explicitly included in the agent's allowedTools configuration.",
+      options: {
+        A: { correct: false, text: "System prompt instructions don't grant tool access. Tools must be explicitly configured in allowedTools regardless of what the prompt says." },
+        B: { correct: true, text: "allowedTools must include 'Task' for a coordinator to invoke subagents. This is a required configuration, not optional." },
+        C: { correct: false, text: "There is no subagentFactory parameter in the Agent SDK. Subagent spawning is handled through the Task tool." },
+        D: { correct: false, text: "Model choice doesn't determine tool availability. Any Claude model can use the Task tool if it's in allowedTools." }
+      }
+    }
+  },
+  {
+    id: 6,
+    ts: "1.3",
+    difficulty: "Medium",
+    text: "You need to spawn three subagents simultaneously to research different topics in parallel. What is the correct approach?",
+    options: [
+      { letter: "A", text: "Send three separate coordinator messages, each containing one Task tool call" },
+      { letter: "B", text: "Emit all three Task tool calls in a single coordinator response" },
+      { letter: "C", text: "Use a loop that spawns one subagent, waits for completion, then spawns the next" },
+      { letter: "D", text: "Configure the coordinator with parallelism: 3 in its AgentDefinition" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Parallel subagent spawning is achieved by emitting multiple Task tool calls in a single coordinator response. The runtime then executes them concurrently.",
+      options: {
+        A: { correct: false, text: "Spreading Task calls across multiple messages makes them sequential, not parallel. Each message is processed independently." },
+        B: { correct: true, text: "Multiple Task tool calls in a single response are executed in parallel. This is the correct pattern for concurrent subagent spawning." },
+        C: { correct: false, text: "Sequential spawn-wait loops eliminate the parallelism benefit and dramatically increase total latency." },
+        D: { correct: false, text: "There is no parallelism configuration option in AgentDefinition. Parallelism is achieved through the pattern of emitting multiple Task calls together." }
+      }
+    }
+  },
+  {
+    id: 7,
+    ts: "1.4",
+    difficulty: "Hard",
+    text: "Your customer support agent must always verify customer identity via get_customer before processing refunds with process_refund. Production logs show the agent skips this verification in 8% of cases. What is the most reliable fix?",
+    options: [
+      { letter: "A", text: "Add five few-shot examples demonstrating the correct get_customer → process_refund sequence" },
+      { letter: "B", text: "Strengthen the system prompt with explicit language: 'You MUST call get_customer before any refund operation'" },
+      { letter: "C", text: "Implement a programmatic prerequisite that blocks process_refund calls until get_customer has returned a verified customer ID" },
+      { letter: "D", text: "Use tool_choice: 'any' to force the agent to call a tool on every turn" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "When business rules require deterministic compliance (especially for financial operations), programmatic enforcement is required. Prompt-based approaches have non-zero failure rates regardless of how strongly worded.",
+      options: {
+        A: { correct: false, text: "Few-shot examples improve probabilistic compliance but cannot guarantee 100% adherence. The agent can still deviate in novel or edge-case scenarios." },
+        B: { correct: false, text: "Even strongly-worded prompt instructions have non-zero failure rates with LLMs. An 8% skip rate shows the model already has implicit guidance that isn't working." },
+        C: { correct: true, text: "Programmatic prerequisites provide deterministic guarantees. The system literally cannot call process_refund until get_customer has succeeded — this is enforced at the infrastructure level, not by the model." },
+        D: { correct: false, text: "tool_choice: 'any' ensures a tool is called but doesn't enforce tool ordering or prerequisites. The agent could still call process_refund first." }
+      }
+    }
+  },
+  {
+    id: 8,
+    ts: "1.5",
+    difficulty: "Medium",
+    text: "Your agent receives data from three MCP tools: one returns Unix timestamps, one returns ISO 8601 dates, and one returns numeric status codes (1=active, 2=suspended, 3=closed). The agent frequently makes errors interpreting this heterogeneous data. What is the most effective fix?",
+    options: [
+      { letter: "A", text: "Add detailed parsing instructions to the system prompt explaining each data format" },
+      { letter: "B", text: "Implement PostToolUse hooks that normalize all formats before the model processes them" },
+      { letter: "C", text: "Add few-shot examples showing correct interpretation of each format" },
+      { letter: "D", text: "Update each MCP tool to include format documentation in its response metadata" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "PostToolUse hooks provide deterministic data normalization before the model ever sees the results. This eliminates interpretation errors entirely rather than trying to train the model to handle inconsistent formats.",
+      options: {
+        A: { correct: false, text: "System prompt instructions are probabilistic. Complex data format instructions add context length and the model may still misinterpret edge cases." },
+        B: { correct: true, text: "PostToolUse hooks intercept tool results and transform them before the model processes them. Converting all timestamps to ISO 8601 and status codes to strings ('active', 'suspended') eliminates interpretation errors deterministically." },
+        C: { correct: false, text: "Few-shot examples improve consistency but don't guarantee correct interpretation. Edge cases in the data can still cause errors." },
+        D: { correct: false, text: "Documentation in metadata still requires the model to read and apply it correctly. The model might ignore or misapply format metadata." }
+      }
+    }
+  },
+  {
+    id: 9,
+    ts: "1.5",
+    difficulty: "Hard",
+    text: "Your financial agent must never approve refunds exceeding $500 without human review. You need to implement this business rule. Which approach provides the strongest guarantee?",
+    options: [
+      { letter: "A", text: "Include the $500 limit prominently in the system prompt and in the process_refund tool description" },
+      { letter: "B", text: "Implement a PreToolUse hook that intercepts process_refund calls, checks the amount, and blocks calls exceeding $500" },
+      { letter: "C", text: "Add a validation step where the agent must explain its refund decision before executing process_refund" },
+      { letter: "D", text: "Configure process_refund with a maximum_amount parameter that throws an error for amounts over $500" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Hook-based enforcement provides deterministic policy compliance. The hook intercepts the tool call before execution, making it impossible for a policy-violating refund to proceed regardless of model behavior.",
+      options: {
+        A: { correct: false, text: "Prompt-based rules are probabilistic. LLMs can and do occasionally violate instructions, especially in complex multi-turn conversations where the instruction may be far from the current context." },
+        B: { correct: true, text: "Hooks provide deterministic guarantees. A PreToolUse hook that checks the amount and redirects to human escalation cannot be bypassed by the model. This is the correct pattern for enforcing critical business rules." },
+        C: { correct: false, text: "Requiring explanation before execution adds a safety step but doesn't prevent execution. The model could still proceed after providing an explanation." },
+        D: { correct: false, text: "API-level parameter validation is useful but this describes tool configuration, not hook enforcement. More importantly, the tool would just error rather than gracefully redirect to human review." }
+      }
+    }
+  },
+  {
+    id: 10,
+    ts: "1.6",
+    difficulty: "Medium",
+    text: "You need to add comprehensive tests to a 150-file legacy codebase with no existing test suite. Which task decomposition approach is most effective?",
+    options: [
+      { letter: "A", text: "Use prompt chaining: create one prompt per file to generate tests sequentially" },
+      { letter: "B", text: "Write a single comprehensive prompt listing all 150 files and requesting full test coverage" },
+      { letter: "C", text: "Use dynamic decomposition: first map structure and identify high-impact areas, then create a prioritized plan that adapts as dependencies are discovered" },
+      { letter: "D", text: "Use prompt chaining: one pass to identify untested functions, one pass to generate tests" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Open-ended investigation tasks (like adding tests to an unknown codebase) require dynamic decomposition that adapts based on discoveries. The structure and priorities aren't known upfront, so a fixed pipeline can't be optimal.",
+      options: {
+        A: { correct: false, text: "Per-file sequential chaining ignores dependency relationships between files and would produce redundant or conflicting tests without an initial understanding of structure." },
+        B: { correct: false, text: "A single 150-file prompt would exceed context limits and cause severe attention dilution — the model would not give adequate attention to most files." },
+        C: { correct: true, text: "Dynamic decomposition starts with discovery, adapts the plan based on what's found, and prioritizes high-impact areas. This is the correct pattern for open-ended tasks with unknown structure." },
+        D: { correct: false, text: "Two-pass chaining is better than option A but still too rigid. Without understanding the codebase structure and dependencies first, the 'identify untested functions' pass would lack critical context." }
+      }
+    }
+  },
+  {
+    id: 11,
+    ts: "1.7",
+    difficulty: "Easy",
+    text: "You want to compare two different refactoring approaches for a codebase you've already analyzed. What is the appropriate tool for this?",
+    options: [
+      { letter: "A", text: "Start two separate new sessions with the same initial analysis prompt" },
+      { letter: "B", text: "Use fork_session to create two independent branches from the shared analysis baseline" },
+      { letter: "C", text: "Use --resume to resume the session twice in different terminal windows" },
+      { letter: "D", text: "Store the analysis in a file and reference it in two separate session prompts" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "fork_session is specifically designed for creating independent branches from a shared analysis baseline to explore divergent approaches. It avoids re-running the analysis phase.",
+      options: {
+        A: { correct: false, text: "Starting two new sessions would require re-running the full analysis, duplicating work and cost. It also might produce slightly different analysis results." },
+        B: { correct: true, text: "fork_session creates two identical copies of the current session state. Each fork can then explore a different approach independently without contaminating each other's context." },
+        C: { correct: false, text: "--resume continues a specific session — it doesn't create branches. Two --resume calls would continue the same session, not create independent forks." },
+        D: { correct: false, text: "This approximates forking but loses the full conversation context (prior reasoning, tool results) that makes the baseline valuable. It's more fragile and less complete." }
+      }
+    }
+  },
+  {
+    id: 12,
+    ts: "1.7",
+    difficulty: "Hard",
+    text: "You resume a session that analyzed a codebase two days ago. Since then, the authentication module has been significantly refactored. What is the most reliable approach for this resumed session?",
+    options: [
+      { letter: "A", text: "The session automatically detects file changes, so no action is needed" },
+      { letter: "B", text: "Start a completely fresh session and re-analyze the entire codebase from scratch" },
+      { letter: "C", text: "Inform the agent specifically about which files changed and request targeted re-analysis of the authentication module" },
+      { letter: "D", text: "Resume the session and let the agent discover the changes through its normal tool usage" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "When resuming a session after code changes, you must inform the agent about the specific changes to enable targeted re-analysis. The session's cached tool results are stale for changed files.",
+      options: {
+        A: { correct: false, text: "Sessions do not automatically detect file changes. The agent's prior understanding of the codebase remains as it was when it last ran — it won't know about refactoring unless told." },
+        B: { correct: false, text: "Full re-analysis is wasteful if most of the codebase is unchanged. Targeted re-analysis of changed components is more efficient and the correct approach." },
+        C: { correct: true, text: "Informing the agent about specific file changes enables targeted re-analysis. The agent can update its understanding of the authentication module while preserving valid context about other unchanged parts." },
+        D: { correct: false, text: "Passive discovery may work but is unreliable. The agent might not revisit auth files, might rely on stale prior analysis, or might produce inconsistent results by mixing old and new context." }
+      }
+    }
+  }
+];
+
+let state = {
+  questions: [],
+  answers: {},
+  revealed: {},
+  theme: 'dark'
+};
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  state.questions = shuffle(QUESTIONS);
+  state.answers = {};
+  state.revealed = {};
+  document.getElementById('summary').classList.remove('show');
+  renderQuiz();
+  updateScore();
+}
+
+function renderQuiz() {
+  const main = document.getElementById('main-quiz');
+  main.innerHTML = '';
+  state.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = 'q-' + q.id;
+    const opts = q.options.map(o => `
+      <div class="option ${state.answers[q.id] ? 'disabled' : ''} ${state.answers[q.id] === o.letter ? (o.letter === q.correct ? 'correct' : 'wrong') : ''} ${state.answers[q.id] && o.letter === q.correct && state.answers[q.id] !== q.correct ? 'correct' : ''}"
+           onclick="selectOption(${q.id}, '${o.letter}')">
+        <span class="opt-letter">${o.letter}</span>
+        <span>${o.text}</span>
+      </div>`).join('');
+
+    const expl = state.revealed[q.id] ? buildExplanation(q) : '';
+    card.innerHTML = `
+      <div class="q-header">
+        <span class="q-num">Q${idx + 1}</span>
+        <div class="q-tags">
+          <span class="tag ${q.difficulty.toLowerCase()}">${q.difficulty}</span>
+          <span class="tag">TS ${q.ts}</span>
+        </div>
+      </div>
+      <div class="q-text">${q.text}</div>
+      <div class="options" id="opts-${q.id}">${opts}</div>
+      <div class="q-actions">
+        <button class="btn btn-submit" id="btn-${q.id}" onclick="submitAnswer(${q.id})" ${!getSelected(q.id) ? 'disabled' : ''}>Submit</button>
+      </div>
+      <div class="explanation" id="expl-${q.id}" style="${state.revealed[q.id] ? '' : 'display:none'}">${expl}</div>
+    `;
+    if (state.answers[q.id]) {
+      card.classList.add(state.answers[q.id] === q.correct ? 'answered-correct' : 'answered-wrong');
+    }
+    main.appendChild(card);
+  });
+}
+
+function getSelected(qid) {
+  return document.querySelector(`#opts-${qid} .option.selected`);
+}
+
+function selectOption(qid, letter) {
+  if (state.answers[qid]) return;
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => el.classList.remove('selected'));
+  const opts = document.querySelectorAll(`#opts-${qid} .option`);
+  opts.forEach(el => { if (el.querySelector('.opt-letter').textContent === letter) el.classList.add('selected'); });
+  document.getElementById('btn-' + qid).disabled = false;
+}
+
+function submitAnswer(qid) {
+  const q = state.questions.find(q => q.id === qid);
+  const selected = document.querySelector(`#opts-${qid} .option.selected`);
+  if (!selected) return;
+  const letter = selected.querySelector('.opt-letter').textContent;
+  state.answers[qid] = letter;
+  state.revealed[qid] = true;
+
+  const card = document.getElementById('q-' + qid);
+  card.classList.add(letter === q.correct ? 'answered-correct' : 'answered-wrong');
+
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => {
+    el.classList.add('disabled');
+    el.classList.remove('selected');
+    const l = el.querySelector('.opt-letter').textContent;
+    if (l === q.correct) el.classList.add('correct');
+    else if (l === letter && l !== q.correct) el.classList.add('wrong');
+  });
+
+  document.getElementById('btn-' + qid).style.display = 'none';
+  const explEl = document.getElementById('expl-' + qid);
+  explEl.style.display = '';
+  explEl.innerHTML = buildExplanation(q);
+  document.querySelector(`#expl-${qid} .expl-body`).classList.add('open');
+
+  updateScore();
+  checkComplete();
+}
+
+function buildExplanation(q) {
+  const optHtml = q.options.map(o => {
+    const isCorrect = o.letter === q.correct;
+    return `<div class="expl-option">
+      <div class="expl-opt-lbl ${isCorrect ? 'c' : 'w'}">${o.letter} — ${isCorrect ? 'CORRECT' : 'INCORRECT'}</div>
+      <p>${q.explanation.options[o.letter].text}</p>
+    </div>`;
+  }).join('');
+  return `<div class="explanation">
+    <div class="expl-toggle" onclick="toggleExpl(this)">
+      <span>Explanation</span><span>▲</span>
+    </div>
+    <div class="expl-body open">
+      <p class="correct-note">Correct Answer: ${q.correct}</p>
+      <p>${q.explanation.main}</p>
+      ${optHtml}
+    </div>
+  </div>`;
+}
+
+function toggleExpl(el) {
+  const body = el.nextElementSibling;
+  const isOpen = body.classList.toggle('open');
+  el.querySelector('span:last-child').textContent = isOpen ? '▲' : '▼';
+}
+
+function updateScore() {
+  const total = state.questions.length;
+  const answered = Object.keys(state.answers).length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => {
+    const q = state.questions.find(q => q.id == id);
+    return q && ans === q.correct;
+  }).length;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+  document.getElementById('score-val').textContent = correct;
+  document.getElementById('pct-val').textContent = pct + '%';
+  document.getElementById('ans-val').textContent = answered + '/' + total;
+  const fill = (answered / total) * 100;
+  document.getElementById('progress-fill').style.width = fill + '%';
+  document.getElementById('progress-label').textContent = answered + ' of ' + total + ' questions answered';
+}
+
+function checkComplete() {
+  if (Object.keys(state.answers).length === state.questions.length) {
+    setTimeout(showSummary, 500);
+  }
+}
+
+function showSummary() {
+  const total = state.questions.length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => {
+    const q = state.questions.find(q => q.id == id);
+    return q && ans === q.correct;
+  }).length;
+  const pct = Math.round((correct / total) * 100);
+
+  const byDiff = { Easy: { c: 0, t: 0 }, Medium: { c: 0, t: 0 }, Hard: { c: 0, t: 0 } };
+  state.questions.forEach(q => {
+    byDiff[q.difficulty].t++;
+    if (state.answers[q.id] === q.correct) byDiff[q.difficulty].c++;
+  });
+
+  document.getElementById('sum-score').textContent = correct + '/' + total;
+  document.getElementById('sum-breakdown').innerHTML = `
+    <div class="breakdown-item"><div class="val" style="color:var(--green)">${byDiff.Easy.c}/${byDiff.Easy.t}</div><div class="lbl">Easy</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--yellow)">${byDiff.Medium.c}/${byDiff.Medium.t}</div><div class="lbl">Medium</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--red)">${byDiff.Hard.c}/${byDiff.Hard.t}</div><div class="lbl">Hard</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--accent)">${pct}%</div><div class="lbl">Accuracy</div></div>
+  `;
+  document.getElementById('summary').classList.add('show');
+  document.getElementById('summary').scrollIntoView({ behavior: 'smooth' });
+}
+
+function retryQuiz() {
+  init();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+}
+
+init();
+</script>
+</body>
+</html>

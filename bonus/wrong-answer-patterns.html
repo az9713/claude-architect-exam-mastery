@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wrong Answer Patterns Trainer | Claude Certified Architect</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --border: #2a2a4a;
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+
+    --pattern-oe: #7c3aed;
+    --pattern-wp: #0891b2;
+    --pattern-ig: #dc2626;
+    --pattern-po: #d97706;
+    --pattern-cws: #059669;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 { font-size: 1.4rem; color: var(--accent2); }
+  header p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+
+  .score-bar {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .score-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  .score-pill span { color: var(--accent2); font-weight: 700; }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 30px 20px;
+  }
+
+  /* Pattern Legend */
+  .pattern-legend {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 30px;
+  }
+
+  .pattern-card {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 14px;
+    border-top: 3px solid;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .pattern-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .pattern-card.active { box-shadow: 0 0 0 2px var(--accent2); }
+  .pattern-card[data-p="OE"] { border-color: var(--pattern-oe); }
+  .pattern-card[data-p="WP"] { border-color: var(--pattern-wp); }
+  .pattern-card[data-p="IG"] { border-color: var(--pattern-ig); }
+  .pattern-card[data-p="PO"] { border-color: var(--pattern-po); }
+  .pattern-card[data-p="CWS"] { border-color: var(--pattern-cws); }
+
+  .pattern-card .abbr { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .pattern-card[data-p="OE"] .abbr { color: var(--pattern-oe); }
+  .pattern-card[data-p="WP"] .abbr { color: var(--pattern-wp); }
+  .pattern-card[data-p="IG"] .abbr { color: var(--pattern-ig); }
+  .pattern-card[data-p="PO"] .abbr { color: var(--pattern-po); }
+  .pattern-card[data-p="CWS"] .abbr { color: var(--pattern-cws); }
+
+  .pattern-card .name { font-size: 0.8rem; color: var(--text); font-weight: 600; }
+  .pattern-card .desc { font-size: 0.72rem; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+  /* Question Card */
+  .question-card {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: opacity 0.2s;
+  }
+
+  .question-card.hidden { display: none; }
+  .question-card.answered { opacity: 0.85; }
+
+  .q-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .q-num {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 600;
+    min-width: 50px;
+  }
+
+  .pattern-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-OE { background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid rgba(124,58,237,0.4); }
+  .badge-WP { background: rgba(8,145,178,0.2); color: #67e8f9; border: 1px solid rgba(8,145,178,0.4); }
+  .badge-IG { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4); }
+  .badge-PO { background: rgba(217,119,6,0.2); color: #fcd34d; border: 1px solid rgba(217,119,6,0.4); }
+  .badge-CWS { background: rgba(5,150,105,0.2); color: #6ee7b7; border: 1px solid rgba(5,150,105,0.4); }
+
+  .domain-tag {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .q-status {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+
+  .q-status.correct { background: var(--success); color: #fff; }
+  .q-status.incorrect { background: var(--danger); color: #fff; }
+  .q-status.unanswered { background: var(--surface); border: 1px solid var(--border); }
+
+  .q-body { padding: 20px; }
+
+  .q-context {
+    font-size: 0.82rem;
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+    border-left: 3px solid var(--border);
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    border-radius: 0 6px 6px 0;
+    line-height: 1.6;
+  }
+
+  .q-stem {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  .options { display: flex; flex-direction: column; gap: 8px; }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+    color: var(--text);
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .option:hover:not(:disabled) { background: rgba(124,58,237,0.08); border-color: rgba(124,58,237,0.4); }
+  .option:disabled { cursor: default; }
+
+  .option .letter {
+    font-weight: 700;
+    font-size: 0.8rem;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .option.selected { border-color: var(--info); background: rgba(59,130,246,0.1); }
+  .option.correct { border-color: var(--success); background: rgba(16,185,129,0.12); }
+  .option.incorrect { border-color: var(--danger); background: rgba(239,68,68,0.12); }
+  .option.correct .letter { background: var(--success); color: #fff; }
+  .option.incorrect .letter { background: var(--danger); color: #fff; }
+
+  .pattern-reveal {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .pattern-reveal.visible { display: block; }
+  .pattern-reveal .reveal-label { font-weight: 700; color: var(--accent2); margin-bottom: 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .pattern-reveal .reveal-correct { color: #6ee7b7; margin-bottom: 8px; }
+  .pattern-reveal .reveal-why { color: var(--muted); }
+  .pattern-reveal strong { color: var(--text); }
+
+  /* Results Panel */
+  #results-panel {
+    display: none;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 30px;
+    margin-bottom: 30px;
+  }
+
+  #results-panel.visible { display: block; }
+
+  .results-title { font-size: 1.3rem; font-weight: 700; color: var(--accent2); margin-bottom: 20px; text-align: center; }
+
+  .score-display {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .score-big { font-size: 3.5rem; font-weight: 800; }
+  .score-big.pass { color: var(--success); }
+  .score-big.needs-work { color: var(--warning); }
+  .score-big.fail { color: var(--danger); }
+  .score-desc { font-size: 0.9rem; color: var(--muted); margin-top: 4px; }
+
+  .by-pattern {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .bp-card {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    border-top: 3px solid;
+  }
+
+  .bp-card[data-p="OE"] { border-color: var(--pattern-oe); }
+  .bp-card[data-p="WP"] { border-color: var(--pattern-wp); }
+  .bp-card[data-p="IG"] { border-color: var(--pattern-ig); }
+  .bp-card[data-p="PO"] { border-color: var(--pattern-po); }
+  .bp-card[data-p="CWS"] { border-color: var(--pattern-cws); }
+
+  .bp-card .bp-pct { font-size: 1.6rem; font-weight: 800; }
+  .bp-card[data-p="OE"] .bp-pct { color: var(--pattern-oe); }
+  .bp-card[data-p="WP"] .bp-pct { color: var(--pattern-wp); }
+  .bp-card[data-p="IG"] .bp-pct { color: var(--pattern-ig); }
+  .bp-card[data-p="PO"] .bp-pct { color: var(--pattern-po); }
+  .bp-card[data-p="CWS"] .bp-pct { color: var(--pattern-cws); }
+
+  .bp-card .bp-name { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+  .bp-card .bp-count { font-size: 0.78rem; color: var(--text); margin-top: 2px; }
+
+  .results-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .toast.correct-toast { background: var(--success); color: #fff; }
+  .toast.incorrect-toast { background: var(--danger); color: #fff; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 700px) {
+    header { flex-direction: column; gap: 12px; text-align: center; }
+    .pattern-legend { grid-template-columns: repeat(2, 1fr); }
+    .by-pattern { grid-template-columns: repeat(2, 1fr); }
+    .score-big { font-size: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Wrong Answer Patterns Trainer</h1>
+    <p>Claude Certified Architect - Foundations | Recognize distractor traps before the real exam</p>
+  </div>
+  <div class="score-bar">
+    <div class="score-pill">Answered: <span id="answered-count">0</span>/30</div>
+    <div class="score-pill">Correct: <span id="correct-count">0</span></div>
+    <div class="score-pill">Accuracy: <span id="accuracy-pct">-</span></div>
+    <button class="btn btn-primary" onclick="showResults()">View Results</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Pattern Legend -->
+  <div class="pattern-legend">
+    <div class="pattern-card" data-p="OE" onclick="filterByPattern('OE', this)">
+      <div class="abbr">OE</div>
+      <div class="name">Over-Engineering</div>
+      <div class="desc">The answer adds complexity, extra components, or additional steps that the scenario does not require.</div>
+    </div>
+    <div class="pattern-card" data-p="WP" onclick="filterByPattern('WP', this)">
+      <div class="abbr">WP</div>
+      <div class="name">Wrong Problem</div>
+      <div class="desc">The answer solves a different problem than the one stated — blaming the wrong agent, layer, or cause.</div>
+    </div>
+    <div class="pattern-card" data-p="IG" onclick="filterByPattern('IG', this)">
+      <div class="abbr">IG</div>
+      <div class="name">Insufficient Guarantee</div>
+      <div class="desc">The answer relies on probabilistic or "soft" controls when the scenario requires deterministic enforcement.</div>
+    </div>
+    <div class="pattern-card" data-p="PO" onclick="filterByPattern('PO', this)">
+      <div class="abbr">PO</div>
+      <div class="name">Premature Optimization</div>
+      <div class="desc">The answer optimizes the wrong bottleneck or solves an edge case before fixing the root cause.</div>
+    </div>
+    <div class="pattern-card" data-p="CWS" onclick="filterByPattern('CWS', this)">
+      <div class="abbr">CWS</div>
+      <div class="name">Correct But Wrong Scope</div>
+      <div class="desc">The answer is true in general but does not address the specific constraint or requirement stated.</div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <span style="font-size:0.82rem;color:var(--muted);">Filter:</span>
+    <button class="filter-btn active" onclick="filterByPattern('ALL', this)">All (30)</button>
+    <button class="filter-btn" onclick="filterByPattern('OE', this)">Over-Engineering</button>
+    <button class="filter-btn" onclick="filterByPattern('WP', this)">Wrong Problem</button>
+    <button class="filter-btn" onclick="filterByPattern('IG', this)">Insufficient Guarantee</button>
+    <button class="filter-btn" onclick="filterByPattern('PO', this)">Premature Optimization</button>
+    <button class="filter-btn" onclick="filterByPattern('CWS', this)">Correct But Wrong Scope</button>
+    <button class="filter-btn" onclick="filterByPattern('WRONG', this)">My Mistakes</button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-row">
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progress-label">0 of 30 answered</div>
+  </div>
+
+  <!-- Results Panel -->
+  <div id="results-panel">
+    <div class="results-title">Pattern Recognition Results</div>
+    <div class="score-display">
+      <div class="score-big" id="final-score">-</div>
+      <div class="score-desc" id="final-desc">Complete some questions to see your score</div>
+    </div>
+    <div class="by-pattern" id="by-pattern-grid"></div>
+    <div class="results-actions">
+      <button class="btn btn-secondary" onclick="filterByPattern('WRONG', document.querySelector('.filter-btn:nth-child(8)'))">Review My Mistakes</button>
+      <button class="btn btn-primary" onclick="resetAll()">Start Over</button>
+    </div>
+  </div>
+
+  <!-- Questions -->
+  <div id="questions-container"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PATTERNS = {
+  OE: 'Over-Engineering',
+  WP: 'Wrong Problem',
+  IG: 'Insufficient Guarantee',
+  PO: 'Premature Optimization',
+  CWS: 'Correct But Wrong Scope'
+};
+
+// 30 questions — 6 per pattern, drawn from all 5 domains and 6 scenarios
+const QUESTIONS = [
+
+  // ======= OVER-ENGINEERING (OE) =======
+  {
+    id: 1, pattern: 'OE', domain: 'D1', scenario: 'S1',
+    context: 'Your customer support agent skips get_customer 12% of the time, calling lookup_order directly. This occasionally causes misidentified accounts.',
+    stem: 'A junior developer proposes: (1) a routing classifier that analyzes each request and enables only the subset of tools appropriate for that request type, (2) a sentiment analyzer to detect frustration before tool calls, and (3) a secondary audit agent that double-checks every tool call. Which aspect of this proposal addresses the root cause?',
+    options: [
+      'None of them — a programmatic prerequisite blocking lookup_order until get_customer has returned a verified ID is the minimal correct fix.',
+      'The routing classifier alone, since it controls which tools are available per request type.',
+      'The audit agent alone, since it catches the skipped step after the fact.',
+      'All three together provide defense-in-depth that eliminates the reliability issue.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D are Over-Engineering — they add components (classifier, audit agent, sentiment) that do not directly enforce the required tool sequence. The correct fix is a one-step programmatic prerequisite.',
+    correctExplanation: 'A programmatic prerequisite is the minimum change that makes the failure impossible — not just less likely. All three proposed components add complexity without targeting the root cause (missing deterministic enforcement).'
+  },
+  {
+    id: 2, pattern: 'OE', domain: 'D3', scenario: 'S2',
+    context: 'Your team wants Claude Code to apply the correct coding conventions automatically: React hooks for components, async/await for API handlers, repository pattern for DB models. Test files are scattered throughout the codebase (Button.test.tsx next to Button.tsx).',
+    stem: 'A colleague proposes creating a skill for each code type in .claude/skills/ with the relevant conventions, then configuring a CLAUDE.md entry that lists all skills and instructs Claude to load the relevant one based on file extension. Why is this Over-Engineering?',
+    options: [
+      'Skills require manual invocation or depend on Claude inferring which to load, adding unnecessary steps. Path-specific .claude/rules/ files with glob patterns load deterministically without any extra instruction.',
+      'Skills cannot contain coding conventions — they are only for task workflows.',
+      'CLAUDE.md cannot reference skills, so the integration would fail at runtime.',
+      'The skills approach would work correctly but uses more disk space than necessary.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D miss the core issue. The problem is that skills add a layer of indirection (invocation + inference) for something that should be automatic. Path-scoped rules solve this directly.',
+    correctExplanation: 'Skills are designed for on-demand task workflows, not for always-loading conventions. .claude/rules/ with YAML frontmatter glob patterns is the purpose-built mechanism for conditional convention loading — no extra configuration needed.'
+  },
+  {
+    id: 3, pattern: 'OE', domain: 'D2', scenario: 'S4',
+    context: 'Your developer productivity agent needs to read files, search code with grep/glob, and occasionally run bash commands. A new engineer suggests wrapping every tool call in a dedicated MCP server with input validation, rate limiting, logging middleware, and a circuit breaker pattern.',
+    stem: 'The agent already uses Claude\'s built-in tools (Read, Write, Bash, Grep, Glob). Why is adding a full MCP middleware layer an example of Over-Engineering here?',
+    options: [
+      'The built-in tools already provide safe, well-tested interfaces for these operations. Adding an MCP layer introduces latency, complexity, and maintenance burden without addressing a stated requirement.',
+      'MCP servers cannot wrap built-in Claude tools — they are for external system integration only.',
+      'Rate limiting is never appropriate for developer productivity tools.',
+      'The circuit breaker pattern is only relevant for network calls, not file operations.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D make true but narrow claims that miss the main point. The core issue is that the built-in tools already meet the requirements — adding infrastructure for unstated problems is Over-Engineering.',
+    correctExplanation: 'Over-Engineering appears when a solution adds architectural layers (middleware, circuit breakers, rate limiting) for problems that have not been identified. The built-in tools already work. Build MCP servers when you need to integrate external systems, not as middleware over existing tools.'
+  },
+  {
+    id: 4, pattern: 'OE', domain: 'D4', scenario: 'S5',
+    context: 'Your CI pipeline review flags too many style issues that developers ignore. The false positive rate for style comments is 70%. You want to restore developer trust.',
+    stem: 'An architect proposes: building a severity classification neural network trained on dismissed PR comments, adding a confidence threshold slider in the CI config, and adding a human-in-the-loop approval step for all medium-confidence findings. What is the simpler, more effective approach?',
+    options: [
+      'Temporarily disable the style category entirely and rewrite the prompt with explicit categorical criteria (what to report vs what to skip), then re-enable it once precision improves.',
+      'The neural network approach is correct — you need a data-driven severity model to handle the complexity of style judgment.',
+      'The confidence slider addresses the root cause by letting teams tune precision to their tolerance.',
+      'The human-in-the-loop step is necessary because style issues require human judgment by definition.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D are Over-Engineering — they add ML training, tunable sliders, and human review workflows when a prompt rewrite with explicit criteria directly fixes the false positive problem.',
+    correctExplanation: 'High false positive rates are usually a prompt problem, not a model capability problem. Explicit categorical criteria ("flag only when behavior contradicts code") resolve this directly. The complex ML pipeline is Over-Engineering for a problem solvable with a better prompt.'
+  },
+  {
+    id: 5, pattern: 'OE', domain: 'D5', scenario: 'S3',
+    context: 'Your multi-agent research system loses source attribution during the synthesis step. The synthesis agent receives summaries from subagents and the original source URLs are not preserved in the final report.',
+    stem: 'A proposed solution adds a blockchain-based provenance ledger, a dedicated citation validation agent, and a cryptographic hash for every claim. What does the scenario actually require?',
+    options: [
+      'Requiring subagents to output structured claim-source mappings (source URLs, excerpts, relevance scores) in their results, and instructing the synthesis agent to preserve these mappings in the final report.',
+      'The blockchain ledger is the only tamper-proof way to guarantee provenance in a multi-agent system.',
+      'A dedicated citation agent is needed because synthesis agents cannot reliably track provenance themselves.',
+      'Cryptographic hashing is the industry standard for claim attribution in automated research systems.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D are Over-Engineering — blockchain, dedicated agents, and cryptographic hashing are architecturally complex solutions for a problem that structured output fields solve directly.',
+    correctExplanation: 'Provenance preservation in Claude multi-agent systems is solved by structured output design — requiring source metadata fields in subagent outputs and instructing synthesis to preserve them. No additional infrastructure is needed.'
+  },
+  {
+    id: 6, pattern: 'OE', domain: 'D3', scenario: 'S5',
+    context: 'Your CI pipeline has one workflow: overnight technical debt analysis. Processing takes about 8 hours. A developer suggests migrating to real-time streaming with partial results, adding webhook callbacks for in-progress updates, and building a result aggregation service.',
+    stem: 'The current system uses synchronous Claude API calls that block for 8 hours. What is the correct architectural fit and why is the proposed solution Over-Engineering?',
+    options: [
+      'The Message Batches API handles overnight, latency-tolerant workloads with 50% cost savings. The webhook/aggregation infrastructure adds complexity for a non-blocking job where results are only needed the next morning.',
+      'Streaming is required whenever processing takes more than 60 seconds, so the proposal is correct.',
+      'Real-time webhooks are needed to detect partial failures before the 8-hour window expires.',
+      'The result aggregation service is necessary because the Batches API does not return results in a usable format.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D assume requirements (failure detection, streaming, aggregation) that are not in the scenario. The Batches API directly matches the use case — overnight, non-blocking, latency-tolerant.',
+    correctExplanation: 'Matching API approach to latency requirements: batch API for non-blocking overnight jobs, synchronous API for blocking workflows. The overnight job does not need real-time infrastructure — the Batches API with custom_id tracking is the right fit.'
+  },
+
+  // ======= WRONG PROBLEM (WP) =======
+  {
+    id: 7, pattern: 'WP', domain: 'D1', scenario: 'S3',
+    context: 'After running the multi-agent research system on "impact of AI on creative industries," all subagents complete successfully. But the final report covers only visual arts, missing music, writing, and film. The coordinator\'s task decomposition was: "AI in digital art creation," "AI in graphic design," "AI in photography."',
+    stem: 'A team member says: "The document analysis agent is filtering out non-visual sources because its relevance criteria are too restrictive." Is this diagnosis correct?',
+    options: [
+      'No. The coordinator\'s task decomposition is the root cause — it only assigned visual arts subtasks. The document analysis agent worked correctly within the scope it was given.',
+      'Yes. The document analysis agent\'s relevance filter is confirmed by the fact that it returned zero results for music and film.',
+      'Partially — both the coordinator and the document analysis agent share responsibility for the coverage gap.',
+      'Yes. The agent\'s relevance criteria must be expanded to include all creative industries in its filtering logic.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D blame the document analysis agent (Wrong Problem). The coordinator\'s logs explicitly show the narrow decomposition — fixing the downstream agent would not help if the coordinator never assigned music or film topics.',
+    correctExplanation: 'In multi-agent systems, always trace problems to their root cause level. The coordinator decides what subagents work on. If subtasks omit entire domains, that is a coordinator decomposition failure — not a subagent execution failure.'
+  },
+  {
+    id: 8, pattern: 'WP', domain: 'D5', scenario: 'S1',
+    context: 'Your customer support agent is generating inconsistent handling for frustrated customers — sometimes escalating immediately, sometimes attempting resolution. The team adds a sentiment scoring model to trigger escalation when frustration score exceeds 0.8.',
+    stem: 'Six months later, escalation rates have not improved and customer satisfaction scores are unchanged. What was the Wrong Problem this team solved?',
+    options: [
+      'Sentiment is an unreliable proxy for escalation need. The real problem was missing explicit escalation criteria in the system prompt — the agent needed instructions for when to escalate vs resolve, not a sentiment detector.',
+      'The sentiment threshold of 0.8 was too high — lowering it to 0.6 would trigger escalations sooner.',
+      'The sentiment model needed to be fine-tuned on customer support data to improve accuracy.',
+      'Sentiment-based escalation is the correct approach but needs to be combined with order complexity signals.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D try to fix the sentiment approach — still solving the Wrong Problem. Sentiment is inherently unreliable for escalation because customer frustration does not correlate with whether an issue is within the agent\'s capability.',
+    correctExplanation: 'Escalation should be triggered by explicit criteria: customer requests a human, policy gap exists, or the agent cannot make progress. Sentiment is a proxy for a different signal. Adding few-shot examples with explicit escalation criteria to the system prompt directly addresses the actual problem.'
+  },
+  {
+    id: 9, pattern: 'WP', domain: 'D4', scenario: 'S6',
+    context: 'Your extraction system produces empty results for the "payment_method" field 40% of the time. An engineer adds retry logic: on empty extraction, retry the same prompt up to 3 times with exponential backoff.',
+    stem: 'After deployment, the empty rate drops to 35%. A colleague argues the retry count should be raised to 5. What Wrong Problem is this team working on?',
+    options: [
+      'Retries do not help when the field is absent from the source document. The team should investigate whether payment_method is genuinely missing in 35-40% of documents, and if so, make the field optional (nullable) in the schema.',
+      'The retry count is correct — the remaining 5% improvement would come from higher retry counts.',
+      'Exponential backoff is the wrong delay strategy — a fixed 1-second delay would improve success rates.',
+      'The prompt needs to be more specific about where payment_method information typically appears in documents.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D continue iterating on the retry approach (Wrong Problem). Retries only help for format or structural errors — not for information that is simply absent from the source document.',
+    correctExplanation: 'The distinction between retry-addressable failures (format errors, structural issues) and retry-futile failures (genuinely absent information) is testable on the exam. If information is not in the document, retrying the same prompt cannot help. Schema redesign (nullable fields) is the correct response.'
+  },
+  {
+    id: 10, pattern: 'WP', domain: 'D3', scenario: 'S2',
+    context: 'Developers report that Claude Code produces inconsistent output when asked to refactor code — sometimes it adds error handling, sometimes it does not. The CLAUDE.md has detailed refactoring guidelines. A developer says the model is "ignoring" the CLAUDE.md.',
+    stem: 'After investigation, you find the CLAUDE.md guidelines use vague language: "apply appropriate error handling where needed." What Wrong Problem were developers working on when they blamed the model?',
+    options: [
+      'The problem is imprecise instructions, not model non-compliance. "Appropriate where needed" is interpreted inconsistently. Providing 2-3 concrete input/output examples showing exactly what transformations are expected would fix the inconsistency.',
+      'The model has a known limitation with CLAUDE.md files longer than 500 lines — the guidelines need to be split.',
+      'The model requires the guidelines to be repeated in each prompt rather than relying on CLAUDE.md.',
+      'The model correctly ignores guidelines it deems inapplicable — the fix is stronger instruction wording like "always" and "never."'
+    ],
+    correct: 0,
+    distractor: 'B, C, D blame model limitations or propose workarounds for the Wrong Problem. The real issue is vague instruction language — concrete examples are more effective than stronger wording for transformation tasks.',
+    correctExplanation: 'When prose descriptions produce inconsistent results, 2-3 concrete input/output examples clarify expected transformations far more effectively than rewriting prose instructions. This is a core principle in Task Statement 3.5.'
+  },
+  {
+    id: 11, pattern: 'WP', domain: 'D2', scenario: 'S1',
+    context: 'Your customer support MCP tool process_refund is called incorrectly 8% of the time — the agent passes malformed refund amounts or missing required fields. The team spends 3 weeks adding extensive input validation inside the process_refund tool implementation.',
+    stem: 'After deployment, the malformed call rate drops to 6%. What Wrong Problem did the team partially fix?',
+    options: [
+      'Input validation in the tool catches malformed calls after they happen but does not fix why the agent is producing malformed inputs. The root cause is likely missing or unclear tool description in the MCP schema — improving the JSON schema descriptions and adding examples would prevent malformed calls from being generated.',
+      'The validation logic needs to be more comprehensive — covering all edge cases would eliminate the remaining 6%.',
+      'The validation was in the right place but used the wrong rejection strategy — it should retry rather than reject.',
+      'Input validation is the correct long-term solution — the remaining 6% requires tuning the validation thresholds.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D continue fixing the tool validation (Wrong Problem). Tool-side validation treats symptoms; unclear schema is the cause. The model cannot generate correct calls if the schema does not communicate the required format clearly.',
+    correctExplanation: 'When an agent generates malformed tool calls, the first place to look is the tool description and schema. Clear descriptions, required/optional field annotations, and example values guide the model to generate correct inputs — more effectively than downstream validation.'
+  },
+  {
+    id: 12, pattern: 'WP', domain: 'D5', scenario: 'S6',
+    context: 'Your extraction system reports 97% overall accuracy. Your manager says to reduce human review since accuracy is high. A quality analyst is concerned but cannot point to specific evidence.',
+    stem: 'Three months after reducing review, you discover that accuracy on "contract termination clauses" documents is 61%. What Wrong Problem did the team evaluate?',
+    options: [
+      'Aggregate accuracy masks per-segment performance. The team measured the wrong metric — they needed accuracy stratified by document type and field before reducing human review. 97% overall can hide catastrophic performance on specific segments.',
+      'The human reviewers were ineffective, so reducing review did not cause the accuracy drop.',
+      'The 61% accuracy is expected for complex legal language — the threshold for this document type should be set lower.',
+      'Accuracy should have been measured on the most recent documents only, not historical data.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept the aggregate metric as valid (Wrong Problem). Aggregate accuracy is the wrong measurement instrument for validating per-segment reliability. Stratified analysis by document type is required before automating high-confidence extractions.',
+    correctExplanation: 'Task Statement 5.5: validate accuracy by document type and field segment before reducing human review. Aggregate metrics mask poor performance on specific categories. Stratified random sampling of high-confidence extractions is the correct ongoing monitoring approach.'
+  },
+
+  // ======= INSUFFICIENT GUARANTEE (IG) =======
+  {
+    id: 13, pattern: 'IG', domain: 'D1', scenario: 'S1',
+    context: 'Your customer support agent must verify customer identity via get_customer before processing any refunds. Production data shows that in 12% of cases, the agent calls lookup_order directly without first calling get_customer.',
+    stem: 'The team adds a system prompt instruction: "You must always call get_customer to verify customer identity before calling lookup_order or process_refund." After deployment, the skip rate drops from 12% to 4%. Is this solution sufficient?',
+    options: [
+      'No. A 4% skip rate still means wrong refunds occur. Prompt instructions are an Insufficient Guarantee for critical business logic. A programmatic prerequisite that prevents lookup_order and process_refund from being called until get_customer returns a verified ID provides a deterministic guarantee.',
+      'Yes. Reducing the skip rate by 67% is a significant improvement and acceptable for production.',
+      'Yes. The remaining 4% represents edge cases where the agent correctly determines verification is unnecessary.',
+      'The prompt is sufficient — adding programmatic enforcement would over-constrain the agent in legitimate edge cases.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept probabilistic improvement as sufficient (Insufficient Guarantee). For critical business logic like customer verification before financial transactions, "usually works" is not good enough.',
+    correctExplanation: 'Prompt instructions are probabilistic — they improve compliance but cannot guarantee it. When tool call sequences are required for critical business logic (identity verification, financial operations), programmatic enforcement provides a deterministic guarantee that prompt instructions cannot.'
+  },
+  {
+    id: 14, pattern: 'IG', domain: 'D4', scenario: 'S6',
+    context: 'Your extraction system needs to guarantee that the output always follows a specific JSON schema, with required fields and correct types. Currently, the prompt instructs Claude to "always output valid JSON matching the schema" and includes the schema definition.',
+    stem: 'Your system experiences JSON parse errors on 2.3% of documents. An engineer says: "Let\'s add more examples of correct JSON output to the prompt — that should reduce errors to under 0.5%." What is the Insufficient Guarantee problem with this approach?',
+    options: [
+      'Few-shot examples reduce but cannot eliminate JSON syntax errors. Tool use with a JSON schema as the input parameter provides a deterministic guarantee — the model\'s response must be schema-compliant, eliminating syntax errors entirely.',
+      'Adding more examples is the correct approach — 0.5% is an acceptable error rate for production extraction.',
+      'The examples need to cover error cases, not just correct output — negative examples would reduce errors more.',
+      'The parse error rate of 2.3% suggests a model limitation that requires a larger model, not more examples.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept probabilistic improvement (Insufficient Guarantee). When you need guaranteed schema-compliant output, only tool use with a JSON schema provides a hard guarantee.',
+    correctExplanation: 'Tool use (tool_choice forced to a specific tool) with a JSON schema as input parameters eliminates JSON syntax errors — the model must produce schema-compliant output or the call fails. Prompt instructions and few-shot examples reduce errors but cannot provide this hard guarantee.'
+  },
+  {
+    id: 15, pattern: 'IG', domain: 'D3', scenario: 'S5',
+    context: 'You want Claude Code in CI to always output structured JSON with findings rather than free-text responses. Your CI script instructs Claude: "Output your findings as JSON with this structure: {issues: [...]}."',
+    stem: 'The system works correctly 94% of the time, but 6% of responses are free-text explanations. A developer adds to the prompt: "IMPORTANT: Your response MUST be valid JSON. Do not include any explanation text." The failure rate drops to 3%. What is the remaining problem?',
+    options: [
+      'Prompt instructions are an Insufficient Guarantee for structured output in CI contexts. The --output-format json flag combined with --json-schema enforces structured output at the CLI level, providing a hard guarantee that prompt instructions cannot.',
+      'The remaining 3% failure rate is acceptable for CI — most runs will succeed.',
+      'The prompt needs even stronger language — adding "absolutely required" and "no exceptions" would eliminate the remaining 3%.',
+      'The CI script should parse the response and fall back to regex extraction when JSON parsing fails.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept the probabilistic approach (Insufficient Guarantee). CI pipelines require machine-parseable output reliably — the --output-format json flag provides this deterministically.',
+    correctExplanation: 'For CI/CD contexts, use --output-format json with --json-schema to produce guaranteed structured output. Prompt instructions cannot provide the same guarantee — they can always be overridden by the model\'s generation process in edge cases.'
+  },
+  {
+    id: 16, pattern: 'IG', domain: 'D1', scenario: 'S3',
+    context: 'Your agentic loop needs to terminate when the task is complete. A developer implements termination logic by checking if the assistant\'s response text contains phrases like "task complete," "I have finished," or "all done."',
+    stem: 'During testing, the loop runs 3 extra iterations because the model uses different completion language. Another developer suggests adding more phrases to the pattern list. What is the fundamental problem?',
+    options: [
+      'Natural language pattern matching for loop termination is an Insufficient Guarantee. The correct approach is to check stop_reason — the loop should continue when stop_reason is "tool_use" and terminate when stop_reason is "end_turn", providing a reliable programmatic signal.',
+      'The phrase list needs to be more comprehensive — adding 10-15 more variants would make it reliable enough.',
+      'The model should be instructed to always use exactly "TASK_COMPLETE" as a sentinel string to make parsing reliable.',
+      'A text classifier trained on completion phrases would be more reliable than string matching.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D try to make natural language parsing more reliable (Insufficient Guarantee). stop_reason is the purpose-built, deterministic signal for loop control — it never varies based on generation style.',
+    correctExplanation: 'stop_reason is the canonical agentic loop control signal. "tool_use" means continue, "end_turn" means the model has finished. Any natural language approach is an Insufficient Guarantee because model phrasing is generation-dependent.'
+  },
+  {
+    id: 17, pattern: 'IG', domain: 'D4', scenario: 'S6',
+    context: 'Your extraction schema has a required "invoice_total" field. You add a validation rule that checks whether line items sum to the invoice total. When they do not match, you retry with the error message: "Please fix: line items sum to $450 but invoice_total is $500."',
+    stem: 'After adding this validation, 95% of cross-field discrepancies are resolved. A business stakeholder says the remaining 5% must be eliminated before production launch. Which of these approaches provides a hard guarantee?',
+    options: [
+      'Neither retry nor validation can eliminate all semantic errors — tool use guarantees schema syntax but not semantic consistency. The correct approach is to add "calculated_total" as a separate extraction field alongside "stated_total" and flag discrepancies for human review rather than automated correction.',
+      'Increasing retry count to 5 will resolve the remaining 5% through additional attempts.',
+      'Adding more specific error messages in the retry prompt will guide the model to resolve all discrepancies.',
+      'Forcing tool_choice to the specific extraction tool will ensure the model focuses on the cross-field constraint.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D assume retries or stronger prompts can eliminate all semantic errors (Insufficient Guarantee). Tool use eliminates syntax errors but never guarantees semantic correctness — discrepancies must be surfaced for human review.',
+    correctExplanation: 'Tool use with JSON schemas eliminates syntax errors but not semantic errors. Cross-field inconsistencies (line items not summing to total) require application-level validation and human review routing, not prompt retries. This is a key exam distinction.'
+  },
+  {
+    id: 18, pattern: 'IG', domain: 'D5', scenario: 'S5',
+    context: 'Your CI review system uses confidence scores from Claude to decide which findings to post as PR comments. Low-confidence findings are filtered. The team\'s hypothesis: "if Claude reports high confidence, the finding is accurate."',
+    stem: 'After six months, a developer audit reveals that 23% of high-confidence findings are false positives. What is the Insufficient Guarantee problem?',
+    options: [
+      'Self-reported confidence scores are uncalibrated and unreliable as routing signals. Confidence thresholds must be calibrated against labeled validation sets to have predictive validity — raw model confidence scores are not a reliable proxy for accuracy.',
+      'The confidence threshold needs to be raised — currently it is too permissive.',
+      'High-confidence findings should be reviewed by a second model instance to confirm accuracy.',
+      'The model needs to explain its confidence reasoning, not just report a score, for the signal to be reliable.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept the model\'s self-reported confidence as a starting point (Insufficient Guarantee). Uncalibrated confidence scores have no predictive validity — calibration against labeled data is required before using them for routing.',
+    correctExplanation: 'Field-level confidence scores are only useful when calibrated using labeled validation sets. Self-reported confidence is not reliability — the model can be confidently wrong. Calibration is required before using confidence scores for routing decisions.'
+  },
+
+  // ======= PREMATURE OPTIMIZATION (PO) =======
+  {
+    id: 19, pattern: 'PO', domain: 'D4', scenario: 'S5',
+    context: 'Your CI review pipeline generates test cases for pull requests. The tests cover expected behavior well, but often suggest test scenarios already covered by the existing test suite. A developer suggests: "Let\'s add a semantic similarity scorer to compare suggested tests against existing tests and deduplicate before posting."',
+    stem: 'Before implementing the similarity scorer, what simpler fix should you try first?',
+    options: [
+      'Provide the existing test files in context when running test generation and instruct Claude to avoid suggesting scenarios already covered. This directly addresses the cause (Claude does not know what tests exist) without building a similarity scorer.',
+      'The semantic similarity scorer is the correct approach — it is more robust than context-based deduplication.',
+      'The test generation prompt needs a stronger instruction: "Do not suggest duplicate tests."',
+      'Reducing the number of suggested tests per PR would naturally reduce duplicate suggestions.'
+    ],
+    correct: 0,
+    distractor: 'B is Premature Optimization — building a similarity scorer before trying the simpler context-based fix. C is Insufficient Guarantee (vague instruction). D reduces output without fixing the root cause.',
+    correctExplanation: 'The root cause is that Claude generates tests without knowing what already exists. Providing existing test files in context is the minimal, direct fix. Building a semantic similarity scorer is Premature Optimization — solving a perceived engineering problem before exhausting the simpler approach.'
+  },
+  {
+    id: 20, pattern: 'PO', domain: 'D5', scenario: 'S3',
+    context: 'Your multi-agent research system produces a final report, but the synthesis agent\'s context fills up after 45 minutes because it accumulates all subagent outputs (averaging 8,000 tokens each). The team plans to fine-tune a compression model to reduce subagent output size by 60%.',
+    stem: 'A simpler architectural fix exists. What is the fine-tuning plan an example of?',
+    options: [
+      'Premature Optimization — fine-tuning a compression model is complex and expensive. The direct fix is to modify upstream subagents to return structured data (key facts, citations, relevance scores) instead of verbose content and reasoning chains, reducing context consumption without a new model.',
+      'The fine-tuning approach is correct — only a trained model can reliably compress domain-specific research outputs.',
+      'Fine-tuning is premature, but context window management should use /compact rather than architectural changes.',
+      'The synthesis agent should spawn sub-synthesis agents to process chunks of subagent output in parallel.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D either accept the fine-tuning plan or substitute an equally complex solution. Modifying subagent output schemas is the minimum effective change.',
+    correctExplanation: 'When subagents return structured data instead of verbose text, the synthesis agent receives exactly the information it needs — no compression model required. This is a design change to the output contract, not a new AI system. Premature Optimization often appears as "build a new tool" when "configure the existing tool differently" works.'
+  },
+  {
+    id: 21, pattern: 'PO', domain: 'D4', scenario: 'S6',
+    context: 'Your extraction system handles 10,000 documents per week. 200 of them (2%) have inconsistent date formats (MM/DD/YYYY vs DD-MM-YYYY vs written dates like "March 5th, 2024"). An engineer proposes building a dedicated date normalization microservice with a trained NER model.',
+    stem: 'What does the exam guide recommend for handling inconsistent source formatting?',
+    options: [
+      'Including format normalization rules directly in the extraction prompt alongside the output schema. This handles format inconsistencies without building a separate service or training a new model.',
+      'The dedicated microservice is appropriate — date parsing is complex enough to warrant a specialized tool.',
+      'Training a NER model is the correct approach when you have examples of all date format variants.',
+      'The 2% inconsistency rate is below the threshold requiring intervention — prioritize higher-impact problems.'
+    ],
+    correct: 0,
+    distractor: 'B, C are Premature Optimization — building infrastructure for a problem solvable in the prompt. D ignores the problem rather than solving it simply.',
+    correctExplanation: 'Format normalization rules in the prompt handle inconsistent source formatting effectively. Including examples of each variant and the expected output format guides Claude to normalize correctly without a separate service. Building a microservice for 200 documents per week is Premature Optimization.'
+  },
+  {
+    id: 22, pattern: 'PO', domain: 'D1', scenario: 'S3',
+    context: 'Your synthesis agent needs to verify facts for 85% of its tasks (simple date/name/statistic lookups) and 15% require deep investigation via web search. Currently, ALL verifications go back through the coordinator to the web search agent, adding 2-3 round trips.',
+    stem: 'A developer proposes giving the synthesis agent direct access to all web search tools. What is the Premature Optimization problem with this proposal?',
+    options: [
+      'Giving the synthesis agent all web search tools over-provisions it, violating separation of concerns and creating an unnecessarily complex agent. The correct fix is a scoped verify_fact tool for the 85% simple case while complex verifications continue through the coordinator.',
+      'The web search tool access is the correct approach — it eliminates all round-trip latency for both simple and complex verifications.',
+      'The 85%/15% split suggests the coordinator routing logic should be optimized, not the synthesis agent\'s tool access.',
+      'The developer\'s proposal is correct — the coordinator pattern should be removed for efficiency in this case.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept full tool access or coordinator removal (both Premature Optimization). The minimum change is a scoped verify_fact tool — not full web search access.',
+    correctExplanation: 'The principle of least privilege: give agents only the tools they need for their role. A scoped verify_fact tool handles 85% of cases efficiently while preserving the coordinator pattern for complex searches. Full web search access is more capability than needed and blurs agent responsibilities.'
+  },
+  {
+    id: 23, pattern: 'PO', domain: 'D3', scenario: 'S2',
+    context: 'During a multi-hour codebase exploration session, Claude Code\'s responses begin to degrade — it starts giving inconsistent answers and referencing "typical patterns" rather than specific classes it analyzed earlier.',
+    stem: 'A developer proposes restarting a new session from scratch every 45 minutes to prevent context degradation. What simpler mechanism does the exam guide recommend?',
+    options: [
+      'Use /compact to reduce context usage when context fills with verbose discovery output, and maintain scratchpad files recording key findings to counteract degradation without losing accumulated knowledge.',
+      'Restarting every 45 minutes is the correct approach — it guarantees fresh context with no degradation.',
+      'The session should be split into multiple independent subagent sessions from the start, each covering a different codebase area.',
+      'Context degradation is unavoidable — the team should accept slightly inconsistent answers for long sessions.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D either accept degradation, over-engineer (full session restart or subagent splitting), or give up. /compact + scratchpad files are the purpose-built mechanisms.',
+    correctExplanation: '/compact reduces context size while preserving essential information. Scratchpad files persist key findings outside the context window. Together these handle context degradation without the overhead of full session restarts or multi-subagent architectures for simpler exploration tasks.'
+  },
+  {
+    id: 24, pattern: 'PO', domain: 'D4', scenario: 'S5',
+    context: 'Your PR review pipeline generates findings but developers are ignoring many of them. The team plans to build a developer behavior tracking system — monitoring which findings get dismissed, by which developers, and correlating with code quality metrics.',
+    stem: 'What simpler improvement does the exam guide suggest for understanding why findings are dismissed?',
+    options: [
+      'Add a detected_pattern field to structured findings so you can analyze which code constructs trigger dismissed findings without building a separate tracking system.',
+      'The developer tracking system is the correct approach — you need individual developer behavior data to improve the model.',
+      'Findings should include a "confidence" field — developers dismiss low-confidence findings, so filtering them would reduce ignored output.',
+      'Ask developers to tag dismissed findings with a reason code — this data would improve the model without building a tracking system.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D either over-engineer (tracking system) or misattribute the root cause. A structured field in the output data is the minimum change that enables pattern analysis.',
+    correctExplanation: 'A detected_pattern field in structured findings lets you aggregate dismissal data by code pattern without a separate system. This is the Premature Optimization lesson: before building tracking infrastructure, capture the needed signal in the existing output structure.'
+  },
+
+  // ======= CORRECT BUT WRONG SCOPE (CWS) =======
+  {
+    id: 25, pattern: 'CWS', domain: 'D3', scenario: 'S5',
+    context: 'Your team wants Claude Code in CI to output machine-parseable review findings for automated posting as inline PR comments. You need the output to be structured JSON.',
+    stem: 'A developer suggests using --output-format json. Another developer adds "--json-schema is also needed to specify the exact structure." A third developer argues: "Actually --output-format json is sufficient because it already produces valid JSON." Who is correct and why?',
+    options: [
+      'The second developer. --output-format json produces JSON but does not enforce a specific schema. --json-schema specifies the exact structure required for consistent downstream parsing and automated comment posting.',
+      'The first developer. --output-format json is sufficient for all structured output needs in CI.',
+      'The third developer. Once JSON formatting is enabled, schema adherence is handled automatically.',
+      'All three are partially correct — the schema is only needed when posting to specific APIs with strict input requirements.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D use Correct But Wrong Scope reasoning — valid JSON is true but insufficient for the specific requirement (machine-parseable with predictable structure for downstream processing).',
+    correctExplanation: '--output-format json ensures JSON format; --json-schema ensures a specific structure. For automated posting as inline PR comments, you need both: valid JSON (format) and a predictable schema (structure). The requirement is not just "JSON" — it is "JSON matching a specific shape."'
+  },
+  {
+    id: 26, pattern: 'CWS', domain: 'D1', scenario: 'S3',
+    context: 'You are designing context management for your multi-agent research system. A subagent successfully completes research but its output is 12,000 tokens. The coordinator agent has a limited context budget.',
+    stem: 'An architect says: "We should summarize subagent outputs before passing them to the coordinator — summaries are much shorter." A second architect replies: "But summarization loses provenance metadata." Which constraint is the second architect correctly identifying?',
+    options: [
+      'The second architect identifies the right problem: summaries lose source attribution (URLs, excerpts, dates) that the coordinator needs for accurate synthesis. The solution is structured outputs with explicit metadata fields, not prose summaries.',
+      'The second architect is wrong — provenance can be preserved in prose summaries with careful writing.',
+      'Both are correct — the tradeoff between length and provenance means the team must choose one or the other.',
+      'The first architect is fully correct — context budget management is more important than complete provenance at this stage.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D accept the framing that it is a binary tradeoff (Correct But Wrong Scope). Structured output with explicit metadata fields solves both constraints.',
+    correctExplanation: 'Prose summarization loses provenance because compression removes specific facts. Structured output fields (source_url, excerpt, publication_date, relevance_score) preserve provenance while reducing token count. This is not a tradeoff — it is the correct architecture for both goals.'
+  },
+  {
+    id: 27, pattern: 'CWS', domain: 'D3', scenario: 'S2',
+    context: 'Your team shares a set of code review slash commands. A developer creates the commands in ~/.claude/commands/ (user-level). A teammate reports they cannot access the commands.',
+    stem: 'The developer says: "~/.claude/commands/ is the correct location for slash commands." Is this statement correct in the relevant scope?',
+    options: [
+      'The statement is correct but Wrong Scope. User-level commands (~/.claude/commands/) are private to that individual. For team-wide availability, commands must be in the project-level .claude/commands/ directory, which is committed to version control.',
+      'The statement is correct and the teammate needs to run a sync command to access user-level shared commands.',
+      'The statement is incorrect — slash commands must always be in the project root, not in .claude/commands/.',
+      'The statement is correct — user-level commands are available to all users on the same machine.'
+    ],
+    correct: 0,
+    distractor: 'B, C, D either accept the wrong scope or invent incorrect facts. The core issue is scope: user-level vs project-level is the key distinction for team sharing.',
+    correctExplanation: 'There are two command scopes: user (~/.claude/commands/ — personal, not shared) and project (.claude/commands/ — version-controlled, team-wide). The developer\'s answer is true about the path but wrong about the sharing context. Project-scoped commands in version control are required for team availability.'
+  },
+  {
+    id: 28, pattern: 'CWS', domain: 'D4', scenario: 'S6',
+    context: 'Your extraction system needs to handle documents where required fields may be legitimately absent. An engineer says: "We should mark all schema fields as required to ensure complete extraction."',
+    stem: 'Why is "always use required fields for complete extraction" Correct But Wrong Scope?',
+    options: [
+      'Required fields are correct when source documents are guaranteed to contain the information. For documents where fields may legitimately be absent, required fields force the model to fabricate values to satisfy the schema. Optional (nullable) fields with "unclear" enum values are correct for variable-completeness sources.',
+      'Required fields are never appropriate in extraction schemas — all fields should be optional.',
+      'The engineer is fully correct — required fields improve extraction quality by setting clear expectations.',
+      'Required fields are appropriate only for date fields, not text fields, in extraction contexts.'
+    ],
+    correct: 0,
+    distractor: 'B makes an overcorrection. C, D accept the Wrong Scope. The key is matching field optionality to source document guarantees.',
+    correctExplanation: 'Required fields work when information is guaranteed to be present. For documents where fields may be absent, required fields cause hallucination — the model fabricates values to avoid schema violations. Optional (nullable) fields with "unclear" enum values enable honest extraction. Schema design must match the source document\'s information guarantees.'
+  },
+  {
+    id: 29, pattern: 'CWS', domain: 'D4', scenario: 'S5',
+    context: 'Your overnight technical debt report successfully uses the Message Batches API. The team lead says: "Let\'s also switch our pre-merge review to the Batches API — we\'ll save 50% on API costs for both workflows."',
+    stem: 'The 50% cost savings claim is accurate. Why is this recommendation Correct But Wrong Scope?',
+    options: [
+      'The cost savings are real, but the Batches API has processing times up to 24 hours with no guaranteed latency SLA. Pre-merge checks are blocking workflows — developers wait for results. The latency tradeoff makes Batches API inappropriate for pre-merge despite the cost benefit.',
+      'The recommendation is fully correct — both workflows would benefit from the 50% cost reduction.',
+      'Pre-merge checks cannot use the Batches API because it does not support the tool use features needed for code review.',
+      'The cost savings are incorrect — the Batches API only provides 50% savings for overnight workloads, not all workloads.'
+    ],
+    correct: 0,
+    distractor: 'B accepts the scope error. C, D invent incorrect technical limitations. The real constraint is latency, not technical capability.',
+    correctExplanation: 'The Batches API cost savings are real and apply to both workloads. The scope error is ignoring latency requirements: overnight reports are non-blocking and can tolerate 24-hour processing; pre-merge checks block developers and require sub-minute latency. The same API feature is correct for one use case and wrong for the other.'
+  },
+  {
+    id: 30, pattern: 'CWS', domain: 'D5', scenario: 'S3',
+    context: 'Your research coordinator passes findings from 8 subagents to the synthesis agent. The synthesis agent\'s report combines conflicting statistics from two credible sources: Source A reports 34% market share, Source B reports 41% market share for the same company in the same period.',
+    stem: 'An engineer says: "The synthesis agent should pick the more recent source — recency is the best tiebreaker for conflicting statistics." Is this claim true in the relevant context?',
+    options: [
+      'Recency is a valid general heuristic but Wrong Scope for this scenario. When two credible sources conflict, the correct approach is to annotate the conflict with source attribution and let the reader evaluate both values — not to silently select one. The exam requires preserving both values with source context.',
+      'The recency heuristic is fully correct — always prefer the most recent data source.',
+      'The engineer is correct — recency resolves most conflicts and should be the default policy.',
+      'Neither source should be included when they conflict — conflicting data undermines report credibility.'
+    ],
+    correct: 0,
+    distractor: 'B, C apply the recency heuristic too broadly (Correct But Wrong Scope). D discards valid information. The exam guide is explicit: annotate conflicts, do not arbitrarily select.',
+    correctExplanation: 'Recency is a reasonable general heuristic but the exam guide\'s specific instruction for conflicting statistics from credible sources is: annotate with source attribution, do not select. Temporal differences may explain the conflict (measurement date, methodology) — preserving both values with context lets readers evaluate correctly.'
+  }
+];
+
+// State
+let answers = {};
+let activeFilter = 'ALL';
+
+function init() {
+  renderQuestions();
+  updateProgress();
+}
+
+function renderQuestions() {
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+
+  const filtered = getFilteredQuestions();
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No questions match this filter.</div>';
+    return;
+  }
+
+  filtered.forEach(q => {
+    const ans = answers[q.id];
+    const isAnswered = ans !== undefined;
+    const isCorrect = ans === q.correct;
+
+    const card = document.createElement('div');
+    card.className = 'question-card' + (isAnswered ? ' answered' : '');
+    card.id = 'q-' + q.id;
+
+    const statusHtml = isAnswered
+      ? `<div class="q-status ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? '✓' : '✗'}</div>`
+      : `<div class="q-status unanswered"></div>`;
+
+    card.innerHTML = `
+      <div class="q-header">
+        <span class="q-num">Q${q.id}</span>
+        <span class="pattern-badge badge-${q.pattern}">${q.pattern}: ${PATTERNS[q.pattern]}</span>
+        <span class="domain-tag">${q.domain} · S${q.scenario}</span>
+        ${statusHtml}
+      </div>
+      <div class="q-body">
+        <div class="q-context">${q.context}</div>
+        <div class="q-stem">${q.stem}</div>
+        <div class="options" id="opts-${q.id}">
+          ${q.options.map((opt, i) => {
+            let cls = 'option';
+            if (isAnswered) {
+              if (i === q.correct) cls += ' correct';
+              else if (i === ans) cls += ' incorrect';
+            }
+            return `<button class="option ${isAnswered ? (i === q.correct ? 'correct' : (i === ans ? 'incorrect' : '')) : ''}"
+              ${isAnswered ? 'disabled' : ''}
+              onclick="selectAnswer(${q.id}, ${i})">
+              <span class="letter">${String.fromCharCode(65+i)}</span>
+              <span>${opt}</span>
+            </button>`;
+          }).join('')}
+        </div>
+        <div class="pattern-reveal ${isAnswered ? 'visible' : ''}" id="reveal-${q.id}">
+          <div class="reveal-label">Pattern: ${q.pattern} — ${PATTERNS[q.pattern]}</div>
+          <div class="reveal-correct">${isAnswered && isCorrect ? 'Correct!' : isAnswered ? 'Incorrect — the correct answer is ' + String.fromCharCode(65 + q.correct) : ''}</div>
+          <div class="reveal-why"><strong>Why A is correct:</strong> ${q.correctExplanation}</div>
+          <div class="reveal-why" style="margin-top:8px;"><strong>Distractor logic:</strong> ${q.distractor}</div>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+function getFilteredQuestions() {
+  if (activeFilter === 'ALL') return QUESTIONS;
+  if (activeFilter === 'WRONG') return QUESTIONS.filter(q => answers[q.id] !== undefined && answers[q.id] !== q.correct);
+  return QUESTIONS.filter(q => q.pattern === activeFilter);
+}
+
+function selectAnswer(qid, optIdx) {
+  if (answers[qid] !== undefined) return;
+  answers[qid] = optIdx;
+
+  const q = QUESTIONS.find(x => x.id === qid);
+  const isCorrect = optIdx === q.correct;
+
+  updateProgress();
+  showToast(isCorrect ? 'Correct!' : 'Incorrect');
+
+  // Re-render just this card
+  const card = document.getElementById('q-' + qid);
+  if (card) {
+    card.classList.add('answered');
+    const opts = card.querySelectorAll('.option');
+    opts.forEach((btn, i) => {
+      btn.disabled = true;
+      if (i === q.correct) btn.classList.add('correct');
+      else if (i === optIdx) btn.classList.add('incorrect');
+    });
+    const statusEl = card.querySelector('.q-status');
+    if (statusEl) {
+      statusEl.className = 'q-status ' + (isCorrect ? 'correct' : 'incorrect');
+      statusEl.textContent = isCorrect ? '✓' : '✗';
+    }
+    const reveal = document.getElementById('reveal-' + qid);
+    if (reveal) {
+      reveal.querySelector('.reveal-correct').textContent = isCorrect
+        ? 'Correct!'
+        : 'Incorrect — the correct answer is ' + String.fromCharCode(65 + q.correct);
+      reveal.classList.add('visible');
+    }
+  }
+
+  // Auto-show results when all answered
+  if (Object.keys(answers).length === 30) {
+    setTimeout(showResults, 800);
+  }
+}
+
+function updateProgress() {
+  const total = 30;
+  const answered = Object.keys(answers).length;
+  const correct = Object.values(answers).filter((ans, i) => {
+    const qid = parseInt(Object.keys(answers)[i]);
+    const q = QUESTIONS.find(x => x.id === qid);
+    return q && ans === q.correct;
+  }).length;
+
+  // Recalculate correctly
+  let correctCount = 0;
+  for (const [qid, ans] of Object.entries(answers)) {
+    const q = QUESTIONS.find(x => x.id === parseInt(qid));
+    if (q && ans === q.correct) correctCount++;
+  }
+
+  document.getElementById('answered-count').textContent = answered;
+  document.getElementById('correct-count').textContent = correctCount;
+  document.getElementById('accuracy-pct').textContent = answered > 0 ? Math.round(correctCount / answered * 100) + '%' : '-';
+
+  const pct = Math.round(answered / total * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${answered} of ${total} answered`;
+}
+
+function showResults() {
+  const panel = document.getElementById('results-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const answered = Object.keys(answers).length;
+  let correctCount = 0;
+  for (const [qid, ans] of Object.entries(answers)) {
+    const q = QUESTIONS.find(x => x.id === parseInt(qid));
+    if (q && ans === q.correct) correctCount++;
+  }
+
+  const pct = answered > 0 ? Math.round(correctCount / answered * 100) : 0;
+  const scoreEl = document.getElementById('final-score');
+  scoreEl.textContent = pct + '%';
+  scoreEl.className = 'score-big ' + (pct >= 80 ? 'pass' : pct >= 60 ? 'needs-work' : 'fail');
+
+  const desc = answered < 30
+    ? `${correctCount}/${answered} answered correctly — complete all 30 for full results`
+    : pct >= 80
+    ? 'Strong pattern recognition — you are ready to spot distractors on the real exam!'
+    : pct >= 60
+    ? 'Developing — review the patterns where you lost points and retry'
+    : 'Needs work — study the pattern definitions above before retrying';
+
+  document.getElementById('final-desc').textContent = desc;
+
+  // By-pattern grid
+  const grid = document.getElementById('by-pattern-grid');
+  grid.innerHTML = '';
+  const pKeys = ['OE', 'WP', 'IG', 'PO', 'CWS'];
+  pKeys.forEach(pk => {
+    const qs = QUESTIONS.filter(q => q.pattern === pk);
+    let pc = 0;
+    qs.forEach(q => {
+      if (answers[q.id] === q.correct) pc++;
+    });
+    const answeredP = qs.filter(q => answers[q.id] !== undefined).length;
+    const pctP = answeredP > 0 ? Math.round(pc / answeredP * 100) : '-';
+    grid.innerHTML += `
+      <div class="bp-card" data-p="${pk}">
+        <div class="bp-pct">${pctP}${typeof pctP === 'number' ? '%' : ''}</div>
+        <div class="bp-name">${pk}</div>
+        <div class="bp-count">${pc}/${answeredP} correct</div>
+      </div>`;
+  });
+}
+
+function filterByPattern(pattern, btn) {
+  activeFilter = pattern;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.pattern-card').forEach(c => c.classList.remove('active'));
+  if (pattern !== 'ALL' && pattern !== 'WRONG') {
+    const pc = document.querySelector(`.pattern-card[data-p="${pattern}"]`);
+    if (pc) pc.classList.add('active');
+  }
+  renderQuestions();
+}
+
+function resetAll() {
+  answers = {};
+  activeFilter = 'ALL';
+  document.getElementById('results-panel').classList.remove('visible');
+  document.querySelectorAll('.filter-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === 0);
+  });
+  renderQuestions();
+  updateProgress();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (msg === 'Correct!' ? 'correct-toast' : 'incorrect-toast') + ' show';
+  setTimeout(() => { t.classList.remove('show'); }, 1600);
+}
+
+init();
+</script>
+</body>
+</html>

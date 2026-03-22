@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain 3 Quiz – Claude Code Configuration & Workflows</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --surface: #1a1a2e; --surface2: #16213e; --border: #2a2a4a;
+    --accent: #059669; --accent2: #047857;
+    --text: #e2e8f0; --text-muted: #94a3b8;
+    --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+    --easy: #10b981; --medium: #f59e0b; --hard: #ef4444;
+  }
+  .light { --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9; --border: #e2e8f0; --text: #1e293b; --text-muted: #64748b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.1rem; font-weight: 700; }
+  header .meta { font-size: 0.8rem; color: var(--text-muted); }
+  .theme-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
+  .score-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .score-item .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .score-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+  .progress-wrap { flex: 1; min-width: 200px; }
+  .progress-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 100%; border-radius: 999px; transition: width 0.4s; }
+  .progress-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+  .question-card.answered-correct { border-color: var(--green); }
+  .question-card.answered-wrong { border-color: var(--red); }
+  .q-header { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem; }
+  .q-num { background: var(--accent); color: white; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 0.3rem; white-space: nowrap; }
+  .q-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tag { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+  .tag.easy { border-color: var(--easy); color: var(--easy); }
+  .tag.medium { border-color: var(--medium); color: var(--medium); }
+  .tag.hard { border-color: var(--hard); color: var(--hard); }
+  .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 1.25rem; font-weight: 500; }
+  .options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .option { background: var(--surface2); border: 2px solid var(--border); border-radius: 0.5rem; padding: 0.85rem 1rem; cursor: pointer; display: flex; gap: 0.75rem; align-items: flex-start; transition: all 0.2s; font-size: 0.92rem; line-height: 1.5; }
+  .option:hover:not(.disabled) { border-color: var(--accent2); }
+  .option.selected { border-color: var(--accent); background: rgba(5, 150, 105, 0.08); }
+  .option.correct { border-color: var(--green); background: rgba(16, 185, 129, 0.08); }
+  .option.wrong { border-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+  .option.disabled { cursor: default; }
+  .opt-letter { font-weight: 700; min-width: 1.5rem; color: var(--text-muted); }
+  .option.correct .opt-letter { color: var(--green); }
+  .option.wrong .opt-letter { color: var(--red); }
+  .q-actions { margin-top: 1rem; }
+  .btn-submit { background: var(--accent); color: white; padding: 0.5rem 1.2rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+  .explanation { margin-top: 1rem; background: var(--surface2); border-radius: 0.5rem; overflow: hidden; }
+  .expl-toggle { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+  .expl-body { padding: 0 1rem 1rem; display: none; }
+  .expl-body.open { display: block; }
+  .expl-body p { font-size: 0.88rem; line-height: 1.6; margin-top: 0.75rem; color: var(--text-muted); }
+  .expl-body .correct-note { color: var(--green); font-weight: 600; }
+  .expl-option { margin-top: 0.6rem; padding: 0.5rem; background: var(--surface); border-radius: 0.4rem; }
+  .expl-option .expl-opt-lbl { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+  .expl-option .expl-opt-lbl.c { color: var(--green); }
+  .expl-option .expl-opt-lbl.w { color: var(--red); }
+  .expl-option p { margin-top: 0; font-size: 0.83rem; }
+  .summary { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2rem; text-align: center; }
+  .summary.show { display: block; }
+  .summary .big-score { font-size: 4rem; font-weight: 800; color: var(--accent); }
+  .summary .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .breakdown-item { background: var(--surface2); border-radius: 0.5rem; padding: 1rem; }
+  .breakdown-item .val { font-size: 1.5rem; font-weight: 700; }
+  .breakdown-item .lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .btn-retry { background: var(--accent); color: white; padding: 0.75rem 2rem; font-size: 1rem; border-radius: 0.5rem; border: none; cursor: pointer; margin-top: 1rem; }
+  code { background: var(--surface2); padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Domain 3: Claude Code Configuration & Workflows</h1>
+    <div class="meta">Claude Certified Architect – Foundations &nbsp;|&nbsp; 20% of exam</div>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()">Toggle Theme</button>
+</header>
+<div class="score-bar">
+  <div class="score-item"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="score-item"><div class="val" id="pct-val">0%</div><div class="lbl">Accuracy</div></div>
+  <div class="score-item"><div class="val" id="ans-val">0/12</div><div class="lbl">Answered</div></div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 of 12 questions answered</div>
+  </div>
+</div>
+<main id="main-quiz"></main>
+<div class="summary" id="summary">
+  <h2>Quiz Complete!</h2>
+  <div class="big-score" id="sum-score"></div>
+  <div style="color:var(--text-muted);margin-top:0.5rem">out of 12 questions</div>
+  <div class="breakdown" id="sum-breakdown"></div>
+  <button class="btn-retry" onclick="retryQuiz()">Shuffle & Retry</button>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id: 1, ts: "3.1", difficulty: "Easy",
+    text: "A new team member reports that their Claude Code sessions don't follow the team's coding standards, even though everyone else's does. The standards are defined in a CLAUDE.md file. What is the most likely cause?",
+    options: [
+      { letter: "A", text: "The new member is using a different version of Claude Code than the rest of the team" },
+      { letter: "B", text: "The CLAUDE.md file is located in ~/.claude/ (user-level) on one developer's machine rather than in the project repository" },
+      { letter: "C", text: "The CLAUDE.md file uses @import syntax that the new member's environment doesn't support" },
+      { letter: "D", text: "The project has too many CLAUDE.md files and they are conflicting" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "User-level CLAUDE.md files (~/.claude/CLAUDE.md) are personal and not shared via version control. Only project-level files (.claude/CLAUDE.md or root CLAUDE.md) are shared with the team.",
+      options: {
+        A: { correct: false, text: "Version differences could cause other issues, but not selective failure to apply standards that other users see." },
+        B: { correct: true, text: "This is the canonical configuration hierarchy issue. Instructions in ~/.claude/CLAUDE.md are not version-controlled and won't be shared when a new member clones the repo. The standards should be in project-level configuration." },
+        C: { correct: false, text: "@import is a standard Claude Code feature that works consistently across environments." },
+        D: { correct: false, text: "Multiple CLAUDE.md files are merged hierarchically, not conflicted. This wouldn't cause selective failure for one user." }
+      }
+    }
+  },
+  {
+    id: 2, ts: "3.1", difficulty: "Medium",
+    text: "Your monorepo has three packages: frontend (React), backend (Node.js), and shared-lib. You want each package's CLAUDE.md to reference only the relevant coding standards without duplicating them. What is the recommended approach?",
+    options: [
+      { letter: "A", text: "Create a single root CLAUDE.md with all standards and rely on Claude to apply the correct section based on context" },
+      { letter: "B", text: "Use @import syntax in each package's CLAUDE.md to pull in only the relevant standards files" },
+      { letter: "C", text: "Create skills in .claude/skills/ for each package type with the standards in SKILL.md files" },
+      { letter: "D", text: "Split standards into environment variables that Claude reads when starting a session" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "@import syntax enables modular CLAUDE.md organization. Each package's configuration imports only the standards relevant to it, keeping files focused without duplication.",
+      options: {
+        A: { correct: false, text: "A monolithic root CLAUDE.md with all standards requires Claude to infer which apply, which is unreliable and increases unnecessary context loading." },
+        B: { correct: true, text: "@import allows frontend/CLAUDE.md to import react-standards.md, backend/CLAUDE.md to import node-standards.md, etc. This keeps configuration modular and maintainable." },
+        C: { correct: false, text: "Skills are for on-demand task workflows, not always-loaded standards. Standards need to be active whenever the relevant code is edited, not just when a skill is invoked." },
+        D: { correct: false, text: "Environment variables are not a supported mechanism for Claude Code configuration. CLAUDE.md is the correct configuration file format." }
+      }
+    }
+  },
+  {
+    id: 3, ts: "3.2", difficulty: "Easy",
+    text: "You create a /security-review slash command for your team's code review workflow. Where should the command file be stored so all developers automatically have access when they clone the repository?",
+    options: [
+      { letter: "A", text: "~/.claude/commands/security-review.md on each developer's machine" },
+      { letter: "B", text: ".claude/commands/security-review.md in the project repository" },
+      { letter: "C", text: "CLAUDE.md with a commands: section listing the security-review command" },
+      { letter: "D", text: ".claude/skills/security-review/SKILL.md in the project repository" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Project-scoped commands live in .claude/commands/ and are version-controlled. Any developer who clones or pulls the repo automatically gets all project commands.",
+      options: {
+        A: { correct: false, text: "~/.claude/commands/ is user-scoped and personal. It's not version-controlled and won't be shared when others clone the repo." },
+        B: { correct: true, text: ".claude/commands/ is the project-scoped location for slash commands. Committed to the repository, all team members get the command automatically." },
+        C: { correct: false, text: "CLAUDE.md doesn't have a commands: section. Commands are defined as separate .md files, not in CLAUDE.md." },
+        D: { correct: false, text: "Skills (.claude/skills/) are for more complex, parameterized workflows with SKILL.md frontmatter. Simple commands go in .claude/commands/." }
+      }
+    }
+  },
+  {
+    id: 4, ts: "3.2", difficulty: "Hard",
+    text: "You create a /analyze-codebase skill that performs verbose codebase exploration. After running it, you find that the extensive discovery output is contaminating your main conversation context and affecting subsequent interactions. What skill frontmatter option would prevent this?",
+    options: [
+      { letter: "A", text: "Set isolated: true in the SKILL.md frontmatter" },
+      { letter: "B", text: "Set context: fork in the SKILL.md frontmatter" },
+      { letter: "C", text: "Set output: summary in the SKILL.md frontmatter" },
+      { letter: "D", text: "Set allowed-tools: [] to prevent the skill from using tools that produce verbose output" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "context: fork runs the skill in an isolated sub-agent context. The skill's verbose exploration output stays in the fork, and only a summary is returned to the main session.",
+      options: {
+        A: { correct: false, text: "isolated: true is not a valid SKILL.md frontmatter option. The correct option is context: fork." },
+        B: { correct: true, text: "context: fork creates an isolated sub-agent context for the skill. Verbose discovery output from codebase exploration stays in the fork, preventing contamination of the main conversation context." },
+        C: { correct: false, text: "output: summary is not a valid SKILL.md frontmatter option." },
+        D: { correct: false, text: "Restricting tools prevents the skill from working at all. The goal is to isolate the output, not disable the tools." }
+      }
+    }
+  },
+  {
+    id: 5, ts: "3.3", difficulty: "Medium",
+    text: "Your project has React test files (Button.test.tsx, Modal.test.tsx) spread throughout the codebase alongside their components. You want a specific set of testing conventions to apply whenever anyone edits these files, regardless of their directory. What is the most effective approach?",
+    options: [
+      { letter: "A", text: "Create a CLAUDE.md in each directory that contains test files" },
+      { letter: "B", text: "Add testing conventions to the root CLAUDE.md file" },
+      { letter: "C", text: "Create a .claude/rules/ file with paths: ['**/*.test.tsx'] in the YAML frontmatter" },
+      { letter: "D", text: "Create a skill that includes testing conventions and invoke it whenever editing test files" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Path-scoped rules in .claude/rules/ with glob patterns apply conventions to matching files regardless of directory location. This is precisely the right tool for test files spread throughout a codebase.",
+      options: {
+        A: { correct: false, text: "Placing CLAUDE.md in each directory is unmaintainable and still won't cleanly handle test files spread across many nested directories." },
+        B: { correct: false, text: "Root CLAUDE.md conventions apply to all files, not just test files. This loads unnecessary context when editing non-test files." },
+        C: { correct: true, text: ".claude/rules/ files with YAML frontmatter path scoping (paths: ['**/*.test.tsx']) apply the testing conventions only when editing matching files, regardless of directory location." },
+        D: { correct: false, text: "Skills require manual invocation. The requirement is for automatic application — the conventions should load whenever test files are edited, without requiring the developer to remember to invoke a skill." }
+      }
+    }
+  },
+  {
+    id: 6, ts: "3.3", difficulty: "Medium",
+    text: "You have Terraform infrastructure code in terraform/ and also want the same infrastructure conventions to apply to Terraform modules in packages/infra/modules/. What is the advantage of using .claude/rules/ with glob patterns over subdirectory CLAUDE.md files?",
+    options: [
+      { letter: "A", text: "Glob patterns in .claude/rules/ load faster than subdirectory CLAUDE.md files" },
+      { letter: "B", text: "Glob patterns can apply conventions to files across multiple directories in a single rule, while CLAUDE.md files are directory-bound" },
+      { letter: "C", text: "Rules files support more complex instruction formatting than CLAUDE.md files" },
+      { letter: "D", text: "Glob patterns allow runtime evaluation of conditions that CLAUDE.md cannot express" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The key advantage of glob-pattern rules is that they can match files across any directory structure. CLAUDE.md files apply only to their own directory and subdirectories, requiring duplication when conventions span multiple non-nested paths.",
+      options: {
+        A: { correct: false, text: "Loading speed is not a meaningful differentiator between these approaches." },
+        B: { correct: true, text: "A single rule with paths: ['terraform/**/*', 'packages/infra/**/*.tf'] covers both locations. Two CLAUDE.md files would be needed and require synchronization whenever conventions change." },
+        C: { correct: false, text: "Both support the same instruction content. Rules files don't have a richer instruction format." },
+        D: { correct: false, text: "Glob patterns match file paths statically. They don't support runtime condition evaluation." }
+      }
+    }
+  },
+  {
+    id: 7, ts: "3.4", difficulty: "Easy",
+    text: "You have a clear stack trace pointing to a null pointer exception on line 47 of auth.js. The fix requires changing one conditional check. Should you use plan mode or direct execution?",
+    options: [
+      { letter: "A", text: "Plan mode — always use plan mode to explore before making any changes" },
+      { letter: "B", text: "Direct execution — the change is well-scoped with a clear diagnosis and minimal risk" },
+      { letter: "C", text: "Plan mode — use it to verify the fix won't have unintended side effects" },
+      { letter: "D", text: "Direct execution with a follow-up plan mode review to validate the change" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Direct execution is appropriate for well-understood, single-file, clearly-scoped changes. A null pointer with a clear stack trace and a simple conditional fix doesn't warrant exploration before implementation.",
+      options: {
+        A: { correct: false, text: "Plan mode is for complex tasks with multiple approaches, large-scale changes, and architectural decisions. Using it for simple single-file fixes adds unnecessary overhead." },
+        B: { correct: true, text: "A clear stack trace, identified file and line, and simple conditional fix are exactly the criteria for direct execution. The scope is clear and the risk is minimal." },
+        C: { correct: false, text: "While side-effect analysis is valuable, plan mode for a single-line conditional fix in a well-understood error scenario is over-engineering." },
+        D: { correct: false, text: "A review pass after a simple fix adds unnecessary steps. This would be appropriate for complex changes, not a simple null check fix." }
+      }
+    }
+  },
+  {
+    id: 8, ts: "3.4", difficulty: "Hard",
+    text: "You need to migrate a large application from Webpack to Vite. This affects 45+ configuration files, multiple build scripts, and requires decisions about plugin compatibility. Which approach is correct?",
+    options: [
+      { letter: "A", text: "Direct execution — start making changes incrementally to discover issues as they arise" },
+      { letter: "B", text: "Plan mode to explore the codebase and design an approach, then execute the planned migration" },
+      { letter: "C", text: "Direct execution with comprehensive step-by-step instructions in the prompt" },
+      { letter: "D", text: "Start in direct execution and switch to plan mode only if unexpected dependencies are found" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Large-scale migrations with 45+ files, architectural decisions, and compatibility tradeoffs are exactly what plan mode is designed for. Exploration before execution prevents costly rework.",
+      options: {
+        A: { correct: false, text: "Incremental direct execution on a 45-file migration will encounter cascading failures and unexpected dependencies late, requiring costly rework." },
+        B: { correct: true, text: "Plan mode enables safe codebase exploration and design before committing to changes. For a migration with multiple valid approaches and architectural implications, this is the correct first step." },
+        C: { correct: false, text: "Comprehensive upfront instructions assume you already know the full migration path. Exploring the current state first reveals actual plugin usage, custom configurations, and edge cases." },
+        D: { correct: false, text: "The complexity is already known — 45+ files and architectural decisions. Waiting for it to become apparent during execution misses the point of plan mode." }
+      }
+    }
+  },
+  {
+    id: 9, ts: "3.5", difficulty: "Medium",
+    text: "You describe a date normalization requirement in prose and Claude produces inconsistent output across different document formats. What is the most effective next step?",
+    options: [
+      { letter: "A", text: "Make the prose description more detailed and specific" },
+      { letter: "B", text: "Provide 2-3 concrete input/output examples showing exactly how different date formats should be normalized" },
+      { letter: "C", text: "Use the interview pattern to have Claude ask clarifying questions about the normalization requirements" },
+      { letter: "D", text: "Switch to test-driven iteration by writing tests that encode the normalization requirements" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "When prose descriptions produce inconsistent results, concrete input/output examples are the most effective correction technique. They show exactly what transformation is required without ambiguity.",
+      options: {
+        A: { correct: false, text: "More detailed prose still relies on Claude's interpretation. If the current prose is being interpreted inconsistently, more prose will have the same problem." },
+        B: { correct: true, text: "Concrete examples showing 'January 5, 2024' → '2024-01-05' and '5/1/24' → '2024-05-01' eliminate interpretation ambiguity. Examples are the most effective technique for transformation consistency." },
+        C: { correct: false, text: "The interview pattern is for surfacing considerations in unfamiliar domains before implementation. When you know what you want but can't express it in prose, examples work better." },
+        D: { correct: false, text: "Test-driven iteration is effective but requires more setup. For a simpler normalization task, a few examples are faster and equally effective." }
+      }
+    }
+  },
+  {
+    id: 10, ts: "3.5", difficulty: "Hard",
+    text: "You need Claude to implement a caching layer for an API you're unfamiliar with. You're unsure about cache invalidation strategies, expiry policies, and failure modes. What technique should you use before starting implementation?",
+    options: [
+      { letter: "A", text: "Provide few-shot examples of caching patterns from similar APIs" },
+      { letter: "B", text: "Use the interview pattern: ask Claude to identify the key design questions before implementing" },
+      { letter: "C", text: "Use test-driven iteration: write tests for the caching behavior and iterate" },
+      { letter: "D", text: "Use plan mode to have Claude explore the API documentation first" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The interview pattern is designed for situations where you need to surface considerations you haven't anticipated, especially in unfamiliar domains. Having Claude ask questions surfaces cache invalidation strategies, failure modes, and design tradeoffs.",
+      options: {
+        A: { correct: false, text: "Few-shot examples are effective for consistent formatting and transformation tasks, not for surfacing design considerations in unfamiliar territory." },
+        B: { correct: true, text: "The interview pattern has Claude ask questions about the domain before implementing. For an unfamiliar API caching layer, this surfaces: What events invalidate the cache? What are the failure modes? What consistency guarantees are needed?" },
+        C: { correct: false, text: "Test-driven iteration works well once you know what the cache should do. Without domain knowledge, the tests themselves may be incomplete or wrong." },
+        D: { correct: false, text: "Plan mode is for exploring existing codebases before making changes. The interview pattern is for surfacing design requirements in unfamiliar domains." }
+      }
+    }
+  },
+  {
+    id: 11, ts: "3.6", difficulty: "Easy",
+    text: "You're integrating Claude Code into a GitHub Actions CI pipeline to generate test cases. The pipeline hangs waiting for input every time it runs. What is the root cause and fix?",
+    options: [
+      { letter: "A", text: "GitHub Actions doesn't support Claude Code — use the API directly instead" },
+      { letter: "B", text: "The Claude Code session is waiting for interactive approval. Use the -p (--print) flag to run in non-interactive mode" },
+      { letter: "C", text: "The CI environment doesn't have the required ANTHROPIC_API_KEY environment variable" },
+      { letter: "D", text: "Test generation requires plan mode, which is not available in CI environments" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Claude Code's default interactive mode waits for user input, causing CI pipelines to hang. The -p flag enables non-interactive (print) mode for automated contexts.",
+      options: {
+        A: { correct: false, text: "Claude Code works in CI environments. The issue is the interactive mode, not a fundamental incompatibility." },
+        B: { correct: true, text: "The -p (or --print) flag runs Claude Code in non-interactive mode, immediately outputting the response without waiting for interactive input. This is required for CI pipeline use." },
+        C: { correct: false, text: "A missing API key would cause an authentication error, not a hang. The hang symptom specifically indicates waiting for interactive input." },
+        D: { correct: false, text: "Plan mode is available in CI environments. The issue is interactive mode, not plan mode." }
+      }
+    }
+  },
+  {
+    id: 12, ts: "3.6", difficulty: "Medium",
+    text: "Your CI pipeline uses Claude Code to generate structured code review findings that should be posted as inline PR comments. Which CLI configuration achieves this most reliably?",
+    options: [
+      { letter: "A", text: "Use -p flag and parse the text output with regex patterns to extract findings" },
+      { letter: "B", text: "Use --output-format json with --json-schema to produce machine-parseable structured findings" },
+      { letter: "C", text: "Use --format markdown to get well-structured output that's easy to parse" },
+      { letter: "D", text: "Instruct Claude in the prompt to 'output valid JSON' and parse the response" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "--output-format json combined with --json-schema enforces structured output at the CLI level, producing reliably parseable findings without fragile text parsing.",
+      options: {
+        A: { correct: false, text: "Regex parsing of text output is fragile and will break when output format varies. Structured output is far more reliable for programmatic consumption." },
+        B: { correct: true, text: "--output-format json with --json-schema guarantees schema-compliant structured output. This enables reliable programmatic posting of findings as inline PR comments." },
+        C: { correct: false, text: "--format markdown is not a valid Claude Code CLI flag. Markdown output would still require parsing to extract structured data." },
+        D: { correct: false, text: "Instructing Claude to output JSON is probabilistic — it may include preamble text, formatting issues, or deviate from the expected schema. CLI-level enforcement is more reliable." }
+      }
+    }
+  }
+];
+
+let state = { questions: [], answers: {}, revealed: {} };
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  state.questions = shuffle(QUESTIONS);
+  state.answers = {};
+  state.revealed = {};
+  document.getElementById('summary').classList.remove('show');
+  renderQuiz();
+  updateScore();
+}
+
+function renderQuiz() {
+  const main = document.getElementById('main-quiz');
+  main.innerHTML = '';
+  state.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'question-card' + (state.answers[q.id] ? (state.answers[q.id] === q.correct ? ' answered-correct' : ' answered-wrong') : '');
+    card.id = 'q-' + q.id;
+    const opts = q.options.map(o => {
+      let cls = '';
+      if (state.answers[q.id]) {
+        cls = 'disabled';
+        if (o.letter === q.correct) cls += ' correct';
+        else if (o.letter === state.answers[q.id]) cls += ' wrong';
+      }
+      return `<div class="option ${cls}" onclick="selectOption(${q.id}, '${o.letter}')"><span class="opt-letter">${o.letter}</span><span>${o.text}</span></div>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="q-header"><span class="q-num">Q${idx + 1}</span><div class="q-tags"><span class="tag ${q.difficulty.toLowerCase()}">${q.difficulty}</span><span class="tag">TS ${q.ts}</span></div></div>
+      <div class="q-text">${q.text}</div>
+      <div class="options" id="opts-${q.id}">${opts}</div>
+      <div class="q-actions"><button class="btn-submit" id="btn-${q.id}" onclick="submitAnswer(${q.id})" ${state.answers[q.id] ? 'style="display:none"' : 'disabled'}>Submit</button></div>
+      <div class="explanation" id="expl-${q.id}" ${state.revealed[q.id] ? '' : 'style="display:none"'}>${state.revealed[q.id] ? buildExplanation(q) : ''}</div>
+    `;
+    main.appendChild(card);
+  });
+}
+
+function selectOption(qid, letter) {
+  if (state.answers[qid]) return;
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => { if (el.querySelector('.opt-letter').textContent === letter) el.classList.add('selected'); });
+  document.getElementById('btn-' + qid).disabled = false;
+}
+
+function submitAnswer(qid) {
+  const q = state.questions.find(q => q.id === qid);
+  const selected = document.querySelector(`#opts-${qid} .option.selected`);
+  if (!selected) return;
+  const letter = selected.querySelector('.opt-letter').textContent;
+  state.answers[qid] = letter;
+  state.revealed[qid] = true;
+  document.getElementById('q-' + qid).classList.add(letter === q.correct ? 'answered-correct' : 'answered-wrong');
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => {
+    el.classList.add('disabled'); el.classList.remove('selected');
+    const l = el.querySelector('.opt-letter').textContent;
+    if (l === q.correct) el.classList.add('correct');
+    else if (l === letter && l !== q.correct) el.classList.add('wrong');
+  });
+  document.getElementById('btn-' + qid).style.display = 'none';
+  const explEl = document.getElementById('expl-' + qid);
+  explEl.style.display = '';
+  explEl.innerHTML = buildExplanation(q);
+  explEl.querySelector('.expl-body').classList.add('open');
+  updateScore();
+  checkComplete();
+}
+
+function buildExplanation(q) {
+  return `<div class="explanation"><div class="expl-toggle" onclick="toggleExpl(this)"><span>Explanation</span><span>▲</span></div><div class="expl-body open"><p class="correct-note">Correct Answer: ${q.correct}</p><p>${q.explanation.main}</p>${q.options.map(o => `<div class="expl-option"><div class="expl-opt-lbl ${o.letter === q.correct ? 'c' : 'w'}">${o.letter} — ${o.letter === q.correct ? 'CORRECT' : 'INCORRECT'}</div><p>${q.explanation.options[o.letter].text}</p></div>`).join('')}</div></div>`;
+}
+
+function toggleExpl(el) {
+  const body = el.nextElementSibling;
+  el.querySelector('span:last-child').textContent = body.classList.toggle('open') ? '▲' : '▼';
+}
+
+function updateScore() {
+  const total = state.questions.length;
+  const answered = Object.keys(state.answers).length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => { const q = state.questions.find(q => q.id == id); return q && ans === q.correct; }).length;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+  document.getElementById('score-val').textContent = correct;
+  document.getElementById('pct-val').textContent = pct + '%';
+  document.getElementById('ans-val').textContent = answered + '/' + total;
+  document.getElementById('progress-fill').style.width = (answered / total * 100) + '%';
+  document.getElementById('progress-label').textContent = answered + ' of ' + total + ' questions answered';
+}
+
+function checkComplete() {
+  if (Object.keys(state.answers).length === state.questions.length) setTimeout(showSummary, 500);
+}
+
+function showSummary() {
+  const total = state.questions.length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => { const q = state.questions.find(q => q.id == id); return q && ans === q.correct; }).length;
+  const pct = Math.round((correct / total) * 100);
+  const byDiff = { Easy: { c: 0, t: 0 }, Medium: { c: 0, t: 0 }, Hard: { c: 0, t: 0 } };
+  state.questions.forEach(q => { byDiff[q.difficulty].t++; if (state.answers[q.id] === q.correct) byDiff[q.difficulty].c++; });
+  document.getElementById('sum-score').textContent = correct + '/' + total;
+  document.getElementById('sum-breakdown').innerHTML = `
+    <div class="breakdown-item"><div class="val" style="color:var(--green)">${byDiff.Easy.c}/${byDiff.Easy.t}</div><div class="lbl">Easy</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--yellow)">${byDiff.Medium.c}/${byDiff.Medium.t}</div><div class="lbl">Medium</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--red)">${byDiff.Hard.c}/${byDiff.Hard.t}</div><div class="lbl">Hard</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--accent)">${pct}%</div><div class="lbl">Accuracy</div></div>`;
+  document.getElementById('summary').classList.add('show');
+  document.getElementById('summary').scrollIntoView({ behavior: 'smooth' });
+}
+
+function retryQuiz() { init(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function toggleTheme() { document.body.classList.toggle('light'); }
+
+init();
+</script>
+</body>
+</html>

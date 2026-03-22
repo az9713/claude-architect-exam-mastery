@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain 2 Quiz – Tool Design & MCP Integration</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --border: #2a2a4a;
+    --accent: #0891b2;
+    --accent2: #0e7490;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --easy: #10b981;
+    --medium: #f59e0b;
+    --hard: #ef4444;
+  }
+  .light {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.1rem; font-weight: 700; }
+  header .meta { font-size: 0.8rem; color: var(--text-muted); }
+  .theme-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
+  .score-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .score-item { text-align: center; }
+  .score-item .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .score-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+  .progress-wrap { flex: 1; min-width: 200px; }
+  .progress-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 100%; border-radius: 999px; transition: width 0.4s; }
+  .progress-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+  .question-card.answered-correct { border-color: var(--green); }
+  .question-card.answered-wrong { border-color: var(--red); }
+  .q-header { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem; }
+  .q-num { background: var(--accent); color: white; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 0.3rem; white-space: nowrap; }
+  .q-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tag { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+  .tag.easy { border-color: var(--easy); color: var(--easy); }
+  .tag.medium { border-color: var(--medium); color: var(--medium); }
+  .tag.hard { border-color: var(--hard); color: var(--hard); }
+  .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 1.25rem; font-weight: 500; }
+  .options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .option { background: var(--surface2); border: 2px solid var(--border); border-radius: 0.5rem; padding: 0.85rem 1rem; cursor: pointer; display: flex; gap: 0.75rem; align-items: flex-start; transition: all 0.2s; font-size: 0.92rem; line-height: 1.5; }
+  .option:hover:not(.disabled) { border-color: var(--accent2); background: var(--surface); }
+  .option.selected { border-color: var(--accent); background: rgba(8, 145, 178, 0.08); }
+  .option.correct { border-color: var(--green); background: rgba(16, 185, 129, 0.08); }
+  .option.wrong { border-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+  .option.disabled { cursor: default; }
+  .opt-letter { font-weight: 700; min-width: 1.5rem; color: var(--text-muted); }
+  .option.correct .opt-letter { color: var(--green); }
+  .option.wrong .opt-letter { color: var(--red); }
+  .q-actions { margin-top: 1rem; display: flex; gap: 0.75rem; }
+  .btn { padding: 0.5rem 1.2rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+  .btn-submit { background: var(--accent); color: white; }
+  .btn-submit:hover { background: var(--accent2); }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+  .explanation { margin-top: 1rem; background: var(--surface2); border-radius: 0.5rem; overflow: hidden; }
+  .expl-toggle { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+  .expl-body { padding: 0 1rem 1rem; display: none; }
+  .expl-body.open { display: block; }
+  .expl-body p { font-size: 0.88rem; line-height: 1.6; margin-top: 0.75rem; color: var(--text-muted); }
+  .expl-body .correct-note { color: var(--green); font-weight: 600; margin-bottom: 0.5rem; }
+  .expl-option { margin-top: 0.6rem; padding: 0.5rem; background: var(--surface); border-radius: 0.4rem; }
+  .expl-option .expl-opt-lbl { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+  .expl-option .expl-opt-lbl.c { color: var(--green); }
+  .expl-option .expl-opt-lbl.w { color: var(--red); }
+  .expl-option p { margin-top: 0; font-size: 0.83rem; }
+  .summary { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2rem; text-align: center; }
+  .summary.show { display: block; }
+  .summary h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+  .summary .big-score { font-size: 4rem; font-weight: 800; color: var(--accent); }
+  .summary .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .breakdown-item { background: var(--surface2); border-radius: 0.5rem; padding: 1rem; }
+  .breakdown-item .val { font-size: 1.5rem; font-weight: 700; }
+  .breakdown-item .lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .btn-retry { background: var(--accent); color: white; padding: 0.75rem 2rem; font-size: 1rem; border-radius: 0.5rem; border: none; cursor: pointer; margin-top: 1rem; }
+  @media (max-width: 640px) { main { padding: 1rem; } header { padding: 0.75rem 1rem; } .score-bar { padding: 0.75rem 1rem; gap: 1rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Domain 2: Tool Design & MCP Integration</h1>
+    <div class="meta">Claude Certified Architect – Foundations &nbsp;|&nbsp; 18% of exam</div>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()">Toggle Theme</button>
+</header>
+<div class="score-bar">
+  <div class="score-item"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="score-item"><div class="val" id="pct-val">0%</div><div class="lbl">Accuracy</div></div>
+  <div class="score-item"><div class="val" id="ans-val">0/10</div><div class="lbl">Answered</div></div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 of 10 questions answered</div>
+  </div>
+</div>
+<main id="main-quiz"></main>
+<div class="summary" id="summary">
+  <h2>Quiz Complete!</h2>
+  <div class="big-score" id="sum-score"></div>
+  <div style="color:var(--text-muted);margin-top:0.5rem">out of 10 questions</div>
+  <div class="breakdown" id="sum-breakdown"></div>
+  <button class="btn-retry" onclick="retryQuiz()">Shuffle & Retry</button>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id: 1,
+    ts: "2.1",
+    difficulty: "Easy",
+    text: "Your agent has two tools: analyze_content and analyze_document with nearly identical descriptions ('Analyzes content' and 'Analyzes a document'). Production logs show the agent frequently routes document analysis requests to analyze_content. What is the most effective first fix?",
+    options: [
+      { letter: "A", text: "Rename analyze_document to process_document to make the names more distinct" },
+      { letter: "B", text: "Add a routing classifier in the system prompt to explicitly direct document requests to analyze_document" },
+      { letter: "C", text: "Expand both tool descriptions to include specific input types, example queries, use cases, and clear boundary explanations" },
+      { letter: "D", text: "Merge both tools into a single unified_analyze tool that handles all content types" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Tool descriptions are the primary mechanism LLMs use for tool selection. Minimal or overlapping descriptions are the root cause of misrouting. Expanding descriptions with clear differentiators directly fixes the problem.",
+      options: {
+        A: { correct: false, text: "Renaming alone without expanding descriptions may reduce confusion slightly but doesn't solve the core problem of insufficient context for tool selection." },
+        B: { correct: false, text: "Routing instructions in the system prompt are indirect and fragile. They don't scale well and may conflict with tool descriptions, creating further confusion." },
+        C: { correct: true, text: "Detailed tool descriptions with input formats, example queries, edge cases, and when-to-use guidance provide the model everything it needs to make reliable tool selection decisions." },
+        D: { correct: false, text: "Merging tools hides important distinctions and may reduce the model's ability to reason about which backend operation to perform." }
+      }
+    }
+  },
+  {
+    id: 2,
+    ts: "2.1",
+    difficulty: "Medium",
+    text: "You have a generic analyze_document tool that the model uses for extracting data points, summarizing content, AND verifying claims. The model frequently uses it in wrong contexts. What is the most effective architectural fix?",
+    options: [
+      { letter: "A", text: "Add detailed instructions to the system prompt explaining when each use case applies" },
+      { letter: "B", text: "Split analyze_document into three purpose-specific tools: extract_data_points, summarize_content, and verify_claim_against_source" },
+      { letter: "C", text: "Add an 'operation' parameter to analyze_document so the model can specify what it wants" },
+      { letter: "D", text: "Add few-shot examples showing correct usage patterns for each use case" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Generic tools with multiple use cases degrade selection reliability. Splitting into purpose-specific tools with clear, narrow descriptions enables precise tool selection.",
+      options: {
+        A: { correct: false, text: "System prompt instructions don't replace well-designed tool interfaces. The model still has to interpret vague instructions alongside a confusingly generic tool." },
+        B: { correct: true, text: "Purpose-specific tools have well-defined, narrow descriptions that eliminate ambiguity. The model can now reliably select the right tool for each task." },
+        C: { correct: false, text: "Adding an operation parameter maintains a single generic tool — the model still has to determine which operation to use, which is the same selection problem." },
+        D: { correct: false, text: "Few-shot examples help but don't address the root cause of tool description ambiguity. New patterns the model hasn't seen in examples will still cause misrouting." }
+      }
+    }
+  },
+  {
+    id: 3,
+    ts: "2.2",
+    difficulty: "Medium",
+    text: "Your process_refund MCP tool returns 'Operation failed' for all error conditions. The coordinator agent is retrying transient database timeouts and policy violations indiscriminately. What structured error format would best enable intelligent recovery?",
+    options: [
+      { letter: "A", text: "Return error: true with a detailed human-readable error message explaining what went wrong" },
+      { letter: "B", text: "Return structured metadata including isError: true, errorCategory (transient/validation/business/permission), isRetryable boolean, and description" },
+      { letter: "C", text: "Return HTTP-style status codes (503 for timeout, 400 for validation) so the agent can pattern-match on codes" },
+      { letter: "D", text: "Log errors server-side and return a correlation ID so the agent can look up error details" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Structured error metadata gives the coordinator everything needed for intelligent recovery decisions: whether to retry, how to communicate the issue, and what alternatives exist.",
+      options: {
+        A: { correct: false, text: "Human-readable messages require the model to parse and interpret them, which is unreliable. Structured fields enable programmatic decision-making." },
+        B: { correct: true, text: "The MCP isError flag pattern with errorCategory, isRetryable, and description provides categorical metadata the coordinator can act on deterministically. Transient errors get retried, business errors get explained to users." },
+        C: { correct: false, text: "HTTP status codes require the model to know the mapping to recovery actions. They're also not standard in MCP and don't capture domain-specific categories like business vs permission errors." },
+        D: { correct: false, text: "Requiring a tool lookup to get error details adds round trips and complexity. The error context should be returned directly in the response." }
+      }
+    }
+  },
+  {
+    id: 4,
+    ts: "2.2",
+    difficulty: "Hard",
+    text: "A lookup_customer tool returns an empty array when no customer is found AND when the database is unreachable (timeout). Your agent cannot distinguish these cases and treats both as 'no customer found.' What is the correct fix?",
+    options: [
+      { letter: "A", text: "Standardize both cases to always return an empty array — the agent should retry regardless" },
+      { letter: "B", text: "Return distinct responses: empty array for valid empty results, and isError: true with errorCategory: 'transient' for access failures" },
+      { letter: "C", text: "Have the tool return a count field (0 for empty, -1 for errors) so the agent can distinguish them" },
+      { letter: "D", text: "Throw an exception for database errors and return empty for valid empty results" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Access failures and valid empty results require fundamentally different recovery actions. The tool must return distinct, semantically correct responses for each case.",
+      options: {
+        A: { correct: false, text: "Treating access failures as empty results hides the error entirely. The coordinator cannot make appropriate recovery decisions without knowing the database was unreachable." },
+        B: { correct: true, text: "Distinguishing access failures from valid empty results is the core skill. isError: true with errorCategory: 'transient' signals a recoverable failure; an empty array signals a successful query with no matches." },
+        C: { correct: false, text: "Using sentinel values like -1 is an anti-pattern. The model has to know this convention, it's fragile, and it's not part of the structured MCP error pattern." },
+        D: { correct: false, text: "Throwing exceptions without structure gives the coordinator less information than a structured error response. It also doesn't follow the isError flag pattern." }
+      }
+    }
+  },
+  {
+    id: 5,
+    ts: "2.3",
+    difficulty: "Medium",
+    text: "Your synthesis subagent has access to all 18 tools in the system, including web search, database access, document parsing, and formatting tools. You observe it frequently attempting web searches when it should be synthesizing. What is the most effective fix?",
+    options: [
+      { letter: "A", text: "Add a system prompt instruction: 'Do not use web search tools when synthesizing'" },
+      { letter: "B", text: "Restrict the synthesis subagent's tool set to only those needed for synthesis, with a scoped verify_fact tool for simple lookups" },
+      { letter: "C", text: "Increase the synthesis agent's context window so it has more information to work with" },
+      { letter: "D", text: "Add a web search quota that triggers a warning when the synthesis agent uses it more than 3 times" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Agents with access to tools outside their specialization tend to misuse them. The principle of least privilege — giving agents only the tools they need — is the correct architectural approach.",
+      options: {
+        A: { correct: false, text: "Prompt instructions are probabilistic. With 18 tools available, the model may still reach for web search when context seems incomplete." },
+        B: { correct: true, text: "Scoped tool access restricts the synthesis agent to relevant tools, making misuse impossible rather than merely discouraged. The scoped verify_fact tool handles simple lookups without requiring full web search access." },
+        C: { correct: false, text: "Context window size is unrelated to tool selection behavior. A larger window doesn't prevent the agent from reaching for inappropriate tools." },
+        D: { correct: false, text: "Quota warnings still allow misuse and require monitoring infrastructure. Restricting tools is cleaner and more reliable." }
+      }
+    }
+  },
+  {
+    id: 6,
+    ts: "2.3",
+    difficulty: "Hard",
+    text: "You need to ensure that extract_metadata is always called first in a document processing pipeline, before any enrichment tools run. Which tool_choice configuration achieves this?",
+    options: [
+      { letter: "A", text: "Set tool_choice: 'auto' and instruct the model to start with metadata extraction" },
+      { letter: "B", text: "Set tool_choice: 'any' to guarantee the model calls a tool rather than returning text" },
+      { letter: "C", text: "Set tool_choice: {type: 'tool', name: 'extract_metadata'} to force the specific tool, then process subsequent steps in follow-up turns" },
+      { letter: "D", text: "List extract_metadata first in the tools array to signal it should be called first" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Forced tool selection with a specific tool name guarantees that exact tool is called. This is the only deterministic way to enforce a specific first tool in a pipeline.",
+      options: {
+        A: { correct: false, text: "tool_choice: 'auto' allows the model to choose whether to call a tool and which one. Despite instructions, it may choose differently in complex scenarios." },
+        B: { correct: false, text: "tool_choice: 'any' guarantees a tool is called but doesn't guarantee which tool. The model could call any available tool." },
+        C: { correct: true, text: "Forced tool selection with the specific tool name is deterministic. The model must call extract_metadata. Subsequent enrichment steps are then processed in follow-up turns after the metadata is available." },
+        D: { correct: false, text: "The order of tools in the array doesn't influence selection priority. The model selects based on descriptions and context, not array position." }
+      }
+    }
+  },
+  {
+    id: 7,
+    ts: "2.4",
+    difficulty: "Easy",
+    text: "Your team wants to share a GitHub MCP server that needs a personal access token. Where should this server be configured, and how should the token be managed?",
+    options: [
+      { letter: "A", text: "Configure in ~/.claude.json with the token value hardcoded for easy access" },
+      { letter: "B", text: "Configure in .mcp.json at project root with ${GITHUB_TOKEN} environment variable expansion, committed to version control" },
+      { letter: "C", text: "Configure in a .env file with MCP_SERVER=github and manage through environment variables" },
+      { letter: "D", text: "Configure in each developer's ~/.claude.json with their own token, since shared access tokens are a security risk" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Project-level .mcp.json is designed for shared team tooling. Environment variable expansion allows the config to be committed to version control without exposing secrets.",
+      options: {
+        A: { correct: false, text: "~/.claude.json is user-level — it's not shared via version control. Hardcoding tokens is also a security anti-pattern." },
+        B: { correct: true, text: ".mcp.json at project root is version-controlled and shared with all team members. ${GITHUB_TOKEN} expands from each developer's environment, keeping the secret out of the repository." },
+        C: { correct: false, text: "A generic .env file isn't the correct mechanism for MCP server configuration. The .mcp.json format specifically supports environment variable expansion." },
+        D: { correct: false, text: "While individual tokens are valid for personal access, the question asks about a shared team server. Project-level .mcp.json with env var expansion is the correct pattern." }
+      }
+    }
+  },
+  {
+    id: 8,
+    ts: "2.4",
+    difficulty: "Medium",
+    text: "Your team integrates a Jira MCP server. The agent keeps using its built-in Grep tool to search code comments for ticket references instead of using the more capable Jira search tool. What is the most likely cause?",
+    options: [
+      { letter: "A", text: "The agent's allowed tools list prioritizes built-in tools over MCP tools" },
+      { letter: "B", text: "The Jira MCP tool's description doesn't explain its capabilities and outputs clearly enough for the agent to prefer it" },
+      { letter: "C", text: "The system prompt contains instructions that favor code-based approaches over external API calls" },
+      { letter: "D", text: "MCP tools have higher latency than built-in tools, so the agent optimizes for speed" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "When an agent defaults to built-in tools over more capable MCP tools, the MCP tool description is almost always the problem. The agent needs to understand what the MCP tool can do to prefer it.",
+      options: {
+        A: { correct: false, text: "There is no built-in tool prioritization mechanism. Tool selection is based on descriptions and context, not registration order or type." },
+        B: { correct: true, text: "Enhancing the MCP tool description to explain its capabilities (searching by project, status, assignee, date range) and outputs (structured issue data) will help the agent recognize it as superior for Jira-specific queries." },
+        C: { correct: false, text: "This might contribute but is less likely than an inadequate tool description. The first fix should be improving the MCP tool description." },
+        D: { correct: false, text: "The agent doesn't optimize based on latency by default. Tool selection is driven by semantic matching between the task and tool descriptions." }
+      }
+    }
+  },
+  {
+    id: 9,
+    ts: "2.5",
+    difficulty: "Easy",
+    text: "You need to find all TypeScript files in a repository that contain a specific error message string. Which tool should you use?",
+    options: [
+      { letter: "A", text: "Glob with pattern **/*.ts to list all TypeScript files, then Read each one" },
+      { letter: "B", text: "Bash with find and grep commands" },
+      { letter: "C", text: "Grep to search file contents for the specific string across TypeScript files" },
+      { letter: "D", text: "Read the root package.json to find TypeScript configuration, then navigate from there" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Grep is designed for content search — finding patterns within file contents. When you need to find which files contain specific content, Grep is the correct tool.",
+      options: {
+        A: { correct: false, text: "Using Glob + Read for each file is highly inefficient. You'd have to read potentially hundreds of files to find matches." },
+        B: { correct: false, text: "The dedicated Grep tool should be used instead of Bash grep/find. Dedicated tools provide better user experience and consistent behavior." },
+        C: { correct: true, text: "Grep is the correct tool for content search. It searches file contents for patterns and supports filtering by file type (e.g., *.ts), making it efficient and precise." },
+        D: { correct: false, text: "Reading package.json to find TypeScript configuration doesn't help you search file contents for a specific error message." }
+      }
+    }
+  },
+  {
+    id: 10,
+    ts: "2.5",
+    difficulty: "Medium",
+    text: "You need to make a targeted edit to a function in a large file. You try using the Edit tool, but it fails with 'anchor text not unique.' What is the correct fallback approach?",
+    options: [
+      { letter: "A", text: "Use Bash with sed to make the replacement using line numbers" },
+      { letter: "B", text: "Use Grep to find the exact line number, then use Edit with line numbers" },
+      { letter: "C", text: "Use Read to load the full file contents, make the change, then use Write to overwrite the file" },
+      { letter: "D", text: "Expand the Edit anchor text with more surrounding context until it becomes unique" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "When Edit fails due to non-unique text matches, Read + Write is the documented fallback. Read loads the complete file, you make precise changes, then Write overwrites reliably.",
+      options: {
+        A: { correct: false, text: "The dedicated Read/Write/Edit tools should be used instead of Bash sed. Bash sed with line numbers is fragile and harder to verify." },
+        B: { correct: false, text: "The Edit tool doesn't support line number-based anchoring. This approach wouldn't work." },
+        C: { correct: true, text: "Read + Write is the correct fallback when Edit cannot find a unique anchor. Read loads the complete content, you make precise modifications, and Write atomically overwrites the file." },
+        D: { correct: false, text: "Expanding the anchor is worth trying, but if the function body has repeated patterns, it may still fail. Read + Write is the reliable fallback." }
+      }
+    }
+  }
+];
+
+let state = { questions: [], answers: {}, revealed: {}, theme: 'dark' };
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  state.questions = shuffle(QUESTIONS);
+  state.answers = {};
+  state.revealed = {};
+  document.getElementById('summary').classList.remove('show');
+  renderQuiz();
+  updateScore();
+}
+
+function renderQuiz() {
+  const main = document.getElementById('main-quiz');
+  main.innerHTML = '';
+  state.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = 'q-' + q.id;
+    const opts = q.options.map(o => `
+      <div class="option ${state.answers[q.id] ? 'disabled' : ''} ${state.answers[q.id] === o.letter ? (o.letter === q.correct ? 'correct' : 'wrong') : ''} ${state.answers[q.id] && o.letter === q.correct && state.answers[q.id] !== q.correct ? 'correct' : ''}"
+           onclick="selectOption(${q.id}, '${o.letter}')">
+        <span class="opt-letter">${o.letter}</span>
+        <span>${o.text}</span>
+      </div>`).join('');
+
+    card.innerHTML = `
+      <div class="q-header">
+        <span class="q-num">Q${idx + 1}</span>
+        <div class="q-tags">
+          <span class="tag ${q.difficulty.toLowerCase()}">${q.difficulty}</span>
+          <span class="tag">TS ${q.ts}</span>
+        </div>
+      </div>
+      <div class="q-text">${q.text}</div>
+      <div class="options" id="opts-${q.id}">${opts}</div>
+      <div class="q-actions">
+        <button class="btn btn-submit" id="btn-${q.id}" onclick="submitAnswer(${q.id})" ${!state.answers[q.id] ? 'disabled' : 'style="display:none"'}>Submit</button>
+      </div>
+      <div class="explanation" id="expl-${q.id}" style="${state.revealed[q.id] ? '' : 'display:none'}">
+        ${state.revealed[q.id] ? buildExplanation(q) : ''}
+      </div>
+    `;
+    if (state.answers[q.id]) card.classList.add(state.answers[q.id] === q.correct ? 'answered-correct' : 'answered-wrong');
+    main.appendChild(card);
+  });
+}
+
+function selectOption(qid, letter) {
+  if (state.answers[qid]) return;
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => {
+    if (el.querySelector('.opt-letter').textContent === letter) el.classList.add('selected');
+  });
+  document.getElementById('btn-' + qid).disabled = false;
+}
+
+function submitAnswer(qid) {
+  const q = state.questions.find(q => q.id === qid);
+  const selected = document.querySelector(`#opts-${qid} .option.selected`);
+  if (!selected) return;
+  const letter = selected.querySelector('.opt-letter').textContent;
+  state.answers[qid] = letter;
+  state.revealed[qid] = true;
+
+  const card = document.getElementById('q-' + qid);
+  card.classList.add(letter === q.correct ? 'answered-correct' : 'answered-wrong');
+
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => {
+    el.classList.add('disabled');
+    el.classList.remove('selected');
+    const l = el.querySelector('.opt-letter').textContent;
+    if (l === q.correct) el.classList.add('correct');
+    else if (l === letter && l !== q.correct) el.classList.add('wrong');
+  });
+
+  document.getElementById('btn-' + qid).style.display = 'none';
+  const explEl = document.getElementById('expl-' + qid);
+  explEl.style.display = '';
+  explEl.innerHTML = buildExplanation(q);
+  document.querySelector(`#expl-${qid} .expl-body`).classList.add('open');
+
+  updateScore();
+  checkComplete();
+}
+
+function buildExplanation(q) {
+  const optHtml = q.options.map(o => {
+    const isCorrect = o.letter === q.correct;
+    return `<div class="expl-option">
+      <div class="expl-opt-lbl ${isCorrect ? 'c' : 'w'}">${o.letter} — ${isCorrect ? 'CORRECT' : 'INCORRECT'}</div>
+      <p>${q.explanation.options[o.letter].text}</p>
+    </div>`;
+  }).join('');
+  return `<div class="explanation">
+    <div class="expl-toggle" onclick="toggleExpl(this)"><span>Explanation</span><span>▲</span></div>
+    <div class="expl-body open">
+      <p class="correct-note">Correct Answer: ${q.correct}</p>
+      <p>${q.explanation.main}</p>
+      ${optHtml}
+    </div>
+  </div>`;
+}
+
+function toggleExpl(el) {
+  const body = el.nextElementSibling;
+  const isOpen = body.classList.toggle('open');
+  el.querySelector('span:last-child').textContent = isOpen ? '▲' : '▼';
+}
+
+function updateScore() {
+  const total = state.questions.length;
+  const answered = Object.keys(state.answers).length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => {
+    const q = state.questions.find(q => q.id == id);
+    return q && ans === q.correct;
+  }).length;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+  document.getElementById('score-val').textContent = correct;
+  document.getElementById('pct-val').textContent = pct + '%';
+  document.getElementById('ans-val').textContent = answered + '/' + total;
+  document.getElementById('progress-fill').style.width = (answered / total * 100) + '%';
+  document.getElementById('progress-label').textContent = answered + ' of ' + total + ' questions answered';
+}
+
+function checkComplete() {
+  if (Object.keys(state.answers).length === state.questions.length) setTimeout(showSummary, 500);
+}
+
+function showSummary() {
+  const total = state.questions.length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => {
+    const q = state.questions.find(q => q.id == id);
+    return q && ans === q.correct;
+  }).length;
+  const pct = Math.round((correct / total) * 100);
+  const byDiff = { Easy: { c: 0, t: 0 }, Medium: { c: 0, t: 0 }, Hard: { c: 0, t: 0 } };
+  state.questions.forEach(q => {
+    byDiff[q.difficulty].t++;
+    if (state.answers[q.id] === q.correct) byDiff[q.difficulty].c++;
+  });
+  document.getElementById('sum-score').textContent = correct + '/' + total;
+  document.getElementById('sum-breakdown').innerHTML = `
+    <div class="breakdown-item"><div class="val" style="color:var(--green)">${byDiff.Easy.c}/${byDiff.Easy.t}</div><div class="lbl">Easy</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--yellow)">${byDiff.Medium.c}/${byDiff.Medium.t}</div><div class="lbl">Medium</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--red)">${byDiff.Hard.c}/${byDiff.Hard.t}</div><div class="lbl">Hard</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--accent)">${pct}%</div><div class="lbl">Accuracy</div></div>
+  `;
+  document.getElementById('summary').classList.add('show');
+  document.getElementById('summary').scrollIntoView({ behavior: 'smooth' });
+}
+
+function retryQuiz() { init(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function toggleTheme() { document.body.classList.toggle('light'); }
+
+init();
+</script>
+</body>
+</html>

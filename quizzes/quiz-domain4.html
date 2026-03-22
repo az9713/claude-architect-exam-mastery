@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain 4 Quiz – Prompt Engineering & Structured Output</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --surface: #1a1a2e; --surface2: #16213e; --border: #2a2a4a;
+    --accent: #d97706; --accent2: #b45309;
+    --text: #e2e8f0; --text-muted: #94a3b8;
+    --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+    --easy: #10b981; --medium: #f59e0b; --hard: #ef4444;
+  }
+  .light { --bg: #f8fafc; --surface: #ffffff; --surface2: #f1f5f9; --border: #e2e8f0; --text: #1e293b; --text-muted: #64748b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 1.1rem; font-weight: 700; }
+  header .meta { font-size: 0.8rem; color: var(--text-muted); }
+  .theme-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
+  .score-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .score-item .val { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .score-item .lbl { font-size: 0.75rem; color: var(--text-muted); }
+  .progress-wrap { flex: 1; min-width: 200px; }
+  .progress-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 100%; border-radius: 999px; transition: width 0.4s; }
+  .progress-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; transition: border-color 0.3s; }
+  .question-card.answered-correct { border-color: var(--green); }
+  .question-card.answered-wrong { border-color: var(--red); }
+  .q-header { display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 1rem; }
+  .q-num { background: var(--accent); color: white; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 0.3rem; white-space: nowrap; }
+  .q-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .tag { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+  .tag.easy { border-color: var(--easy); color: var(--easy); }
+  .tag.medium { border-color: var(--medium); color: var(--medium); }
+  .tag.hard { border-color: var(--hard); color: var(--hard); }
+  .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 1.25rem; font-weight: 500; }
+  .options { display: flex; flex-direction: column; gap: 0.6rem; }
+  .option { background: var(--surface2); border: 2px solid var(--border); border-radius: 0.5rem; padding: 0.85rem 1rem; cursor: pointer; display: flex; gap: 0.75rem; align-items: flex-start; transition: all 0.2s; font-size: 0.92rem; line-height: 1.5; }
+  .option:hover:not(.disabled) { border-color: var(--accent2); }
+  .option.selected { border-color: var(--accent); background: rgba(217, 119, 6, 0.08); }
+  .option.correct { border-color: var(--green); background: rgba(16, 185, 129, 0.08); }
+  .option.wrong { border-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+  .option.disabled { cursor: default; }
+  .opt-letter { font-weight: 700; min-width: 1.5rem; color: var(--text-muted); }
+  .option.correct .opt-letter { color: var(--green); }
+  .option.wrong .opt-letter { color: var(--red); }
+  .q-actions { margin-top: 1rem; }
+  .btn-submit { background: var(--accent); color: white; padding: 0.5rem 1.2rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+  .explanation { margin-top: 1rem; background: var(--surface2); border-radius: 0.5rem; overflow: hidden; }
+  .expl-toggle { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+  .expl-body { padding: 0 1rem 1rem; display: none; }
+  .expl-body.open { display: block; }
+  .expl-body p { font-size: 0.88rem; line-height: 1.6; margin-top: 0.75rem; color: var(--text-muted); }
+  .expl-body .correct-note { color: var(--green); font-weight: 600; }
+  .expl-option { margin-top: 0.6rem; padding: 0.5rem; background: var(--surface); border-radius: 0.4rem; }
+  .expl-option .expl-opt-lbl { font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
+  .expl-option .expl-opt-lbl.c { color: var(--green); }
+  .expl-option .expl-opt-lbl.w { color: var(--red); }
+  .expl-option p { margin-top: 0; font-size: 0.83rem; }
+  .summary { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 2rem; text-align: center; }
+  .summary.show { display: block; }
+  .summary .big-score { font-size: 4rem; font-weight: 800; color: var(--accent); }
+  .summary .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .breakdown-item { background: var(--surface2); border-radius: 0.5rem; padding: 1rem; }
+  .breakdown-item .val { font-size: 1.5rem; font-weight: 700; }
+  .breakdown-item .lbl { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .btn-retry { background: var(--accent); color: white; padding: 0.75rem 2rem; font-size: 1rem; border-radius: 0.5rem; border: none; cursor: pointer; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Domain 4: Prompt Engineering & Structured Output</h1>
+    <div class="meta">Claude Certified Architect – Foundations &nbsp;|&nbsp; 20% of exam</div>
+  </div>
+  <button class="theme-btn" onclick="toggleTheme()">Toggle Theme</button>
+</header>
+<div class="score-bar">
+  <div class="score-item"><div class="val" id="score-val">0</div><div class="lbl">Score</div></div>
+  <div class="score-item"><div class="val" id="pct-val">0%</div><div class="lbl">Accuracy</div></div>
+  <div class="score-item"><div class="val" id="ans-val">0/12</div><div class="lbl">Answered</div></div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 of 12 questions answered</div>
+  </div>
+</div>
+<main id="main-quiz"></main>
+<div class="summary" id="summary">
+  <h2>Quiz Complete!</h2>
+  <div class="big-score" id="sum-score"></div>
+  <div style="color:var(--text-muted);margin-top:0.5rem">out of 12 questions</div>
+  <div class="breakdown" id="sum-breakdown"></div>
+  <button class="btn-retry" onclick="retryQuiz()">Shuffle & Retry</button>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id: 1, ts: "4.1", difficulty: "Medium",
+    text: "Your code review AI has a 35% false positive rate for 'performance issues', causing developers to ignore its findings entirely. The prompt currently says 'flag any code that might have performance problems.' What change would most reduce false positives?",
+    options: [
+      { letter: "A", text: "Add 'be conservative and only report high-confidence performance issues' to the prompt" },
+      { letter: "B", text: "Replace the vague instruction with explicit criteria: 'flag only O(n²) or worse algorithms in hot paths, unnecessary synchronous blocking in async contexts, and memory leaks in loops'" },
+      { letter: "C", text: "Add 5 few-shot examples of performance issues to calibrate the model's judgment" },
+      { letter: "D", text: "Temporarily disable performance issue detection until a better prompt is developed" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Explicit categorical criteria outperform vague confidence-based instructions. Specific, concrete criteria define exactly what to report and what to skip, eliminating interpretation ambiguity.",
+      options: {
+        A: { correct: false, text: "Instructions like 'be conservative' are vague meta-instructions that fail to improve precision. The model doesn't have a shared definition of 'conservative' or 'high-confidence' for performance issues." },
+        B: { correct: true, text: "Specific criteria (O(n²) algorithms, synchronous blocking, memory leaks in loops) define exact reporting boundaries. The model now has categorical rules rather than a vague judgment call." },
+        C: { correct: false, text: "Few-shot examples help consistency but don't replace explicit criteria. Without criteria, the model extrapolates from examples to novel code in unpredictable ways." },
+        D: { correct: false, text: "Disabling the category restores trust but doesn't fix the underlying prompt issue. It's a temporary measure, not a solution." }
+      }
+    }
+  },
+  {
+    id: 2, ts: "4.1", difficulty: "Hard",
+    text: "Your CI system generates code review findings classified as Critical, High, Medium, and Low severity. Developers report that the same type of bug is classified inconsistently — sometimes Critical, sometimes Medium. What is the most effective fix?",
+    options: [
+      { letter: "A", text: "Add 'be consistent' to the system prompt and ask the model to reason carefully about severity" },
+      { letter: "B", text: "Remove severity classifications and use a binary 'flag/skip' approach instead" },
+      { letter: "C", text: "Define explicit severity criteria with concrete code examples for each severity level in the prompt" },
+      { letter: "D", text: "Use a separate classifier model trained on historical severity assignments" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Consistent severity classification requires explicit definitions with concrete examples for each level. Without examples, each classification is a fresh interpretation subject to variation.",
+      options: {
+        A: { correct: false, text: "'Be consistent' doesn't define what consistency means in this context. The model has no shared reference for severity without explicit criteria and examples." },
+        B: { correct: false, text: "Removing severity removes valuable signal for prioritization. The inconsistency problem should be fixed with better criteria, not by reducing functionality." },
+        C: { correct: true, text: "Concrete code examples for each severity level (e.g., 'SQL injection with user input = Critical; unused import = Low') give the model reference points for consistent classification." },
+        D: { correct: false, text: "A separate classifier adds infrastructure complexity. Better prompt design should be the first approach before introducing additional models." }
+      }
+    }
+  },
+  {
+    id: 3, ts: "4.2", difficulty: "Medium",
+    text: "You add detailed written instructions for a code review task, but the output format remains inconsistent — some findings include file locations, some don't; some have suggested fixes, some don't. What is the most effective next step?",
+    options: [
+      { letter: "A", text: "Make the written instructions more detailed and specific about each required field" },
+      { letter: "B", text: "Add 2-4 few-shot examples showing the exact desired output format for different finding types" },
+      { letter: "C", text: "Use tool_use with a JSON schema to enforce the structured output format" },
+      { letter: "D", text: "Add a post-processing step that fills in missing fields with default values" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "When detailed instructions alone produce inconsistent output, few-shot examples are the most effective technique. They demonstrate the exact format, reducing the need for interpretation.",
+      options: {
+        A: { correct: false, text: "More detailed instructions still rely on interpretation. If the current instructions aren't producing consistency, more text often doesn't help." },
+        B: { correct: true, text: "2-4 concrete examples showing the desired output for different finding types (bugs, security, style) demonstrate the format directly. Examples outperform instructions for consistency." },
+        C: { correct: false, text: "tool_use with a schema is excellent for guaranteed structured output, but the question asks about format consistency specifically. Few-shot examples are the simpler, more targeted fix." },
+        D: { correct: false, text: "Post-processing with defaults masks the inconsistency rather than fixing it. Fields filled with defaults may be inaccurate." }
+      }
+    }
+  },
+  {
+    id: 4, ts: "4.2", difficulty: "Hard",
+    text: "Your extraction system frequently hallucinates measurements in documents that use informal notation (e.g., '~50kg', 'about 3 months'). Detailed instructions about approximate values aren't working. What is the most effective fix?",
+    options: [
+      { letter: "A", text: "Add a post-extraction validation step that flags all approximate values for manual review" },
+      { letter: "B", text: "Add few-shot examples showing correct extraction and handling of informal measurements, including how to represent approximate values in the schema" },
+      { letter: "C", text: "Update the JSON schema to make measurement fields optional (nullable) to prevent hallucination" },
+      { letter: "D", text: "Switch to a more capable model that handles informal notation better" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Few-shot examples are particularly effective at reducing hallucination in extraction tasks with varied document structures. Showing exactly how to handle '~50kg' → {value: 50, unit: 'kg', approximate: true} eliminates guessing.",
+      options: {
+        A: { correct: false, text: "Post-extraction validation catches errors but doesn't fix them. The model still hallucinates; you're just flagging it downstream." },
+        B: { correct: true, text: "Few-shot examples demonstrating correct extraction of informal measurements provide concrete guidance. The model can generalize from these examples to similar patterns it hasn't seen explicitly." },
+        C: { correct: false, text: "Making fields nullable prevents errors when data is absent, but doesn't fix hallucination when data is present but informal. The model would still struggle to extract '~50kg'." },
+        D: { correct: false, text: "Model switching is a last resort. Prompt engineering with examples should be tried first and often resolves hallucination issues." }
+      }
+    }
+  },
+  {
+    id: 5, ts: "4.3", difficulty: "Easy",
+    text: "You need to extract structured invoice data (line items, totals, vendor info) from PDFs. The extraction must be guaranteed to be valid JSON with no syntax errors. What is the most reliable approach?",
+    options: [
+      { letter: "A", text: "Instruct the model to output valid JSON and add a JSON validation step that retries on parse errors" },
+      { letter: "B", text: "Use tool_use with a JSON schema defining the invoice structure — the model must call the extraction tool" },
+      { letter: "C", text: "Use --output-format json in the CLI to force JSON output" },
+      { letter: "D", text: "Wrap the prompt in 'Output only valid JSON. Begin your response with {'" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "tool_use with a JSON schema is the most reliable approach for guaranteed schema-compliant output. The API enforces the schema, eliminating JSON syntax errors entirely.",
+      options: {
+        A: { correct: false, text: "Retry loops can reduce error rates but don't eliminate them. The model may still produce invalid JSON, especially for complex nested structures." },
+        B: { correct: true, text: "tool_use with a JSON schema forces the model to produce schema-compliant structured output. The API validates the JSON, making syntax errors impossible." },
+        C: { correct: false, text: "--output-format json is a CLI flag for Claude Code, not the Messages API. It doesn't enforce a specific schema structure." },
+        D: { correct: false, text: "Prompt-level JSON instructions are probabilistic. The model may still include preamble text, trailing comments, or produce malformed JSON for complex structures." }
+      }
+    }
+  },
+  {
+    id: 6, ts: "4.3", difficulty: "Medium",
+    text: "Your extraction schema has a document_type field. The possible types are: invoice, receipt, contract, purchase_order. But new document types occasionally appear. How should you design this field?",
+    options: [
+      { letter: "A", text: "Make document_type a string field with no constraints, allowing any value" },
+      { letter: "B", text: "Add document_type as an enum with the four known values, and add a separate document_type_detail string field for unrecognized types" },
+      { letter: "C", text: "Use an enum with only the four known values and return an error when an unknown type is encountered" },
+      { letter: "D", text: "Create a separate extraction pipeline for unknown document types" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The enum + 'other' + detail string pattern is the standard way to handle extensible categorization. It enables both constrained known values and graceful handling of new categories.",
+      options: {
+        A: { correct: false, text: "An unconstrained string allows any value, losing the benefit of structured categorization and making downstream processing harder." },
+        B: { correct: true, text: "Adding an 'other' value to the enum plus a detail field is the recommended schema design pattern. Known types are enumerated for reliability; unknown types are captured with detail for review." },
+        C: { correct: false, text: "Returning errors for unknown types creates fragile pipelines. New document types shouldn't break the extraction system." },
+        D: { correct: false, text: "A separate pipeline for unknown types is over-engineered. The enum + detail pattern handles this gracefully within a single pipeline." }
+      }
+    }
+  },
+  {
+    id: 7, ts: "4.3", difficulty: "Hard",
+    text: "Your invoice extraction schema has a tax_id field. Some invoices include a tax ID, others don't. The model frequently fabricates a tax_id value when none is present in the document. What is the correct fix?",
+    options: [
+      { letter: "A", text: "Add prompt instructions: 'If no tax ID is found, output null for the tax_id field'" },
+      { letter: "B", text: "Remove the tax_id field from the schema entirely" },
+      { letter: "C", text: "Make tax_id an optional (nullable) field in the JSON schema" },
+      { letter: "D", text: "Add a post-extraction step that validates tax_id format and nullifies invalid values" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Making fields nullable when source data may not contain them prevents hallucination. Required fields pressure the model to fabricate values to satisfy the schema constraint.",
+      options: {
+        A: { correct: false, text: "Prompt instructions are probabilistic. The model may still feel pressure to provide a value for what the schema marks as required." },
+        B: { correct: false, text: "Removing the field loses valuable data from invoices that do have a tax ID. The field should exist but be optional." },
+        C: { correct: true, text: "Optional (nullable) fields explicitly tell the schema that the value may be absent. This removes the pressure to fabricate and allows the model to accurately output null when no tax ID exists." },
+        D: { correct: false, text: "Post-extraction validation can catch wrong formats but can't reliably detect fabricated values that happen to look like valid tax IDs." }
+      }
+    }
+  },
+  {
+    id: 8, ts: "4.4", difficulty: "Medium",
+    text: "An extraction fails validation because line_items don't sum to total_amount. You implement a retry. Which retry approach is most likely to succeed?",
+    options: [
+      { letter: "A", text: "Retry with the same prompt — the model may produce different output on the second attempt" },
+      { letter: "B", text: "Retry with increased temperature to encourage different output" },
+      { letter: "C", text: "Include the original document, the failed extraction, and specific validation errors in the retry prompt" },
+      { letter: "D", text: "Break the extraction into two calls: one for line items, one for the total" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Retry-with-error-feedback appends specific validation errors to guide the model toward correction. The model needs to see what was wrong to fix it.",
+      options: {
+        A: { correct: false, text: "Retrying with the same prompt produces similar output distribution. Without knowing what failed, the model has no basis to correct itself." },
+        B: { correct: false, text: "Higher temperature increases output variation but doesn't direct the model toward the specific correction needed. It's as likely to introduce new errors as fix existing ones." },
+        C: { correct: true, text: "The retry-with-error-feedback pattern provides: the original document (source of truth), the failed extraction (what went wrong), and specific errors ('line_items sum to $450 but total_amount is $472'). This guides precise correction." },
+        D: { correct: false, text: "Splitting into two calls doesn't fix the semantic inconsistency problem — you'd still need to validate that the separate results agree with each other." }
+      }
+    }
+  },
+  {
+    id: 9, ts: "4.4", difficulty: "Hard",
+    text: "A contract extraction system fails to extract the governing_law field. Investigation reveals the information exists in an exhibit appended to the contract, which was not included in the provided document. Multiple retries have not produced the field. What should you do?",
+    options: [
+      { letter: "A", text: "Continue retrying — the model will eventually find the value through different reasoning" },
+      { letter: "B", text: "Update the prompt to explicitly instruct the model to search harder for governing law information" },
+      { letter: "C", text: "Stop retrying and mark governing_law as null — the information is absent from the provided document" },
+      { letter: "D", text: "Add a few-shot example showing how to extract governing law from exhibit documents" }
+    ],
+    correct: "C",
+    explanation: {
+      main: "Retries are ineffective when required information is simply absent from the source document. More retries will produce hallucination, not correct extraction.",
+      options: {
+        A: { correct: false, text: "Repeated retries when data is absent produce hallucination. The model will fabricate a value to satisfy the field requirement rather than acknowledge absence." },
+        B: { correct: false, text: "Instructing the model to search harder for absent data will cause hallucination. The model cannot find information that isn't in the provided document." },
+        C: { correct: true, text: "When information exists only in an external document not provided, retries will be ineffective or produce hallucination. The correct action is to mark the field null and potentially surface this as a data quality issue requiring the exhibit to be included." },
+        D: { correct: false, text: "Adding examples for exhibit extraction doesn't help when the exhibit itself wasn't provided. The model still has no source for the governing law information." }
+      }
+    }
+  },
+  {
+    id: 10, ts: "4.5", difficulty: "Easy",
+    text: "Your team runs a weekly audit that analyzes 10,000 documents for compliance issues. The audit results are needed by Monday morning and are kicked off every Friday evening. Which API approach is most appropriate?",
+    options: [
+      { letter: "A", text: "Synchronous API with concurrent requests to process all documents simultaneously" },
+      { letter: "B", text: "Message Batches API, submitted Friday evening to process over the weekend" },
+      { letter: "C", text: "Synchronous API with sequential processing to avoid rate limits" },
+      { letter: "D", text: "Stream the documents through the API and cache results as they complete" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "The Message Batches API is designed for non-blocking, latency-tolerant workloads like weekly audits. It provides 50% cost savings and can process thousands of documents within its 24-hour window.",
+      options: {
+        A: { correct: false, text: "Synchronous concurrent requests are expensive and may hit rate limits. The batch API is designed for exactly this use case at significantly lower cost." },
+        B: { correct: true, text: "Weekly audits are a canonical batch processing use case: non-blocking (results aren't needed immediately), latency-tolerant (24-hour window fits within Friday-to-Monday timeline), and large volume (10,000 documents benefit from 50% cost savings)." },
+        C: { correct: false, text: "Sequential synchronous processing would be extremely slow for 10,000 documents and doesn't leverage the batch API's cost savings." },
+        D: { correct: false, text: "Streaming is for real-time output generation, not batch processing optimization. It doesn't provide cost savings or handle the volume efficiently." }
+      }
+    }
+  },
+  {
+    id: 11, ts: "4.5", difficulty: "Medium",
+    text: "You submit a batch of 500 document extractions. When results return, 47 documents failed with 'context_length_exceeded' errors. What is the correct handling approach?",
+    options: [
+      { letter: "A", text: "Resubmit all 500 documents in a new batch with higher context limits" },
+      { letter: "B", text: "Use the custom_id values to identify the 47 failed documents and resubmit only those, chunked into smaller pieces" },
+      { letter: "C", text: "Drop the 47 documents — they are too long to process" },
+      { letter: "D", text: "Switch to synchronous processing for the 47 failed documents" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "custom_id fields enable identifying and resubmitting only failed documents. Context-exceeded documents should be chunked rather than dropped.",
+      options: {
+        A: { correct: false, text: "Resubmitting all 500 is wasteful. The 453 successful documents don't need reprocessing. custom_id exists precisely to enable partial resubmission." },
+        B: { correct: true, text: "Using custom_id to identify failed documents and chunking them for resubmission is the correct pattern. Only the 47 failures need to be reprocessed, and chunking addresses the context length issue." },
+        C: { correct: false, text: "Dropping long documents silently corrupts the audit results. Context-exceeded documents should be chunked and reprocessed." },
+        D: { correct: false, text: "Switching to synchronous for failures adds complexity without benefit. The batch API can handle the resubmission just as well." }
+      }
+    }
+  },
+  {
+    id: 12, ts: "4.6", difficulty: "Hard",
+    text: "You generate code with Claude in one session, then ask the same Claude instance to review the code it just generated. The review misses a subtle logic error that an independent reviewer later catches. What is the most likely explanation?",
+    options: [
+      { letter: "A", text: "The code was too long for the model to review thoroughly in the same session" },
+      { letter: "B", text: "The model retains reasoning context from generation, making it less likely to question its own decisions" },
+      { letter: "C", text: "The review prompt wasn't specific enough about what to check" },
+      { letter: "D", text: "The model needs extended thinking mode enabled to catch subtle logic errors" }
+    ],
+    correct: "B",
+    explanation: {
+      main: "Self-review limitations are well-documented: the generating instance retains the reasoning that led to the code, making it unlikely to question those decisions. Independent review instances without prior context are more effective.",
+      options: {
+        A: { correct: false, text: "Context length could cause issues but isn't the most likely explanation for missing a subtle error in recently generated code. The reasoning context effect is the primary factor." },
+        B: { correct: true, text: "A model that generated code with certain assumptions baked in will review that code with the same assumptions. It can't easily identify errors in its own reasoning context. An independent instance approaches the code fresh." },
+        C: { correct: false, text: "An underspecified review prompt could miss categories, but the question specifically describes a subtle logic error that an independent reviewer found — indicating the review capability exists, just not in a self-review context." },
+        D: { correct: false, text: "Extended thinking can help with complex reasoning but doesn't overcome the fundamental self-review limitation of retained generation context." }
+      }
+    }
+  }
+];
+
+let state = { questions: [], answers: {}, revealed: {} };
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function init() {
+  state.questions = shuffle(QUESTIONS); state.answers = {}; state.revealed = {};
+  document.getElementById('summary').classList.remove('show');
+  renderQuiz(); updateScore();
+}
+
+function renderQuiz() {
+  const main = document.getElementById('main-quiz');
+  main.innerHTML = '';
+  state.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'question-card' + (state.answers[q.id] ? (state.answers[q.id] === q.correct ? ' answered-correct' : ' answered-wrong') : '');
+    card.id = 'q-' + q.id;
+    const opts = q.options.map(o => {
+      let cls = '';
+      if (state.answers[q.id]) { cls = 'disabled'; if (o.letter === q.correct) cls += ' correct'; else if (o.letter === state.answers[q.id]) cls += ' wrong'; }
+      return `<div class="option ${cls}" onclick="selectOption(${q.id}, '${o.letter}')"><span class="opt-letter">${o.letter}</span><span>${o.text}</span></div>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="q-header"><span class="q-num">Q${idx + 1}</span><div class="q-tags"><span class="tag ${q.difficulty.toLowerCase()}">${q.difficulty}</span><span class="tag">TS ${q.ts}</span></div></div>
+      <div class="q-text">${q.text}</div>
+      <div class="options" id="opts-${q.id}">${opts}</div>
+      <div class="q-actions"><button class="btn-submit" id="btn-${q.id}" onclick="submitAnswer(${q.id})" ${state.answers[q.id] ? 'style="display:none"' : 'disabled'}>Submit</button></div>
+      <div class="explanation" id="expl-${q.id}" ${state.revealed[q.id] ? '' : 'style="display:none"'}>${state.revealed[q.id] ? buildExplanation(q) : ''}</div>`;
+    main.appendChild(card);
+  });
+}
+
+function selectOption(qid, letter) {
+  if (state.answers[qid]) return;
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => { if (el.querySelector('.opt-letter').textContent === letter) el.classList.add('selected'); });
+  document.getElementById('btn-' + qid).disabled = false;
+}
+
+function submitAnswer(qid) {
+  const q = state.questions.find(q => q.id === qid);
+  const selected = document.querySelector(`#opts-${qid} .option.selected`);
+  if (!selected) return;
+  const letter = selected.querySelector('.opt-letter').textContent;
+  state.answers[qid] = letter; state.revealed[qid] = true;
+  document.getElementById('q-' + qid).classList.add(letter === q.correct ? 'answered-correct' : 'answered-wrong');
+  document.querySelectorAll(`#opts-${qid} .option`).forEach(el => {
+    el.classList.add('disabled'); el.classList.remove('selected');
+    const l = el.querySelector('.opt-letter').textContent;
+    if (l === q.correct) el.classList.add('correct');
+    else if (l === letter && l !== q.correct) el.classList.add('wrong');
+  });
+  document.getElementById('btn-' + qid).style.display = 'none';
+  const explEl = document.getElementById('expl-' + qid);
+  explEl.style.display = ''; explEl.innerHTML = buildExplanation(q);
+  explEl.querySelector('.expl-body').classList.add('open');
+  updateScore(); checkComplete();
+}
+
+function buildExplanation(q) {
+  return `<div class="explanation"><div class="expl-toggle" onclick="toggleExpl(this)"><span>Explanation</span><span>▲</span></div><div class="expl-body open"><p class="correct-note">Correct Answer: ${q.correct}</p><p>${q.explanation.main}</p>${q.options.map(o => `<div class="expl-option"><div class="expl-opt-lbl ${o.letter === q.correct ? 'c' : 'w'}">${o.letter} — ${o.letter === q.correct ? 'CORRECT' : 'INCORRECT'}</div><p>${q.explanation.options[o.letter].text}</p></div>`).join('')}</div></div>`;
+}
+
+function toggleExpl(el) {
+  const body = el.nextElementSibling;
+  el.querySelector('span:last-child').textContent = body.classList.toggle('open') ? '▲' : '▼';
+}
+
+function updateScore() {
+  const total = state.questions.length;
+  const answered = Object.keys(state.answers).length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => { const q = state.questions.find(q => q.id == id); return q && ans === q.correct; }).length;
+  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+  document.getElementById('score-val').textContent = correct;
+  document.getElementById('pct-val').textContent = pct + '%';
+  document.getElementById('ans-val').textContent = answered + '/' + total;
+  document.getElementById('progress-fill').style.width = (answered / total * 100) + '%';
+  document.getElementById('progress-label').textContent = answered + ' of ' + total + ' questions answered';
+}
+
+function checkComplete() { if (Object.keys(state.answers).length === state.questions.length) setTimeout(showSummary, 500); }
+
+function showSummary() {
+  const total = state.questions.length;
+  const correct = Object.entries(state.answers).filter(([id, ans]) => { const q = state.questions.find(q => q.id == id); return q && ans === q.correct; }).length;
+  const pct = Math.round((correct / total) * 100);
+  const byDiff = { Easy: { c: 0, t: 0 }, Medium: { c: 0, t: 0 }, Hard: { c: 0, t: 0 } };
+  state.questions.forEach(q => { byDiff[q.difficulty].t++; if (state.answers[q.id] === q.correct) byDiff[q.difficulty].c++; });
+  document.getElementById('sum-score').textContent = correct + '/' + total;
+  document.getElementById('sum-breakdown').innerHTML = `
+    <div class="breakdown-item"><div class="val" style="color:var(--green)">${byDiff.Easy.c}/${byDiff.Easy.t}</div><div class="lbl">Easy</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--yellow)">${byDiff.Medium.c}/${byDiff.Medium.t}</div><div class="lbl">Medium</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--red)">${byDiff.Hard.c}/${byDiff.Hard.t}</div><div class="lbl">Hard</div></div>
+    <div class="breakdown-item"><div class="val" style="color:var(--accent)">${pct}%</div><div class="lbl">Accuracy</div></div>`;
+  document.getElementById('summary').classList.add('show');
+  document.getElementById('summary').scrollIntoView({ behavior: 'smooth' });
+}
+
+function retryQuiz() { init(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function toggleTheme() { document.body.classList.toggle('light'); }
+
+init();
+</script>
+</body>
+</html>
