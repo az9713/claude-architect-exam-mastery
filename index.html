@@ -1246,31 +1246,31 @@
 <!-- ── STICKY NAV ──────────────────────────────────────────────────────── -->
 <nav class="sticky-nav" aria-label="Section navigation">
   <div class="container nav-inner">
-    <button class="nav-link" onclick="scrollTo('domain1')">
+    <button class="nav-link" onclick="scrollToSection('domain1')">
       <span class="nav-dot" style="background:var(--d1)"></span>Domain 1
     </button>
-    <button class="nav-link" onclick="scrollTo('domain2')">
+    <button class="nav-link" onclick="scrollToSection('domain2')">
       <span class="nav-dot" style="background:var(--d2)"></span>Domain 2
     </button>
-    <button class="nav-link" onclick="scrollTo('domain3')">
+    <button class="nav-link" onclick="scrollToSection('domain3')">
       <span class="nav-dot" style="background:var(--d3)"></span>Domain 3
     </button>
-    <button class="nav-link" onclick="scrollTo('domain4')">
+    <button class="nav-link" onclick="scrollToSection('domain4')">
       <span class="nav-dot" style="background:var(--d4)"></span>Domain 4
     </button>
-    <button class="nav-link" onclick="scrollTo('domain5')">
+    <button class="nav-link" onclick="scrollToSection('domain5')">
       <span class="nav-dot" style="background:var(--d5)"></span>Domain 5
     </button>
-    <button class="nav-link" onclick="scrollTo('scenarios')">
+    <button class="nav-link" onclick="scrollToSection('scenarios')">
       <span class="nav-dot" style="background:#ffd93d"></span>Scenarios
     </button>
-    <button class="nav-link" onclick="scrollTo('tools')">
+    <button class="nav-link" onclick="scrollToSection('tools')">
       <span class="nav-dot" style="background:#6bcb77"></span>Tools
     </button>
-    <button class="nav-link" onclick="scrollTo('exams')">
+    <button class="nav-link" onclick="scrollToSection('exams')">
       <span class="nav-dot" style="background:#ff6b9d"></span>Mock Exams
     </button>
-    <button class="nav-link" onclick="scrollTo('examprep')">
+    <button class="nav-link" onclick="scrollToSection('examprep')">
       <span class="nav-dot" style="background:#c77dff"></span>Exam Prep
     </button>
   </div>
@@ -2722,7 +2722,7 @@ function updateActiveNav() {
 window.addEventListener('scroll', updateActiveNav, { passive: true });
 
 // ── Scroll to section ────────────────────────────────────────────────────
-function scrollTo(id) {
+function scrollToSection(id) {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
