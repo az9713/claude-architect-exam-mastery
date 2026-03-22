@@ -13,6 +13,10 @@
 
 A complete, self-contained study package covering **every task statement** in the Claude Certified Architect – Foundations exam. Built by a coordinated team of 5 AI agents that researched 13 official Anthropic sources and produced 47 files with 236+ unique practice questions.
 
+**Official Resources:**
+- [Become a Claude Certified Architect](https://anthropic.skilljar.com/claude-certified-architect-foundations-access-request) — Register for the exam
+- [Claude Certified Architect – Foundations Certification Exam Guide](https://everpath-course-content.s3-accelerate.amazonaws.com/instructor%2F8lsy243ftffjjy1cx9lm3o2bw%2Fpublic%2F1773274827%2FClaude+Certified+Architect+%E2%80%93+Foundations+Certification+Exam+Guide.pdf) — Official exam guide (PDF)
+
 **[Open the Interactive Study Hub](https://az9713.github.io/claude-architect-exam-mastery/)** — it links to every material, tracks your progress, and guides your study path.
 
 ---
@@ -293,7 +297,7 @@ claude-architect-exam-mastery/
 
 ## Disclaimer
 
-This is an **unofficial** study resource. It is not affiliated with, endorsed by, or produced by Anthropic. The materials are based on publicly available exam guide information and official Claude documentation. Always refer to the [official exam guide](https://www.anthropic.com) for the most current exam specifications.
+This is an **unofficial** study resource. It is not affiliated with, endorsed by, or produced by Anthropic. The materials are based on publicly available exam guide information and official Claude documentation. Always refer to the [official exam guide](https://everpath-course-content.s3-accelerate.amazonaws.com/instructor%2F8lsy243ftffjjy1cx9lm3o2bw%2Fpublic%2F1773274827%2FClaude+Certified+Architect+%E2%80%93+Foundations+Certification+Exam+Guide.pdf) for the most current exam specifications.
 
 ---
 
