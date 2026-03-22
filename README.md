@@ -2,10 +2,10 @@
 
 > **The most comprehensive, AI-generated study package for the Claude Certified Architect – Foundations exam.**
 
-[![Exam](https://img.shields.io/badge/Exam-Claude%20Certified%20Architect-blueviolet)]()
-[![Materials](https://img.shields.io/badge/Materials-47%20Files-green)]()
-[![Questions](https://img.shields.io/badge/Practice%20Questions-236%2B-orange)]()
-[![Coverage](https://img.shields.io/badge/Syllabus%20Coverage-100%25-brightgreen)]()
+![Exam](https://img.shields.io/badge/Exam-Claude%20Certified%20Architect-blueviolet)
+![Materials](https://img.shields.io/badge/Materials-47%20Files-green)
+![Questions](https://img.shields.io/badge/Practice%20Questions-236%2B-orange)
+![Coverage](https://img.shields.io/badge/Syllabus%20Coverage-100%25-brightgreen)
 
 ---
 
