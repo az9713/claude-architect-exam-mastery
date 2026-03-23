@@ -261,6 +261,53 @@ This isn't a hastily assembled collection — it was systematically engineered. 
 
 ---
 
+## How the Materials Were Revised
+
+After initial generation, all 47+ study artifacts underwent a rigorous revision process guided by three principles:
+
+### 1. Section-by-section syllabus alignment
+
+Every piece of content was audited against the [official exam guide](https://everpath-course-content.s3-accelerate.amazonaws.com/instructor%2F8lsy243ftffjjy1cx9lm3o2bw%2Fpublic%2F1773274827%2FClaude+Certified+Architect+%E2%80%93+Foundations+Certification+Exam+Guide.pdf)'s 27 task statements across 5 domains. Each task statement's "Knowledge of" and "Skills in" bullets became a checklist. Materials that missed a task statement were updated; content outside the exam scope was removed.
+
+### 2. Concepts and decision logic over code
+
+The exam is multiple-choice and tests architectural judgment — not coding ability. The original study notes were 45–70% code blocks (3,300+ lines of Python/JSON). These were replaced with:
+
+- **Decision tables** — "When X, use Y because Z" (the dominant exam question pattern)
+- **Comparison matrices** — hooks vs prompts, plan mode vs direct execution, batch vs sync API
+- **Anti-pattern explanations** — why each wrong answer fails, not just what the right answer is
+- **Conceptual pattern descriptions** — what a pattern does and when to choose it
+
+Code was retained only as short pseudocode (≤15 lines) where the structure itself is the tested concept (e.g., the agentic loop skeleton with `stop_reason` checks).
+
+### 3. Substantiated by official Anthropic documentation
+
+Every factual claim was verified against these official sources:
+
+| Source | What it provided |
+|--------|-----------------|
+| [Claude Code Documentation](https://code.claude.com/docs/en/overview.md) | CLAUDE.md hierarchy, hooks, skills, MCP, subagents, CLI flags, plan mode |
+| [Claude Code Docs Index](https://code.claude.com/docs/llms.txt) | Complete documentation structure and cross-references |
+| [Memory & CLAUDE.md](https://code.claude.com/docs/en/memory.md) | 4-level hierarchy, @import syntax, auto memory, /memory command, 200-line guidance |
+| [Hooks Reference](https://code.claude.com/docs/en/hooks.md) | PreToolUse/PostToolUse events, exit code 2 blocking, settings.json configuration, matcher patterns |
+| [Skills Documentation](https://code.claude.com/docs/en/skills.md) | Frontmatter fields (context:fork, allowed-tools, disable-model-invocation, user-invocable), scope hierarchy, commands merged into skills |
+| [Subagents Documentation](https://code.claude.com/docs/en/sub-agents.md) | Built-in types (Explore/Haiku, Plan, general-purpose), AgentDefinition fields, no-nesting constraint, foreground vs background |
+| [MCP Integration](https://code.claude.com/docs/en/mcp.md) | Project vs user scope, ${ENV_VAR} expansion, MCP resources vs tools, tool search |
+| [Headless / Agent SDK CLI](https://code.claude.com/docs/en/headless.md) | -p flag, --output-format json, --json-schema, --bare mode, --allowedTools, --append-system-prompt |
+| [Agent Skills Specification](https://agentskills.io/specification) | Open standard for SKILL.md format, frontmatter fields, directory structure |
+| [Claude Code Changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) | Task tool → Agent tool rename (v2.1.63), feature evolution |
+
+Key accuracy corrections made during revision:
+- `PreToolCall` → `PreToolUse` (official hook event name)
+- CLAUDE.md is loaded as **user messages**, not system prompt
+- CLAUDE.md content **survives `/compact`** (re-read from disk)
+- Subagents **cannot spawn other subagents** (no nesting)
+- Explore subagent uses **Haiku** model for cost efficiency
+- Added missing CLI flags: `--bare`, `--allowedTools`, `--append-system-prompt`, `--continue`
+- Added missing skill properties: `disable-model-invocation`, `user-invocable`
+
+---
+
 ## Quick Start
 
 1. **[Open the Interactive Study Hub](https://az9713.github.io/claude-architect-exam-mastery/)** — works directly in your browser, no download needed
