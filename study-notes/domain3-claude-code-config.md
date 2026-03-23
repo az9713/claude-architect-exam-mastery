@@ -6,38 +6,42 @@
 ## Task Statement 3.1: Configure CLAUDE.md files with appropriate hierarchy, scoping, and modular organization
 
 ### What You Need to Know
-- **CLAUDE.md hierarchy** (three levels, applied in order):
-  1. **User-level**: `~/.claude/CLAUDE.md` — applies to that user only, NOT shared via version control
-  2. **Project-level**: `.claude/CLAUDE.md` or root `CLAUDE.md` — committed to repo, shared with team
-  3. **Directory-level**: subdirectory `CLAUDE.md` files — apply only within that directory subtree
-- `@import` syntax for referencing external files to keep CLAUDE.md modular
+- **CLAUDE.md hierarchy** (four levels, applied in order):
+  1. **Managed policy**: `/Library/Application Support/ClaudeCode/CLAUDE.md` (macOS) or `/etc/claude-code/CLAUDE.md` (Linux) — organization-wide, managed by IT, CANNOT be excluded by users
+  2. **User-level**: `~/.claude/CLAUDE.md` — applies to that user only, NOT shared via version control
+  3. **Project-level**: `.claude/CLAUDE.md` or root `CLAUDE.md` — committed to repo, shared with team
+  4. **Directory-level**: subdirectory `CLAUDE.md` files — load on demand when Claude reads files in those subdirectories
+- `@import` syntax for referencing external files; supports relative paths (resolved from importing file), absolute paths, home directory paths (`@~/.claude/my-instructions.md`), and recursive imports (max 5 hops)
 - `.claude/rules/` directory for organizing topic-specific rule files as alternative to monolithic CLAUDE.md
+- CLAUDE.md files are loaded as **user messages**, not as system prompt — they are guidance Claude can follow, not enforced config. Use `--append-system-prompt` for system-prompt-level instructions
+- Target **under 200 lines** per CLAUDE.md — longer files reduce adherence
+- `claudeMdExcludes` setting skips irrelevant CLAUDE.md files in monorepos
+- `/init` command auto-generates a starting CLAUDE.md; set `CLAUDE_CODE_NEW_INIT=true` for interactive multi-phase generation
+- CLAUDE.md fully survives `/compact` — it is re-read from disk after compaction, not lost with conversation history
 
 ### What You Need to Be Able to Do
 - Diagnose configuration hierarchy issues (e.g., new team member not receiving instructions because they're in user-level, not project-level config)
 - Use `@import` to selectively include relevant standards files in each package's CLAUDE.md
 - Split large CLAUDE.md files into focused topic-specific files in `.claude/rules/` (e.g., `testing.md`, `api-conventions.md`, `deployment.md`)
-- Use `/memory` command to verify which memory files are loaded and diagnose inconsistent behavior
+- Use `/memory` command to verify which memory files are loaded, toggle auto memory, and diagnose inconsistent behavior
+- Recognize when to use `--append-system-prompt` (CI, enforced instructions) vs. CLAUDE.md (team guidance)
 
 ### Deep Dive
 
-**The Three-Level Hierarchy**
+**The Four-Level Hierarchy**
 
 ```
-Repository structure:
-├── CLAUDE.md                          # Project-level (or .claude/CLAUDE.md)
-│                                      # Committed to git; all developers get this
-├── ~/.claude/CLAUDE.md                # User-level (NOT in repo)
-│                                      # Personal settings; NOT shared with teammates
-├── packages/
-│   ├── backend/
-│   │   └── CLAUDE.md                  # Directory-level: backend-specific rules
-│   └── frontend/
-│       └── CLAUDE.md                  # Directory-level: frontend-specific rules
-└── standards/
-    ├── python-style.md
-    └── react-patterns.md
+/etc/claude-code/CLAUDE.md             # Managed policy (org-wide, IT-managed, cannot exclude)
+~/.claude/CLAUDE.md                    # User-level (NOT in repo; personal only)
+./CLAUDE.md  or  ./.claude/CLAUDE.md   # Project-level (committed to git; whole team)
+packages/backend/CLAUDE.md             # Directory-level (on demand when files read there)
+packages/frontend/CLAUDE.md            # Directory-level (on demand when files read there)
 ```
+
+Key loading behavior:
+- Managed policy always applies; users cannot skip it
+- Directory-level files load **on demand** (when Claude reads a file in that directory), not at session start
+- All levels merge additively; higher levels take precedence on conflicts
 
 **Common Hierarchy Diagnostic**
 
@@ -49,8 +53,14 @@ Repository structure:
   - Diagnosis: Some instructions are in user-level config
   - Use `/memory` to see which files are loaded for the current session
 
-- **Problem:** "Backend and frontend have different conventions; CLAUDE.md is huge"
-  - Fix: Use directory-level CLAUDE.md files per package with `@import`
+- **Problem:** "Backend and frontend have different conventions; CLAUDE.md is huge and adherence is slipping"
+  - Fix: Split into directory-level CLAUDE.md files per package with `@import`; keep each under 200 lines
+
+- **Problem:** "In a monorepo, a package's CLAUDE.md is loaded even when working in an unrelated package"
+  - Fix: Add that path to `claudeMdExcludes` in settings
+
+- **Problem:** "Instructions in CLAUDE.md are ignored after I use /compact"
+  - Clarification: This is a misconception — CLAUDE.md is re-read from disk after compaction; it is not lost
 
 **Modular Organization with `.claude/rules/`**
 
@@ -150,6 +160,22 @@ Summarize findings concisely for the main session.
 | **Context impact** | Always in context | Isolated when `context: fork` |
 | **Examples** | Coding style, framework preferences | `/review`, `/analyze`, `/document` |
 
+**Skill Invocation Control**
+
+The frontmatter fields `disable-model-invocation` and `user-invocable` control who can trigger a skill and when its description is loaded:
+
+| Frontmatter | User invokes? | Claude invokes? | Description loading |
+|---|---|---|---|
+| (default) | Yes | Yes | Description always loaded; full content on invocation |
+| `disable-model-invocation: true` | Yes | No | Description NOT loaded; full content only when user invokes |
+| `user-invocable: false` | No | Yes | Description always loaded; full content when Claude invokes |
+
+Key exam pattern: "Skill available to all devs on clone" → `.claude/commands/` or `.claude/skills/`. "Personal only" → `~/.claude/commands/` or `~/.claude/skills/`.
+
+**Commands and Skills Unified**
+
+Commands have been merged into skills — `.claude/commands/deploy.md` and `.claude/skills/deploy/SKILL.md` both create the `/deploy` command. Existing command files keep working without changes; skills are the recommended approach going forward because they support additional features (frontmatter fields, invocation control, `context: fork`).
+
 **Personal Skill Customization**
 
 Create a personal variant in `~/.claude/skills/` using a different name — this ensures teammates are not affected by personal preference changes to team skills.
@@ -199,6 +225,10 @@ Use Jest with React Testing Library for all frontend tests.
 ```
 
 The same pattern applies for Terraform, API routes, migration files, and any other file-type convention that spans multiple directories.
+
+**Unconditional vs. Path-Scoped Loading**
+
+Rules files in `.claude/rules/` without a `paths` field load unconditionally at session launch — they behave identically to content in `.claude/CLAUDE.md`. Only rules files with a `paths` frontmatter field are conditional. Path-scoped rules trigger when Claude reads files matching the glob pattern, not on every tool use — so a rule scoped to `**/*.test.tsx` activates the first time Claude opens a test file, not when it runs Bash or edits a source file.
 
 **Path-Specific vs. Directory CLAUDE.md**
 
@@ -258,6 +288,16 @@ Examples:
   → "Add email format validation to the registration form" — direct execution
   → "Update the API timeout from 5s to 10s" — direct execution
 ```
+
+**Built-in Subagent Types**
+
+| Subagent | Model | Tools Available | Primary Use |
+|---|---|---|---|
+| Explore | Haiku (fast, lightweight) | Read-only (Read, Grep, Glob) | File discovery and codebase search |
+| Plan | Inherits main model | Read-only | Research and investigation during plan mode |
+| general-purpose | Inherits main model | All tools | Complex multi-step tasks requiring writes or Bash |
+
+The Explore subagent's Haiku model and read-only constraint make it safe and cheap for high-volume discovery. The general-purpose subagent gets the full tool set but should only be spawned when write operations or shell commands are actually needed.
 
 **The Explore Subagent Pattern**
 
@@ -356,7 +396,10 @@ Developer answers ground the implementation in actual requirements. Without the 
 
 ### What You Need to Know
 - `-p` (or `--print`) flag: runs Claude Code in **non-interactive mode** — essential for automated pipelines (prevents hanging waiting for input)
-- `--output-format json` with `--json-schema`: enforces structured output for machine-parseable CI findings
+- `--output-format json`: structured JSON response with result, session ID, and metadata; combine with `--json-schema` to enforce a schema (result appears in `structured_output` field)
+- `--bare`: skips hooks, skills, plugins, MCP servers, auto memory, and CLAUDE.md loading — produces identical results on every machine regardless of local configuration; use for reproducible CI baselines
+- `--allowedTools`: auto-approves specific tools in CI without interactive prompts (uses permission rule syntax, e.g., `--allowedTools Bash(git:*)`)
+- `--append-system-prompt`: adds CI-specific instructions at the system prompt level — unlike CLAUDE.md (user message), this cannot be overridden by model behavior
 - **CLAUDE.md** provides project context (testing standards, fixture conventions, review criteria) to CI-invoked Claude Code
 - **Session context isolation**: same Claude session that generated code is less effective at reviewing its own changes — use independent review instances
 
@@ -400,6 +443,8 @@ When a developer pushes fixes after an initial review, include the prior review 
 
 Each review should use an independent Claude Code invocation with no shared session context from the code generation step. A session that generated the code retains its own reasoning, making it less likely to question its own decisions. Independent review instances produce more objective findings.
 
+The correct CI pattern for generation + review is two separate `claude -p` invocations. The reviewer receives only the generated code as input — it has no access to the generator's intermediate reasoning, chain-of-thought, or design decisions. Use `--append-system-prompt "You have no context about how this code was written. Review it purely on its merits."` to reinforce isolation at the system prompt level.
+
 **CLAUDE.md for CI Context**
 
 The project-level CLAUDE.md provides context to CI-invoked Claude Code. Key sections for CI:
@@ -437,7 +482,10 @@ The project-level CLAUDE.md provides context to CI-invoked Claude Code. Key sect
 | Direct execution | Immediate implementation | Use for clear, bounded, single-file changes |
 | Explore subagent | Isolates verbose discovery output | Returns summary; preserves main context |
 | `-p` flag | Non-interactive (print) mode | Required for CI/CD pipeline use |
-| `--output-format json` | Structured JSON output mode | Machine-parseable; combine with `--json-schema` |
+| `--output-format json` | Structured JSON output mode | Machine-parseable; combine with `--json-schema` for schema-enforced output |
+| `--bare` | Skips hooks, skills, MCP, CLAUDE.md | Reproducible CI baselines; identical output on any machine |
+| `--allowedTools` | Auto-approves named tools in CI | Prevents interactive permission prompts in pipelines |
+| `--append-system-prompt` | Adds CI instructions at system prompt level | Stronger than CLAUDE.md (user message); cannot be overridden |
 | `/memory` command | Shows which memory files are currently loaded | Diagnoses inconsistent configuration behavior |
 | Interview pattern | Claude asks questions before implementing | Surfaces unstated requirements in unfamiliar domains |
 | Test-driven iteration | Write tests first; iterate by sharing failures | Most effective for precise behavioral specification |
@@ -483,6 +531,7 @@ The project-level CLAUDE.md provides context to CI-invoked Claude Code. Key sect
 
 1. **CLAUDE.md hierarchy**: user-level (`~/.claude/CLAUDE.md`) is personal/not-shared; project-level (`.claude/CLAUDE.md`) is team-wide via version control.
 2. **`context: fork` in skills** isolates verbose skill output — use it for any skill generating more output than needed in the main session.
-3. **Path-scoped rules** in `.claude/rules/` with `paths:` YAML frontmatter are better than directory CLAUDE.md for file-type conventions spanning multiple directories.
-4. **`-p` flag** is required for non-interactive CI use — without it, Claude Code hangs waiting for input.
-5. **Plan mode** = architectural/multi-file complexity; **direct execution** = clear, bounded, single-file tasks. The Explore subagent prevents verbose discovery from filling the main context.
+3. **Path-scoped rules** in `.claude/rules/` with `paths:` YAML frontmatter are better than directory CLAUDE.md for file-type conventions spanning multiple directories. Rules without a `paths` field load unconditionally at launch.
+4. **`-p` flag** is required for non-interactive CI use. `--bare` skips all local config for reproducible baselines. `--allowedTools` prevents permission prompts.
+5. **Plan mode** = architectural/multi-file complexity; **direct execution** = clear, bounded, single-file tasks. Explore subagent uses Haiku + read-only tools for cheap discovery.
+6. **Two separate `claude -p` invocations** for generate + review — the reviewer must have no access to the generator's reasoning to produce objective findings.

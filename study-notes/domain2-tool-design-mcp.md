@@ -25,12 +25,17 @@ When Claude encounters multiple tools with similar names or scopes, the tool des
 
 **Poor description:** `"Retrieves customer information"` — gives the model nothing to distinguish `get_customer` from `lookup_order` when both accept identifier inputs.
 
-**Strong description structure (5 elements):**
+**Strong description structure (6 elements):**
 1. What the tool does (one sentence)
 2. Input formats accepted — specify accepted identifier formats (e.g., CUST-XXXXX vs ORD-XXXXX)
-3. Example queries that should trigger it
-4. What it does NOT handle (boundary cases)
-5. When to use it versus similar tools — require prerequisite steps (e.g., customer must be verified via `get_customer` before calling `lookup_order`), and state what the tool returns.
+3. What the tool RETURNS — format, structure, and data shape of the output (e.g., "returns a JSON object with fields: `orderId`, `status`, `lineItems`")
+4. Example queries that should trigger it
+5. What it does NOT handle (boundary cases)
+6. When to use it versus similar tools — require prerequisite steps (e.g., customer must be verified via `get_customer` before calling `lookup_order`)
+
+**MCP Tools Must Outcompete Built-in Tools**
+
+In systems where both built-in tools (Grep, Read, Glob) and MCP tools coexist, Claude defaults to familiar built-in tools unless the MCP tool description explicitly explains its advantage. An MCP `semantic_code_search` tool with a minimal description will lose to Grep every time. The MCP description must clarify: what it returns, why it outperforms the built-in alternative, and what query patterns it handles that Grep cannot.
 
 **Splitting Generic Tools**
 
@@ -60,14 +65,18 @@ Before: one `analyze_document` tool forces the model to interpret what kind of a
 
 ### Deep Dive
 
-**The Four Error Categories**
+**The `isError` Flag in the MCP Protocol**
 
-| Error Category | Example | isRetryable | Agent Action |
+`isError` is part of the `tool_result` content block — it is the standard MCP mechanism for communicating tool failures back through the protocol. Setting `isError: true` signals to the calling agent that the tool call did not succeed, without throwing an exception or collapsing the conversation. The payload alongside it (`errorCategory`, `isRetryable`, etc.) is what drives intelligent recovery. Without `isError: true`, the agent has no way to distinguish a failure from a valid empty result.
+
+**The Four Error Categories and Recovery Strategies**
+
+| Error Category | Example | isRetryable | Agent Recovery Strategy |
 |---|---|---|---|
-| Transient | Database timeout | Yes | Retry after backoff |
-| Validation | Invalid order ID format | No | Ask customer to confirm |
-| Business | Refund exceeds $500 limit | No | Escalate to supervisor |
-| Permission | Lacks VIP account access | No | Escalate to senior agent |
+| Transient | Database timeout | Yes | Retry with exponential backoff (max 2 attempts locally); propagate if still failing |
+| Validation | Invalid order ID format | No | Stop, surface the input error to the user for correction |
+| Business | Refund exceeds $500 limit | No | Escalate to supervisor; include rule violated in propagated message |
+| Permission | Lacks VIP account access | No | Escalate to senior agent; do not retry under current credentials |
 
 All errors use `isError: true` in the MCP response, with a payload containing `errorCategory`, `isRetryable`, `description`, and `suggestion`.
 
@@ -93,6 +102,8 @@ Subagents handle transient errors locally — retry with exponential backoff up 
 - Too many tools (e.g., 18 instead of 4–5) **degrades tool selection reliability** by increasing decision complexity
 - Agents with out-of-scope tools tend to misuse them (e.g., a synthesis agent attempting web searches)
 - Scoped tool access: give agents only the tools needed for their role
+- Subagent frontmatter fields: `tools` (allowlist) and `disallowedTools` (denylist) — when both are set, `disallowedTools` is applied first, then `tools` is resolved against the remaining pool
+- `Agent(agent_type)` syntax in a `tools` list restricts which subagent types can be spawned (e.g., `tools: [Agent(worker), Agent(researcher), Read, Bash]`)
 - `tool_choice` options: `"auto"` (model may return text), `"any"` (model must call a tool), `{"type": "tool", "name": "..."}` (forced specific tool)
 
 ### What You Need to Be Able to Do
@@ -115,13 +126,24 @@ In a multi-agent research system, each agent receives only the tools for its rol
 
 > **Anti-Pattern Alert:** Loading all 12+ tools onto a single agent or giving every agent the full toolkit is the wrong answer. Cross-role tools should be scoped and constrained (like `verify_fact`), not the full search or analysis toolkit.
 
+**Frontmatter Tool Control Fields**
+
+`tools` is an allowlist — only listed tools are available to the subagent. `disallowedTools` is a denylist — listed tools are blocked even if they would otherwise be available. When both appear in the same frontmatter, the denylist is applied first to the full tool pool, and the allowlist is then resolved against what remains. `Agent(type)` entries in `tools` restrict which subagent types can be spawned — only the named types are permitted, preventing a subagent from spawning arbitrary agent types.
+
 **tool_choice Configuration**
+
+**When to use each setting:**
+- `"auto"`: Default. Model may call a tool OR return text. Use when conversational responses are acceptable alongside tool use.
+- `"any"`: Model MUST call a tool but chooses which. Use when guaranteed structured output is required and multiple extraction schemas are valid (e.g., unknown document type where any schema is correct).
+- `{"type": "tool", "name": "X"}`: Model MUST call this specific tool. Use when a specific extraction must happen before subsequent enrichment steps (e.g., force `extract_metadata` first, then enrich in follow-up turns).
+
+Key exam pattern: "Guaranteed structured output with unknown document type" → `"any"`. "Specific extraction must run first" → forced. "May respond conversationally" → `"auto"`.
 
 | Setting | Syntax | When to Use |
 |---|---|---|
-| `"auto"` | `tool_choice: {"type": "auto"}` | Model may respond conversationally; tool call is optional |
-| `"any"` | `tool_choice: {"type": "any"}` | Must call a tool; model picks which one |
-| Forced | `tool_choice: {"type": "tool", "name": "X"}` | Must call this specific tool first; follow-up turns handle remaining steps |
+| `"auto"` | `tool_choice: {"type": "auto"}` | Conversational responses are acceptable; tool call is optional |
+| `"any"` | `tool_choice: {"type": "any"}` | Structured output required; model picks which tool; multiple valid schemas |
+| Forced | `tool_choice: {"type": "tool", "name": "X"}` | Specific tool must run first; step ordering is critical; follow-up turns handle remaining steps |
 
 **Constrained Tool Replacement**
 
@@ -138,23 +160,45 @@ Replace the generic `fetch_url` (accepts any URL) with `load_document`, which va
 ## Task Statement 2.4: Integrate MCP servers into Claude Code and agent workflows
 
 ### What You Need to Know
-- MCP server scoping: **project-level** (`.mcp.json`) for shared team tooling vs **user-level** (`~/.claude.json`) for personal/experimental servers
+- MCP server scoping has **three levels**, with a defined override hierarchy:
+  1. **Local scope** — `claude mcp add --local`, stored in `.claude/mcp.json` (NOT `.mcp.json`), current directory only, not committed
+  2. **Project scope** — `.mcp.json` in the project root, committed to version control, shared with the team
+  3. **User scope** — `~/.claude.json`, personal, applies across all projects
+- Scope override order: **local > project > user** (local overrides project, project overrides user)
 - Environment variable expansion in `.mcp.json` (e.g., `${GITHUB_TOKEN}`) for credential management without committing secrets
-- All configured MCP server tools are discovered at connection time and available simultaneously
+- MCP servers can be scoped to specific subagents using the `mcpServers` field in subagent frontmatter — entries can be inline definitions (new server config) or string references (reuse an existing named server)
+- **MCP Tool Search (deferred tool loading):** for servers with large numbers of tools, tools are discovered lazily rather than all at connection time — reduces startup overhead
+- **MCP prompts** can be surfaced as slash commands inside Claude Code
+- **Dynamic tool updates:** MCP tools can change at runtime; the agent reflects the updated set without reconnecting
+- **Push messages via channels:** MCP servers can push messages to the agent proactively through channels
+- **Managed MCP configuration:** enterprise deployments can enforce allowlists/denylists on MCP servers centrally
 - **MCP resources** expose content catalogs (issue summaries, documentation hierarchies, database schemas) to reduce exploratory tool calls
 
 ### What You Need to Be Able to Do
 - Configure shared MCP servers in project-scoped `.mcp.json` with environment variable expansion for authentication tokens
 - Configure personal/experimental MCP servers in user-scoped `~/.claude.json`
+- Configure directory-local MCP servers using `claude mcp add --local` (stored in `.claude/mcp.json`)
+- Apply the correct scope given a scenario: local (current dir only, not committed), project (team-shared, committed), user (personal, all projects)
+- Scope an MCP server to a specific subagent using the `mcpServers` field in that subagent's frontmatter
 - Enhance MCP tool descriptions to explain capabilities, preventing the agent from preferring built-in tools (like `Grep`) over more capable MCP tools
 - Choose existing community MCP servers over custom implementations for standard integrations (e.g., Jira)
 - Expose content catalogs as MCP resources to give agents visibility into available data without exploratory tool calls
 
 ### Deep Dive
 
-**Project vs. User-Level MCP Configuration**
+**Three-Scope MCP Configuration**
 
-`.mcp.json` is committed to version control and shared with the team. Credentials are never hardcoded — they use `${ENV_VAR}` expansion:
+| Scope | File Location | Committed? | Applies To | Added Via |
+|---|---|---|---|---|
+| Local | `.claude/mcp.json` | No | Current directory only | `claude mcp add --local` |
+| Project | `.mcp.json` (project root) | Yes | All team members on this project | Edit file directly |
+| User | `~/.claude.json` | No | All projects for this user | `claude mcp add` (no flag) |
+
+Override order: **local > project > user**. A local server definition shadows a project-level server with the same name.
+
+Key scoping decision: "Team uses same tools" → `.mcp.json` (project-level, committed). "Personal experimental server" → `~/.claude.json` (user-level, not committed).
+
+Never hardcode API tokens in `.mcp.json` — always use `${ENV_VAR}` expansion for credentials:
 
 ```json
 {
@@ -168,7 +212,9 @@ Replace the generic `fetch_url` (accepts any URL) with `load_document`, which va
 }
 ```
 
-`~/.claude.json` is the user-level config file (not committed, not shared) used for personal or experimental MCP servers that should not appear in the team's project configuration.
+**Subagent-Scoped MCP Servers**
+
+The `mcpServers` field in a subagent's frontmatter restricts which MCP servers that subagent can access. Entries can be string references (reuse an already-configured server by name) or inline definitions (a new server configuration just for this subagent). This prevents a restricted subagent from calling MCP tools that belong to a different role.
 
 **When to Use Community vs. Custom MCP Servers**
 
@@ -196,6 +242,8 @@ Without resources, the agent must make exploratory tool calls to discover what d
 ```
 
 Resources reduce exploratory tool calls by giving agents upfront visibility into what data is available before they decide what to query.
+
+**Resources vs. Tools distinction:** MCP resources are read-only structured data catalogs — they expose content for the agent to consult (issue summaries, database schemas, documentation). MCP tools are for actions — they execute operations, query live data, or trigger side effects. Resources are consumed passively; tools are invoked actively.
 
 **Enhancing MCP Tool Descriptions**
 
@@ -230,16 +278,12 @@ The `semantic_code_search` description must explicitly distinguish it from `Grep
 **Tool Selection Decision Tree**
 
 ```
-Need to find files?
-  ├─ By name/path pattern → Glob  (e.g., **/*.test.tsx, src/api/*.ts)
-  └─ By content → Grep  (e.g., all files importing 'useAuth')
-
-Need to work with file content?
-  ├─ Read full file → Read
-  ├─ Make targeted change → Edit (if anchor text is unique)
-  └─ Edit fails (non-unique anchor) → Read then Write
-
-Need system operations? → Bash
+Need to find files by name/path? → Glob  (e.g., **/*.test.tsx, src/api/*.ts)
+Need to search file contents? → Grep  (e.g., all files importing 'useAuth')
+Need to read full file? → Read
+Need targeted edit with unique anchor? → Edit
+Edit fails (non-unique anchor)? → Read + Write
+Need to run shell command? → Bash
 ```
 
 **Built-in Tool Quick Reference**

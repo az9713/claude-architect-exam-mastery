@@ -166,6 +166,17 @@ The overriding principle demonstrated by all four examples: **never fabricate**.
 
 ### Deep Dive
 
+**tool_choice Decision Table**
+
+| Scenario | `tool_choice` | Why |
+|---|---|---|
+| Agent may need to respond conversationally | `"auto"` | Allows text fallback; model may skip the tool entirely |
+| Multiple extraction schemas, unknown document type | `"any"` | Forces a tool call; model picks which schema fits |
+| Metadata must be extracted before enrichment | `{"type": "tool", "name": "extract_metadata"}` | Guarantees ordering; specific tool runs first |
+| Single schema, guaranteed structured output | `"any"` or forced | Either works; forced is marginally more explicit |
+
+The distinction between `"auto"` and `"any"` is the most common exam trap. `"auto"` means the model may return plain text — use it only when a conversational fallback is acceptable. `"any"` guarantees a tool is called but leaves the choice of tool to the model — use it when you have multiple schemas and do not know which applies.
+
 **Tool Use for Structured Extraction**
 
 The schema below illustrates the three key design patterns in a single tool definition: a required string field, a nullable field (data may be absent), and an enum-with-other field (extensible category). In production the `required` list and `tool_choice` setting enforce that the model always calls the tool and always returns a schema-compliant object.
@@ -197,6 +208,8 @@ tool_choice = {"type": "tool", "name": "extract_invoice"}
 
 **Nullable Fields to Prevent Hallucination**
 
+When a JSON schema field is `required` but the source document may not contain that information, the model is forced to fabricate a value — it has no other valid option. Making the field nullable with `["string", "null"]` gives the model an honest "not found" option. This is the primary anti-hallucination technique for structured extraction.
+
 A field typed `"type": "string"` forces the model to provide a value — so when the field is absent from the source document, the model fabricates a plausible-sounding one. Typing it `"type": ["string", "null"]` lets the model honestly report absence with `null` instead of inventing data. Apply this pattern to every field that may not appear in every document.
 
 **Enum with "other" Pattern**
@@ -214,9 +227,11 @@ Without `"other"`, a closed enum forces the model to pick the closest category f
 
 **Syntax vs. Semantic Errors**
 
-`tool_use` with a JSON schema eliminates syntax errors: unclosed braces, missing quotes, invalid JSON, wrong field types. The model cannot return a response that violates the schema.
+`tool_use` eliminates JSON syntax errors — bad braces, missing quotes, wrong types, invalid JSON structure. The model cannot return a response that violates the schema.
 
-`tool_use` does NOT eliminate semantic errors. These require additional validation logic applied after extraction:
+`tool_use` does NOT eliminate semantic errors — line items that do not sum to the stated total, dates placed in wrong fields, a discount rate exceeding 100%. Semantic errors require separate validation logic applied after extraction. These two categories are tested as distinct concepts: schema enforces structure; your code enforces meaning.
+
+Examples of semantic errors that require post-extraction validation:
 
 - Line items do not sum to the stated total
 - Invoice date is implausibly far in the future
@@ -257,6 +272,22 @@ The retry-with-feedback loop follows five steps:
 3. **Return on success** — if no errors, return the result immediately.
 4. **Build retry message on failure** — append to the conversation: the assistant's previous tool call, then a user message containing (a) the specific validation errors, (b) the original document, and (c) the previous extraction. Do NOT simply say "try again."
 5. **Repeat up to max_retries** — after exhausting retries, return the best available result with errors flagged for human review.
+
+**Retry Decision Logic**
+
+The core question before retrying: is the required data actually present in the document?
+
+**When retry WILL help** — the data exists but the extraction went wrong:
+- Format mismatches (date present but in wrong format; model just needs format guidance)
+- Arithmetic errors (line items are in the document; model miscalculated the sum)
+- Field placement errors (value is in the document but placed in wrong field)
+
+**When retry is WASTEFUL** — the data does not exist and cannot be produced by re-reading:
+- Information simply absent from the document (field not mentioned anywhere)
+- Document type mismatch (not the expected document type; retrying the same document won't change what it contains)
+- Validation requires external data not provided (purchase order not included in the request)
+
+The retry message must include: specific validation errors describing exactly what failed + the original document + the previous failed extraction. "Please try again" or "be more careful" does not help — it gives the model no new information to act on.
 
 **When to Retry vs. When to Stop**
 
@@ -314,20 +345,18 @@ When `conflict_detected` is true, route directly to human review rather than ret
 
 **Batch API Use Case Decision**
 
-```
-Question: Does this workflow BLOCK something waiting for the result?
+The key question is not "is this a large workload?" — it is: does this workflow block something waiting for the result?
 
-YES → Use synchronous API
-  - Pre-merge code reviews (developer waiting for merge permission)
-  - Real-time customer support responses
-  - Interactive extraction during user sessions
+| Workflow | Blocks? | Correct API | Why |
+|---|---|---|---|
+| Pre-merge code review | YES — developer waits | Synchronous | 24h window is unacceptable |
+| Real-time customer support | YES — customer waits | Synchronous | Response must be immediate |
+| Interactive extraction during user session | YES — user waits | Synchronous | Latency directly visible |
+| Nightly test generation | NO — runs overnight | Batch | Non-blocking; 50% savings |
+| Weekly compliance audit | NO — report due next day | Batch | Non-blocking; tolerates hours |
+| Monthly re-extraction of historical records | NO — no urgency | Batch | Non-blocking; 50% savings |
 
-NO → Consider batch API (50% savings, up to 24h)
-  - Nightly test generation for new code committed that day
-  - Weekly compliance audit of documentation
-  - Monthly batch re-extraction of historical records
-  - Overnight bulk document processing
-```
+Key facts to memorize: **50% cost savings**, **up to 24-hour processing**, **no guaranteed latency SLA**, **no multi-turn tool calling** within a single batch request, **`custom_id`** is the only way to correlate responses to source documents (responses are not returned in submission order).
 
 **Batch API Request Structure**
 
@@ -390,6 +419,12 @@ Always test a new prompt on a stratified sample of 30–50 documents (covering d
 - Run verification passes where the model self-reports confidence alongside each finding for calibrated review routing
 
 ### Deep Dive
+
+**Why Self-Review Fails**
+
+The generating session retains its reasoning context — it already decided its code was correct, made specific design choices, and resolved specific ambiguities in a particular way. Asking it to self-review in the same session is asking it to question decisions it just made with full confidence. It cannot approach its own output as a stranger. An independent review instance starts fresh with no generation bias: it sees only the code, has no memory of why choices were made, and reviews as if encountering the code for the first time.
+
+This is the precise reason "add a self-review instruction" is always the wrong answer on the exam when an independent instance is an option.
 
 **Independent Review Instance Pattern**
 
@@ -459,12 +494,12 @@ Each finding includes `severity` (`critical/high/medium/low`), `confidence` (`hi
 
 ### Which tool_choice setting?
 
-| Scenario | Setting |
-|----------|---------|
-| Model may need to answer conversationally | `"auto"` |
-| Multiple extraction schemas, unknown document type | `"any"` |
-| Specific extraction must run first (ordered pipeline) | `{"type": "tool", "name": "X"}` |
-| One extraction schema, must use it | `{"type": "tool", "name": "X"}` |
+| Scenario | Setting | Key Reason |
+|----------|---------|------------|
+| Model may need to answer conversationally | `"auto"` | Text fallback is acceptable |
+| Multiple extraction schemas, unknown document type | `"any"` | Forces a tool call; model picks which schema fits |
+| Specific extraction must run first (ordered pipeline) | `{"type": "tool", "name": "X"}` | Guarantees ordering |
+| One extraction schema, must use it | `{"type": "tool", "name": "X"}` | Explicit; `"any"` also works |
 
 ### Synchronous API vs. Batch API?
 

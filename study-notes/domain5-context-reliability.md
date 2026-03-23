@@ -89,6 +89,22 @@ When aggregating multiple agent results, structure the prompt to exploit model a
 
 ### Deep Dive
 
+**Escalation Trigger Decision Table**
+
+| Situation | Action | Reasoning |
+|---|---|---|
+| Customer explicitly says "I want a human" | Escalate IMMEDIATELY | Do NOT investigate first; honoring the request builds trust |
+| Policy gap (request not covered by policy) | Escalate with context | Agent cannot make policy exceptions |
+| Cannot make progress after 3+ attempts | Escalate with summary of attempts | Continued failure frustrates; escalation unblocks |
+| Customer is frustrated or angry | Offer resolution first | Frustration does not equal complexity; resolve if within capability |
+| Agent is uncertain | Attempt with stated uncertainty | Uncertainty is not an escalation trigger |
+| Self-reported confidence is low | Attempt resolution | Confidence is poorly calibrated; already wrong on hard cases with high confidence |
+
+**Three WRONG answers on exam:**
+1. Sentiment-based escalation — an angry customer with a simple problem should be resolved by the agent.
+2. Confidence-based escalation — model confidence does not indicate case complexity.
+3. "Investigate first, then offer escalation" when the customer has already explicitly asked for a human — this is the most frequently tested wrong answer. Explicit request = escalate immediately, no investigation.
+
 **The Three Escalation Triggers (with examples)**
 
 #### Trigger 1: Explicit human request → ESCALATE IMMEDIATELY
@@ -179,7 +195,16 @@ A structured error response enables intelligent coordinator recovery. Key fields
 
 **Access Failure vs. Empty Result Distinction**
 
-See Task 2.2. Same principle: `[]` with `success: true` = no data found (not an error). Exception with `success: false` = access failure (retryable). Explicitly flag `isEmptyResult: true` so the coordinator does not retry a query that completed successfully.
+These two outcomes must be explicitly distinguished in every tool response. Conflating them causes the coordinator to retry successful empty searches (waste) or silently drop real access failures (missed errors).
+
+| Response | Meaning | Correct coordinator action |
+|---|---|---|
+| `[]` with `success: true` | Query executed; no records found | Tell customer "no orders found." NOT an error. Do NOT retry. |
+| `None` / exception with `success: false` | Access failure — tool could not execute | Flag `isRetryable: true`; consider retry or escalate |
+
+The fix: every tool response must explicitly set `isEmptyResult: true` when the query completed successfully but returned no records. This single boolean is what separates a correctly-handled "nothing found" from an access failure requiring retry or escalation.
+
+See Task 2.2 for the same principle applied at the individual tool level.
 
 **Coverage Annotations in Synthesis Output**
 
@@ -228,6 +253,15 @@ The main agent spawns an Explore subagent for each investigation task (e.g., "ma
 
 The main agent's context stays clean: it only sees summaries, not the 50+ file reads the subagent performed. This allows the main agent to coordinate across many investigation phases without its context filling with raw tool output.
 
+**The `/compact` Command and Instruction Persistence**
+
+The `/compact` command reduces context usage during extended sessions by condensing accumulated tool output and conversation history. Two important rules about what survives compaction:
+
+- **CLAUDE.md survives compaction** — it is re-read from disk after compaction. Instructions, project context, and agent rules placed in CLAUDE.md are always available regardless of how many times `/compact` is run.
+- **Conversation-only instructions do NOT survive compaction** — instructions given only in the chat or system prompt during the session are gone after compaction. Any instruction that must persist across compaction events must be written to CLAUDE.md, not left only in the conversation.
+
+This distinction matters for agent design: behavioral rules and persistent context belong in CLAUDE.md; ephemeral task instructions can remain in the conversation.
+
 **Crash Recovery with Manifests**
 
 Each agent periodically exports its current state — completed work, pending work, and partial results — to a known location (e.g., `.agent_workspace/manifest.json`). When an agent finishes, it updates its manifest entry to `"status": "complete"`.
@@ -260,6 +294,8 @@ On crash recovery, the coordinator loads the manifest and inspects which agents 
 
 **Why Aggregate Metrics Are Insufficient**
 
+A system with 97% overall accuracy may have 99.5% accuracy on standard invoices but 68% accuracy on non-English invoices. The 97% aggregate masks that one segment has a 32% error rate. Reducing human review based on the aggregate number means accepting a 1-in-3 failure rate on an entire document class.
+
 ```
 Scenario: Invoice extraction system, 97% overall accuracy
 
@@ -269,13 +305,13 @@ Reality by segment:
   Standard invoices: 99.5% accuracy ✓
   Multi-currency invoices: 94% accuracy — acceptable?
   Handwritten invoices: 71% accuracy ✗
-  Non-English invoices: 68% accuracy ✗
+  Non-English invoices: 68% accuracy ✗  ← 32% error rate hidden by aggregate
 
 Decision: The 97% aggregate masks that two document types
 need human review or prompt improvement before automation.
 
 Rule: Never reduce human review based on aggregate accuracy alone.
-      Segment by: document type, field, complexity level.
+      Segment by: document type AND field before making automation decisions.
 ```
 
 **Stratified Random Sampling**
@@ -352,11 +388,13 @@ The final report is structured in sections: well-established findings (high conf
 
 **Handling Conflicting Statistics**
 
-| Situation | Resolution | Action |
+| Situation | Action | NEVER do |
 |---|---|---|
-| Sources have different measurement/publication dates | `temporal_difference` | Present both values with their dates; explain market/metric changed over time |
-| Same-date credible sources give different values | `genuine_conflict` | Annotate both values with source attribution; flag `requiresCoordinatorDecision: true` |
-| Either case | Never silently select one | The synthesis agent must not choose — pass both values up to the coordinator or human |
+| Source A: $200B, Source B: $500B (different dates) | Flag as temporal difference; present both values with their dates | Silently pick one value |
+| Source A: 30%, Source B: 12% (same date, credible sources) | Annotate both with full source attribution; flag `requiresCoordinatorDecision: true` | Let synthesis agent choose |
+| Either source is missing a publication date | Require subagents to include dates before synthesis; flag ambiguity | Assume it is a contradiction |
+
+The synthesis agent's role is to surface conflicts, not resolve them. Resolving a conflict requires judgment about source credibility — that judgment belongs to the coordinator or a human reviewer, not the synthesis step.
 
 **Temporal Data Requirements**
 

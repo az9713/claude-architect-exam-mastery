@@ -34,6 +34,7 @@
 - **Tool results are appended to conversation history** — not sent separately. Each tool result becomes a new message in the ongoing `messages` array, preserving the full reasoning chain so the model can incorporate new information at each iteration.
 - **Model-driven decision-making** means Claude reasons about which tool to call next based on accumulated context. This is fundamentally different from **pre-configured decision trees** or hard-coded tool sequences where the orchestrating code determines what runs next based on business logic.
 - The two valid `stop_reason` values that matter for agentic loops are `"tool_use"` (continue) and `"end_turn"` (stop). Other values like `"max_tokens"` or `"stop_sequence"` indicate edge conditions that require separate handling.
+- Claude can emit **both a text block and one or more tool_use blocks in the same response**. The presence of a text block does NOT mean the loop should end — only `stop_reason == "end_turn"` means that.
 
 ---
 
@@ -75,6 +76,17 @@ while True:
     else:
         raise RuntimeError(f"Unexpected stop_reason: {response.stop_reason}")
 ```
+
+#### stop_reason Decision Table
+
+| stop_reason | Loop action | Notes |
+|---|---|---|
+| `"tool_use"` | Continue — execute tools and loop | Claude wants to invoke one or more tools |
+| `"end_turn"` | Terminate — task is complete | The only correct primary termination signal |
+| `"max_tokens"` | Handle as edge condition | Response was cut off; may need to resume or raise an error |
+| `"stop_sequence"` | Handle as edge condition | A custom stop sequence was hit; context-dependent handling |
+
+Only the first two values drive normal loop control flow.
 
 #### Why Conversation History Is the Memory Layer
 
@@ -139,6 +151,8 @@ The correct answer will always be the one that uses `stop_reason == "end_turn"` 
 - **Coordinator responsibilities**: Task decomposition (breaking a complex query into manageable pieces), delegation (selecting and invoking the right subagents), result aggregation (combining subagent outputs into a coherent whole), and adaptive routing (deciding which subagents are needed for a given query vs always running the full pipeline).
 - **Risk of overly narrow task decomposition**: If the coordinator assigns each subagent too small a slice of the topic, gaps appear in coverage. For example, assigning "only search for papers published after 2020" to a search subagent may miss foundational work that is essential for context.
 - The coordinator is itself an agentic loop — it calls subagents via tool calls (Task/Agent tool), receives results, and reasons about next steps.
+- **Subagents vs agent teams**: The exam primarily tests the coordinator-subagent pattern (multiple agents within a single orchestrated session). "Agent teams" is a distinct concept in official docs — multiple independent sessions communicating via shared tasks. Know the distinction but expect exam questions to focus on subagent patterns.
+- **Dynamic routing rule**: The coordinator should analyze the query's requirements — recency needs, attached documents, desired output format — **before** invoking any subagents. Routing decisions made after subagent invocations have already started waste resources and cannot be undone.
 
 ---
 
@@ -239,11 +253,43 @@ Questions on this task statement frequently present a multi-agent architecture a
 
 ### What You Need to Know
 
-- The **Task tool** (also referred to as the Agent tool) is the mechanism for spawning subagents. For a coordinator to invoke subagents, `"Task"` (or `"Agent"`) must be included in `allowedTools` for the coordinator's configuration.
+- The **Task tool** (also called the Agent tool — renamed in v2.1.63; both names remain valid as aliases; the exam guide uses "Task tool" as the primary name) is the mechanism for spawning subagents. For a coordinator to invoke subagents, `"Task"` (or `"Agent"`) must be included in `allowedTools` for the coordinator's configuration.
 - **Subagent context is not inherited automatically**. Each subagent invocation starts fresh. Any findings, instructions, or constraints that the subagent needs must be explicitly included in its prompt. There is no shared memory between invocations.
-- **AgentDefinition configuration** defines each subagent type: a description (used by the coordinator to decide when to invoke this agent), a system prompt (instructions for how the subagent should behave), and tool restrictions (which tools the subagent can use).
+- **AgentDefinition / subagent frontmatter** defines each subagent type. Key configuration fields:
+
+  | Field | Values / Notes |
+  |---|---|
+  | `name` | Required. Unique identifier for the subagent |
+  | `description` | Required. What the coordinator reads to decide when to invoke it |
+  | `tools` | Allowlist — only these tools are available to the subagent |
+  | `disallowedTools` | Denylist — these tools are blocked even if globally available |
+  | `model` | `sonnet`, `opus`, `haiku`, `inherit`, or a full model ID |
+  | `permissionMode` | `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan` |
+  | `maxTurns` | Integer cap on agentic turns for this subagent |
+  | `skills` | Preload named skill content into the subagent's context |
+  | `mcpServers` | Scope specific MCP servers to this subagent only |
+  | `memory` | `user`, `project`, or `local` for persistent cross-session memory |
+  | `background` | `true` = runs concurrently (non-blocking); `false` = foreground (blocking) |
+  | `isolation` | `worktree` = isolated git worktree for the subagent |
+  | `effort` | `low`, `medium`, `high`, `max` |
+
+- **Exam-critical AgentDefinition fields** (the four fields most tested):
+
+  | Field | Purpose | Exam relevance |
+  |---|---|---|
+  | `description` | Coordinator reads this to decide when to invoke the subagent | Must clearly state the conditions under which this agent should be used |
+  | `system_prompt` | Instructions governing subagent behavior | Specify goals and quality criteria — not procedural steps |
+  | `allowed_tools` | Restricts the subagent to role-relevant tools only | 4–5 tools per agent; prevents cross-role misuse |
+  | `model` | Which model the subagent runs on | Use cheaper models (e.g., Haiku) for simple or read-only tasks |
+
+- **Built-in subagents in Claude Code**: **Explore** (uses Haiku model, read-only tools — optimized for fast codebase search); **Plan** (inherits the main session's model, read-only tools — used during plan mode to map tasks before execution); **general-purpose** (inherits model, all tools — for complex multi-step tasks). These are pre-configured by Anthropic and available without additional `AgentDefinition` authoring.
+- **Subagents CANNOT spawn other subagents.** Nesting is not supported. Only the main thread (invoked with `--agent`) can spawn subagents. If a subagent tries to use the Agent tool, the call will fail.
+- **Foreground vs background execution**:
+  - Foreground (default): blocking call; permission prompts are passed through to the user; coordinator waits for result.
+  - Background (`background: true`): non-blocking; runs concurrently; unapproved permission requests are auto-denied (no user prompt).
+- **`@-mention` vs natural language invocation**: Using `@subagent-name` in a prompt guarantees that specific subagent runs. Natural language routing relies on Claude interpreting the request and selecting a subagent — the coordinator may choose a different one. Use `@-mention` when the exact subagent must be deterministic.
 - **`fork_session`** creates an independent branch from a shared analysis baseline, allowing divergent approaches to be explored in parallel from the same starting point without contaminating each other's state.
-- Spawning **parallel subagents** is accomplished by emitting multiple Task tool calls in a single coordinator response — not by making separate coordinator turns.
+- Spawning **parallel subagents** is accomplished by emitting multiple Agent tool calls in a single coordinator response — not by making separate coordinator turns.
 
 ---
 
@@ -258,21 +304,21 @@ Questions on this task statement frequently present a multi-agent architecture a
 
 ### Deep Dive
 
-#### The Task Tool: Coordinator Configuration
+#### The Agent Tool: Coordinator Configuration
 
-For a coordinator to spawn subagents, the Task (or Agent) tool must be in its `allowedTools`. The coordinator's `AgentDefinition` shows the five key fields:
+For a coordinator to spawn subagents, the Agent tool (formerly Task tool) must be in its `allowedTools`. The coordinator's `AgentDefinition` shows the five key fields:
 
 ```json
 {
   "name": "research_coordinator",
   "description": "Coordinates specialized research subagents to produce comprehensive reports.",
   "system_prompt": "You are a research coordinator. Analyze queries, delegate to subagents...",
-  "allowed_tools": ["Task"],
+  "allowed_tools": ["Agent"],
   "model": "claude-opus-4-5"
 }
 ```
 
-Subagent definitions are configured separately with the same five fields. For example, a `web_search_agent` would have `"allowed_tools": ["web_search", "fetch_url"]`, a focused description telling the coordinator exactly when to invoke it (i.e., when current data or recent developments are required), and a lighter model such as `claude-haiku-4-5`. The description field in a subagent definition is particularly important: it is what the coordinator reads to decide whether to invoke that agent for a given query.
+Subagent definitions are configured separately. For example, a `web_search_agent` would have `"tools": ["web_search", "fetch_url"]`, a focused description telling the coordinator exactly when to invoke it (i.e., when current data or recent developments are required), and a lighter model such as `claude-haiku-4-5`. The `description` field is particularly important: it is what the coordinator reads to decide whether to invoke that agent for a given query. The `disallowedTools` field can be used to block specific tools without maintaining a full allowlist.
 
 #### Explicit Context Passing
 
@@ -294,7 +340,7 @@ Each finding carries its origin alongside its content, so the synthesis agent ca
 
 #### Parallel Subagent Spawning
 
-To spawn multiple subagents in parallel, the coordinator must emit all Task tool calls in a **single response**, not across multiple turns. A single coordinator response containing three Task tool_use blocks looks like:
+To spawn multiple subagents in parallel, the coordinator must emit all Agent tool calls in a **single response**, not across multiple turns. A single coordinator response containing three Agent tool_use blocks looks like:
 
 ```
 [text block: "I'll search multiple dimensions in parallel."]
@@ -481,6 +527,20 @@ session = AgentSession(
            "post_tool_use": data_normalization_hook})
 ```
 
+**Hook mechanics (exam-tested details):**
+
+| Aspect | PreToolUse | PostToolUse |
+|---|---|---|
+| When it fires | Before the tool executes | After the tool succeeds |
+| Input received (via stdin) | JSON with `tool_name`, `tool_input`, `tool_use_id` | Same fields plus the tool's output |
+| How to block | Return `permissionDecision: "deny"` or exit with code 2 | N/A — tool already ran |
+| How to allow | Return `permissionDecision: "allow"` or exit 0 | Return unchanged or modified result |
+| How to ask user | Return `permissionDecision: "ask"` | N/A |
+| Modifying output | N/A | Return `updatedMCPToolOutput` to transform result |
+| Injecting context | N/A | Return `additionalContext` for Claude to see |
+
+Exit code 2 signals a blocking error — the tool call is stopped and Claude receives the error message. Exit code 0 with no output allows the call to proceed unchanged.
+
 #### PostToolUse Hook: Data Normalization
 
 Different MCP tools in a heterogeneous system return data in different formats. Rather than writing normalization logic into every prompt or asking Claude to handle it, a PostToolUse hook normalizes once, centrally.
@@ -497,14 +557,15 @@ For example, an `authorization_and_policy_hook` intercepts calls to `process_ref
 
 This decision matrix is tested directly on the exam:
 
-| Requirement | Use Hook | Use Prompt Instruction |
+| Need | Use Hook | Use Prompt |
 |---|---|---|
-| "Never process refunds over $500 — compliance requirement" | Yes — deterministic guarantee required | No — non-zero failure rate |
-| "Prefer to cite academic sources when available" | No — preference, not rule | Yes — guidance, flexibility acceptable |
-| "Always normalize timestamps to ISO 8601" | Yes — consistency required for downstream systems | No — fragile; Claude may apply inconsistently |
-| "Try to resolve without escalation first" | No — behavioral guidance | Yes — preference appropriate |
-| "Log all tool calls for audit purposes" | Yes — must happen for every call | No — model should not control audit logging |
-| "Be empathetic in responses" | No — tone guidance | Yes — appropriate for style guidance |
+| "Never process refunds over $500" | PreToolUse hook (deterministic) | Non-zero failure rate |
+| "Always normalize timestamps to ISO 8601" | PostToolUse hook (consistent) | Claude may apply inconsistently |
+| "Prefer academic sources when available" | Overkill for a preference | Prompt instruction (preference OK) |
+| "Log all tool calls for audit" | PreToolUse hook (must happen every call) | Cannot rely on model discretion |
+| "Be empathetic in responses" | Overkill for tone guidance | Prompt instruction (tone guidance) |
+
+Hooks are configured in `settings.json` at user, project, or local scope — not inside Claude's conversation. Claude receives only the hook's output (modified data or a blocking error), never the hook logic itself.
 
 ---
 
@@ -626,7 +687,8 @@ Watch for answer options that suggest reviewing all files in one pass — these 
 
 ### What You Need to Know
 
-- **Named session resumption** allows continuing a specific prior conversation using `--resume <session-name>`. This restores the prior conversation history, including all prior tool results and reasoning, enabling continuation from where the session left off.
+- **Named session resumption** allows continuing a specific prior conversation using `--resume <session-name>` (accepts a session name or session ID). This restores the prior conversation history, including all prior tool results and reasoning, enabling continuation from where the session left off.
+- **`--continue`** resumes the most recent conversation without needing a session name — useful for multi-step CI workflows or picking up immediately where a previous run ended. Use `--resume` when targeting a specific named session; use `--continue` when "the last session" is always the right one.
 - **`fork_session`** creates an **independent branch** from a shared baseline conversation state. Both branches start with identical history and can diverge independently — changes in one branch do not affect the other.
 - When resuming a session after code or file modifications, the agent must be **explicitly informed** about what changed. It does not automatically detect file system changes. Without this notification, it will reason based on its cached understanding, which may now be stale.
 - **Starting fresh with a structured summary** is more reliable than resuming when prior tool results are stale (e.g., data has changed, files have been modified, external systems have updated). A fresh session with injected context avoids the risk of the agent reasoning from outdated information it believes is current.
@@ -635,7 +697,7 @@ Watch for answer options that suggest reviewing all files in one pass — these 
 
 ### What You Need to Be Able to Do
 
-- Use `--resume <session-name>` to continue named investigation sessions across work sessions.
+- Use `--resume <session-name>` (or `--resume <session-id>`) to continue named investigation sessions across work sessions. Use `--continue` to resume the most recent conversation when no specific session name is needed.
 - Use `fork_session` to create parallel exploration branches from a shared codebase analysis (e.g., comparing two testing strategies or two refactoring approaches).
 - Choose between **session resumption** (appropriate when prior context is mostly valid and up-to-date) and **fresh start with injected summary** (appropriate when prior tool results are stale or significantly outdated).
 - When resuming a session, inform the agent about specific file changes for targeted re-analysis rather than requiring full re-exploration.
@@ -652,6 +714,14 @@ In Claude Code, sessions can be named for later resumption. The `--resume` flag 
 claude --session-name "payment-investigation" "Map all database query patterns."
 claude --resume "payment-investigation" "Which queries lack index coverage?"
 ```
+
+For CI pipelines or scripts where the target is always the most recent session, `--continue` is the simpler alternative — no session name needed:
+
+```bash
+claude -p "Run the next phase of the migration analysis." --continue
+```
+
+`--resume <id>` accepts either a human-readable session name or the internal session ID. `--continue` is equivalent to `--resume` on the most-recently-modified session.
 
 **Critical caveat**: if files have changed since the last session, the agent does not know this. When resuming, explicitly inform it which files were modified and ask it to re-analyze them before answering questions about them. Asking questions about changed files without this notification will produce answers based on stale cached understanding.
 
@@ -735,7 +805,7 @@ This task statement tests practical knowledge of Claude Code session management.
 | **tool_result block** | Content block in the user message returning a tool's output. Must reference the `tool_use_id` from the corresponding tool_use block | 1.1 |
 | **Hub-and-spoke architecture** | Multi-agent topology where a coordinator manages all inter-subagent communication; subagents never communicate directly | 1.2 |
 | **Isolated context** | Each subagent invocation starts with only explicitly provided context — no automatic inheritance of coordinator history | 1.2, 1.3 |
-| **Task tool / Agent tool** | The mechanism for spawning subagents. Must be in `allowedTools` for a coordinator to invoke subagents | 1.3 |
+| **Task tool / Agent tool** | The mechanism for spawning subagents (renamed to Agent tool in v2.1.63; exam guide uses "Task tool"). Must be in `allowedTools` for a coordinator to invoke subagents | 1.3 |
 | **AgentDefinition** | Configuration object defining a subagent type: description, system prompt, allowed tools, model | 1.3 |
 | **fork_session** | Creates an independent branch from a shared session baseline, enabling parallel divergent exploration | 1.3, 1.7 |
 | **Parallel spawning** | Emitting multiple Task tool calls in a single coordinator response to execute subagents concurrently | 1.3 |
@@ -748,8 +818,8 @@ This task statement tests practical knowledge of Claude Code session management.
 | **Prompt chaining** | Fixed sequential pipeline where each step's output feeds the next step's input; appropriate when workflow structure is known in advance | 1.6 |
 | **Adaptive decomposition** | Dynamic task breakdown where sub-tasks are generated based on intermediate findings; appropriate for open-ended investigation | 1.6 |
 | **Attention dilution** | Quality degradation when too much content is included in a single model request, forcing attention distribution across too much material | 1.6 |
-| **Named session** | A Claude Code session given an identifier for later resumption via `--resume <session-name>` | 1.7 |
-| **Session resumption** | Continuing a prior named session with full conversation history restored via `--resume` | 1.7 |
+| **Named session** | A Claude Code session given an identifier for later resumption via `--resume <session-name>` or `--resume <session-id>` | 1.7 |
+| **Session resumption** | Continuing a prior named session with full conversation history restored via `--resume`; `--continue` resumes the most recent session without specifying a name | 1.7 |
 | **Model-driven decision-making** | Claude reasons autonomously about which tool to call next based on context, rather than following a pre-configured sequence | 1.1 |
 | **Iterative refinement** | Coordinator pattern where synthesis output is evaluated for gaps and re-delegation occurs until quality criteria are met | 1.2 |
 
