@@ -32,35 +32,25 @@ Repository structure:
 ├── packages/
 │   ├── backend/
 │   │   └── CLAUDE.md                  # Directory-level: backend-specific rules
-│   │       @import ../../standards/python-style.md
-│   │       @import ../../standards/api-contracts.md
 │   └── frontend/
 │       └── CLAUDE.md                  # Directory-level: frontend-specific rules
-│           @import ../../standards/react-patterns.md
-│           @import ../../standards/accessibility.md
 └── standards/
     ├── python-style.md
-    ├── api-contracts.md
-    ├── react-patterns.md
-    └── accessibility.md
+    └── react-patterns.md
 ```
 
 **Common Hierarchy Diagnostic**
 
-```
-Problem: "New developer joined; Claude doesn't follow our code review standards"
-Diagnosis: Check WHERE the standards are defined
-  - If in ~/.claude/CLAUDE.md → user-level; new developer doesn't have it
-  - Fix: Move standards to project-level .claude/CLAUDE.md or root CLAUDE.md
+- **Problem:** "New developer joined; Claude doesn't follow our code review standards"
+  - Diagnosis: Standards are in `~/.claude/CLAUDE.md` (user-level); new developer doesn't have it
+  - Fix: Move standards to project-level `.claude/CLAUDE.md` or root `CLAUDE.md`
 
-Problem: "Claude behavior differs between team members"
-Diagnosis: Some instructions are in user-level config
-  - Use /memory to see which files are loaded for the current session
-  - User-level additions override or supplement project-level
+- **Problem:** "Claude behavior differs between team members"
+  - Diagnosis: Some instructions are in user-level config
+  - Use `/memory` to see which files are loaded for the current session
 
-Problem: "Backend and frontend have different conventions; CLAUDE.md is huge"
-Fix: Use directory-level CLAUDE.md files per package with @import
-```
+- **Problem:** "Backend and frontend have different conventions; CLAUDE.md is huge"
+  - Fix: Use directory-level CLAUDE.md files per package with `@import`
 
 **Modular Organization with `.claude/rules/`**
 
@@ -75,12 +65,8 @@ Fix: Use directory-level CLAUDE.md files per package with @import
 ```
 
 ```markdown
-# .claude/CLAUDE.md
-This project uses Python 3.11 with FastAPI. See rules for specific conventions.
-
 @import .claude/rules/testing.md
 @import .claude/rules/api-conventions.md
-@import .claude/rules/security.md
 ```
 
 > **Exam Tip:** Hierarchy diagnosis questions always have one correct answer tied to scope. "New team member doesn't get the setting" = the setting is at user-level. "Rules apply everywhere but shouldn't" = needs directory-level CLAUDE.md. The `/memory` command confirms what's loaded.
@@ -125,11 +111,6 @@ Run our standard code review checklist on the current changes:
 
 1. Check for security issues (SQL injection, XSS, insecure dependencies)
 2. Verify error handling on all external calls
-3. Confirm test coverage for new code paths
-4. Validate API contracts match the openapi spec
-5. Check for hardcoded credentials or secrets
-
-Report findings as: [SEVERITY] file:line — description
 ```
 
 **Skills with YAML Frontmatter**
@@ -153,54 +134,25 @@ Summarize findings concisely for the main session.
 
 **Frontmatter Options Explained**
 
-```yaml
-# context: fork — runs skill in isolated sub-agent
-# Use when: skill generates verbose output that would pollute main conversation
-# Example: codebase exploration, research, brainstorming alternatives
-context: fork
-
-# allowed-tools — restricts which tools the skill can use
-# Use when: you want to prevent destructive operations during skill execution
-# Example: read-only analysis should not allow Write or Bash
-allowed-tools: ["Read", "Grep", "Glob"]
-
-# argument-hint — shown when skill is invoked without arguments
-# Prompts developer to provide required parameter
-argument-hint: "Module name or file path to analyze"
-
-# disable-model-invocation — prevents the skill from calling back to Claude
-# Use for: pure template expansion without AI processing
-disable-model-invocation: true
-```
+| Key | Purpose | When to Use |
+|---|---|---|
+| `context: fork` | Isolated sub-agent | Verbose output would pollute main conversation |
+| `allowed-tools` | Restricts tool access | Read-only analysis shouldn't allow Write/Bash |
+| `argument-hint` | Prompts for parameter | Parameterized tasks needing user input |
+| `disable-model-invocation` | No AI processing | Pure template expansion |
 
 **When Skills vs. CLAUDE.md**
 
-```
-CLAUDE.md (always loaded):
-  - Universal coding standards
-  - Repository conventions
-  - Security requirements
-  - Language/framework preferences
-  → Applied to EVERY interaction automatically
-
-Skills (on-demand invocation):
-  - Complex task-specific workflows (/review, /analyze, /document)
-  - Verbose operations that would bloat main context (context: fork)
-  - Parameterized tasks that need arguments
-  → Invoked explicitly; output isolated when context: fork
-```
+| | CLAUDE.md | Skills |
+|---|---|---|
+| **Loading** | Always loaded automatically | Invoked on demand |
+| **Best for** | Universal standards, conventions, security requirements | Task-specific workflows, verbose analysis, parameterized tasks |
+| **Context impact** | Always in context | Isolated when `context: fork` |
+| **Examples** | Coding style, framework preferences | `/review`, `/analyze`, `/document` |
 
 **Personal Skill Customization**
 
-```
-~/.claude/skills/
-└── analyze-codebase-verbose.md    # Personal variant: full verbose output (no fork)
-
-.claude/skills/
-└── analyze-codebase.md            # Team variant: forked, returns summary
-```
-
-Creating a personal variant with a different name ensures teammates are not affected. Never modify team skills for personal preferences.
+Create a personal variant in `~/.claude/skills/` using a different name — this ensures teammates are not affected by personal preference changes to team skills.
 
 > **Exam Tip:** "Command available to all developers when they clone the repo" = `.claude/commands/` (project-scoped). "Personal command only this developer uses" = `~/.claude/commands/` (user-scoped). Same scoping logic as CLAUDE.md and MCP servers.
 
@@ -246,59 +198,14 @@ Use Jest with React Testing Library for all frontend tests.
 - Minimum coverage: 80% for new code paths
 ```
 
-```markdown
-<!-- .claude/rules/terraform.md -->
----
-paths:
-  - "terraform/**/*"
-  - "infrastructure/**/*.tf"
----
-
-## Terraform Conventions
-
-- All resources must have `environment` and `team` tags
-- Use `for_each` over `count` for resource iteration
-- Store state in S3 with DynamoDB locking
-- Run `terraform fmt` before committing
-- Module versions must be pinned (no `latest`)
-```
-
-```markdown
-<!-- .claude/rules/api-routes.md -->
----
-paths:
-  - "src/routes/**/*.ts"
-  - "src/api/**/*.ts"
----
-
-## API Route Conventions
-
-- All routes must validate input with Zod schemas
-- Error responses: { error: string, code: string, status: number }
-- Authentication: use `requireAuth` middleware
-- Rate limiting: apply `rateLimiter` to all public endpoints
-- Version prefix: /api/v1/...
-```
+The same pattern applies for Terraform, API routes, migration files, and any other file-type convention that spans multiple directories.
 
 **Path-Specific vs. Directory CLAUDE.md**
 
-```
-Scenario: Test conventions that apply to *.test.tsx files everywhere
-  tests/ (in root)
-  src/components/__tests__/
-  src/api/__tests__/
-  packages/backend/tests/
+Scenario: Test conventions that apply to `*.test.tsx` files spread across `tests/`, `src/components/__tests__/`, `src/api/__tests__/`, and `packages/backend/tests/`.
 
-Option A: Directory CLAUDE.md in each test directory
-  → Requires 4 separate files
-  → Each file must be kept in sync manually
-  → Adding a new test directory needs another CLAUDE.md
-
-Option B: .claude/rules/testing.md with paths: ["**/*.test.tsx"]
-  → Single file with one glob pattern
-  → Automatically applies to ANY test file wherever located
-  → Preferred approach for cross-directory conventions
-```
+- **Option A — Directory CLAUDE.md in each test directory:** requires 4 separate files, each kept in sync manually; adding a new test directory needs another CLAUDE.md.
+- **Option B — `.claude/rules/testing.md` with `paths: ["**/*.test.tsx"]`:** single file, one glob pattern, automatically applies to any test file wherever located. Preferred approach for cross-directory conventions.
 
 > **Exam Tip:** When the question describes a convention that applies to a file type across multiple directories (test files, config files, migration files), the answer is always a `.claude/rules/` file with a glob pattern — not multiple directory-level CLAUDE.md files.
 
@@ -376,25 +283,7 @@ Pattern:
 
 **Combined Plan + Execute Pattern**
 
-```markdown
-Session 1 (Plan Mode):
-  User: "I need to migrate from Passport.js to our custom JWT auth system"
-
-  Claude (plan mode):
-  1. Analyze current Passport.js usage (Explore subagent)
-  2. Identify all affected files
-  3. Design migration approach
-  4. Identify risks and dependencies
-
-  Output: Migration plan with file list, approach, step sequence, risks
-
-Session 2 (Direct Execution):
-  User: "Execute the migration plan for step 1: update auth middleware"
-
-  Claude (direct execution):
-  → Implements specific planned changes
-  → Clean context (no verbose discovery history)
-```
+Session 1 uses plan mode: the Explore subagent investigates the codebase, produces a migration plan with affected files, approach, step sequence, and risks. Session 2 uses direct execution: each step is implemented against a clean context with no verbose discovery history. Splitting sessions prevents the discovery phase from filling the context window before implementation begins.
 
 > **Exam Tip:** Questions presenting large-scale restructuring (microservices, library migrations affecting 45+ files, architectural decisions with multiple approaches) → plan mode. Questions with "fix the bug on line X" or "add a single validation check" → direct execution. Architectural implications = plan mode trigger.
 
@@ -423,94 +312,37 @@ Session 2 (Direct Execution):
 
 **When Prose Descriptions Fail: Use Examples**
 
-```python
-# Vague instruction (produces inconsistent results):
-"Convert the date format to a standardized format"
+Vague instructions ("convert the date format to a standardized format") produce inconsistent results. Specific descriptions ("convert to ISO 8601 YYYY-MM-DD") are better. The most reliable technique is concrete input/output examples:
 
-# Better: specific transformation description
-"Convert all dates to ISO 8601 format (YYYY-MM-DD)"
-
-# Best: concrete input/output examples (most reliable)
-"""
+```
 Transform these date strings to ISO 8601 format. Examples:
 
-Input: "March 5, 2026"     → Output: "2026-03-05"
-Input: "05/03/2026"        → Output: "2026-03-05"
-Input: "5-Mar-26"          → Output: "2026-03-05"
-Input: null or missing     → Output: null
-Input: "TBD"               → Output: null
-
-Handle: European format (DD/MM/YYYY), US format (MM/DD/YYYY),
-natural language (Month D, YYYY), and ISO already-formatted.
-"""
+Input: "March 5, 2026"  → Output: "2026-03-05"
+Input: "05/03/2026"     → Output: "2026-03-05"
+Input: null or "TBD"    → Output: null
 ```
+
+Examples constrain ambiguous edge cases (e.g., whether `05/03` means May 3 or March 5) that prose cannot reliably resolve.
 
 **Test-Driven Iteration**
 
-```python
-# Step 1: Write the test suite FIRST
-# tests/test_date_converter.py
-def test_iso_format():
-    assert convert_date("March 5, 2026") == "2026-03-05"
-
-def test_us_format():
-    assert convert_date("05/03/2026") == "2026-03-05"
-
-def test_null_input():
-    assert convert_date(None) is None
-
-def test_tbd_string():
-    assert convert_date("TBD") is None
-
-def test_already_iso():
-    assert convert_date("2026-03-05") == "2026-03-05"
-
-# Step 2: Run tests, share failures
-# "These tests are failing: test_us_format, test_tbd_string.
-#  Error: 05/03/2026 interpreted as May 3 (US format), expecting March 5"
-
-# Step 3: Claude iterates based on specific failure, not vague feedback
-```
+Write the test suite first — covering expected behavior, edge cases, and error conditions. Run the tests before asking Claude to implement. Share specific test failures (test name, actual vs. expected output) with Claude rather than vague feedback like "it doesn't work." Claude iterates against precise failure signals, which is far more effective than prose descriptions of the desired behavior.
 
 **The Interview Pattern**
 
-```markdown
-# Instruction to Claude
-Before implementing the caching layer, ask me 5-10 questions about
-requirements and constraints I might not have considered.
+Instruct Claude to ask questions before implementing ("Before building the caching layer, ask me 5-10 questions about requirements I might not have considered"). Claude surfaces considerations the developer may not have anticipated:
 
-# Claude asks:
-1. What cache invalidation strategy is appropriate given the update frequency?
+1. What cache invalidation strategy fits the update frequency?
 2. Should the cache be in-process (memory) or distributed (Redis)?
 3. What's the acceptable staleness window for different data types?
-4. How should concurrent writes be handled (write-through, write-behind)?
-5. What happens if the cache becomes unavailable? Fallback to DB or fail?
-6. Are there regulatory requirements for certain data not being cached?
-7. What's the expected cache hit ratio, and how will you monitor it?
+4. What happens if the cache becomes unavailable — fallback to DB or fail?
 
-# Developer answers → implementation is grounded in actual requirements
-# Without interview: developer discovers these questions after rework
-```
+Developer answers ground the implementation in actual requirements. Without the interview, these questions surface only after costly rework.
 
 **Single Message vs. Sequential Iteration**
 
-```
-Multiple INTERACTING issues → single detailed message
-  Example:
-  "The following issues all interact with each other:
-   1. The sort function has incorrect comparison logic
-   2. The null handling changes the sort order expectation
-   3. The output format test depends on sorted null-handling behavior
-   Fix all three together in a single pass to avoid conflicts."
-
-Independent issues → fix sequentially
-  Example:
-  Message 1: "Fix the off-by-one error in the pagination function"
-  (Review fix)
-  Message 2: "Fix the missing error handling in the file upload function"
-  (Review fix)
-  Reason: Each fix can be validated independently; batching creates review noise
-```
+- **Multiple interacting issues** — send in a single detailed message. Example: sort logic, null handling, and output format tests all touch the same code path; fixing them separately causes each fix to break the previous one.
+- **Independent issues** — fix sequentially. Example: an off-by-one error in pagination and missing error handling in file upload can each be reviewed and validated independently. Batching unrelated issues creates review noise without benefit.
 
 > **Exam Tip:** Questions about getting consistent output after repeated prompt attempts → the answer is concrete input/output examples. Questions about surfacing unstated requirements → interview pattern. The exam distinguishes "inconsistent output" (examples fix it) from "missing requirements" (interview pattern surfaces them).
 
@@ -540,30 +372,8 @@ Independent issues → fix sequentially
 **Non-Interactive CI Mode**
 
 ```bash
-# -p flag: print mode (non-interactive)
-# Claude Code answers the prompt and exits — no interactive session
-claude -p "Review the changes in this PR for security issues" \
-  --output-format json \
-  --json-schema ./schemas/review-findings.json \
-  < diff_output.txt
-
-# Full CI pipeline example
-#!/bin/bash
-PR_DIFF=$(git diff origin/main...HEAD)
-
-claude -p "$(cat <<EOF
-Review the following code changes for:
-1. Security vulnerabilities (SQL injection, XSS, secrets exposure)
-2. Logic errors and null pointer risks
-3. Missing error handling on external calls
-
-Produce findings only for definite issues, not style preferences.
-Context: $(cat CLAUDE.md)
-
-Diff:
-$PR_DIFF
-EOF
-)" \
+# -p flag: non-interactive (print) mode — Claude answers and exits; no input wait
+claude -p "Review this PR diff for security issues" \
   --output-format json \
   --json-schema ./schemas/review-findings.json \
   > review_output.json
@@ -572,111 +382,32 @@ EOF
 **JSON Schema for Structured Review Output**
 
 ```json
-// schemas/review-findings.json
 {
-  "type": "object",
-  "properties": {
-    "findings": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "file": {"type": "string"},
-          "line": {"type": "integer"},
-          "severity": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
-          "category": {"type": "string", "enum": ["security", "logic", "error_handling", "performance"]},
-          "description": {"type": "string"},
-          "suggested_fix": {"type": "string"}
-        },
-        "required": ["file", "line", "severity", "category", "description"]
-      }
-    },
-    "summary": {"type": "string"},
-    "total_findings": {"type": "integer"}
-  }
+  "findings": [{
+    "file": "string",
+    "line": "integer",
+    "severity": "critical | high | medium | low",
+    "description": "string"
+  }]
 }
 ```
 
 **Avoiding Duplicate Review Comments**
 
-```bash
-# First review — save findings
-claude -p "Review PR #$PR_NUMBER" \
-  --output-format json \
-  > review_first_pass.json
-
-# Post comments to PR
-post_review_comments review_first_pass.json
-
-# After developer pushes fixes — second review
-# Include prior findings to avoid duplicate comments
-PRIOR_FINDINGS=$(cat review_first_pass.json)
-
-claude -p "$(cat <<EOF
-Review the updated code changes. Prior review findings:
-$PRIOR_FINDINGS
-
-Report ONLY:
-1. Issues that were NOT addressed in the prior review
-2. New issues introduced by the latest changes
-
-Do NOT re-report issues already listed in prior findings.
-EOF
-)" \
-  --output-format json \
-  > review_second_pass.json
-```
+When a developer pushes fixes after an initial review, include the prior review findings in the context of the follow-up invocation. Instruct Claude to report only issues not addressed in the prior review and new issues introduced by the latest changes. Without prior findings in context, Claude re-reports already-resolved issues as new findings.
 
 **Session Context Isolation for Review**
 
-```python
-# Anti-pattern: same session reviews its own generated code
-# The model retains its reasoning from generation, making it
-# less likely to question its own decisions
-
-# Better: two independent Claude Code invocations
-# Step 1: Generate code
-claude -p "Generate a payment processing service" \
-  --output-format text \
-  > payment_service.py
-
-# Step 2: Independent review instance
-# Note: fresh session, no knowledge of generation reasoning
-claude -p "$(cat <<EOF
-Review this code for correctness, security, and edge cases.
-You have no context about how this code was written.
-$(cat payment_service.py)
-EOF
-)" \
-  --output-format json \
-  > review_output.json
-```
+Each review should use an independent Claude Code invocation with no shared session context from the code generation step. A session that generated the code retains its own reasoning, making it less likely to question its own decisions. Independent review instances produce more objective findings.
 
 **CLAUDE.md for CI Context**
 
-```markdown
-<!-- CLAUDE.md — provides context to CI-invoked Claude Code -->
-# CI Review Standards
+The project-level CLAUDE.md provides context to CI-invoked Claude Code. Key sections for CI:
 
-## Test Generation
-- Framework: pytest with fixtures in tests/conftest.py
-- Available fixtures: `test_db`, `mock_payment_gateway`, `sample_order`
-- Do not generate tests that duplicate tests/test_payment.py
-- Priority areas: edge cases, null inputs, concurrent access
-
-## Code Review Criteria
-- Flag: SQL queries without parameterization
-- Flag: missing try/except on external API calls
-- Flag: hardcoded credentials or environment-specific values
-- Skip: minor style issues handled by linter
-- Skip: formatting (handled by black/prettier)
-
-## Severity Definitions
-- Critical: security vulnerability, data corruption risk
-- High: production failure risk under normal load
-- Medium: failure risk under edge conditions
-- Low: reliability improvements
-```
+- Test framework, available fixtures, and files not to duplicate
+- Explicit review criteria: what to flag (SQL without parameterization, missing try/except, hardcoded credentials) and what to skip (style/formatting handled by linter)
+- Severity definitions so output is consistent across pipeline runs
+- Priority areas for test generation (edge cases, null inputs, concurrent access)
 
 > **Exam Tip:** `-p` flag is the only way to run Claude Code non-interactively in CI. Without it, Claude waits for interactive input and the pipeline hangs. This is a factual question with a single correct answer.
 

@@ -55,81 +55,25 @@
 
 The agentic loop is the fundamental execution model for all Claude-based autonomous agents. At its core, it is a `while` loop governed by the `stop_reason` field returned in every Claude API response. Understanding what drives loop continuation and termination — and what does not — is the single most important concept in this task statement.
 
-Here is a canonical Python implementation of a correct agentic loop:
+The canonical agentic loop skeleton:
 
 ```python
-import anthropic
+while True:
+    response = client.messages.create(model=..., tools=tools, messages=messages)
+    messages.append({"role": "assistant", "content": response.content})  # append FIRST
 
-client = anthropic.Anthropic()
+    if response.stop_reason == "end_turn":
+        return extract_text(response)  # done
 
-def run_agentic_loop(initial_messages: list, tools: list, system: str) -> str:
-    """
-    Runs a complete agentic loop until Claude signals end_turn.
-    Returns Claude's final text response.
-    """
-    messages = initial_messages.copy()
+    if response.stop_reason == "tool_use":
+        tool_results = [{"type": "tool_result", "tool_use_id": b.id,
+                         "content": execute_tool(b.name, b.input)}
+                        for b in response.content if b.type == "tool_use"]
+        messages.append({"role": "user", "content": tool_results})
+        # loop continues
 
-    while True:
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=4096,
-            system=system,
-            tools=tools,
-            messages=messages
-        )
-
-        # Append Claude's response to conversation history FIRST
-        messages.append({
-            "role": "assistant",
-            "content": response.content
-        })
-
-        # Termination condition: Claude has finished reasoning
-        if response.stop_reason == "end_turn":
-            # Extract and return the final text response
-            for block in response.content:
-                if block.type == "text":
-                    return block.text
-            return ""
-
-        # Continuation condition: Claude wants to use tools
-        if response.stop_reason == "tool_use":
-            tool_results = []
-
-            for block in response.content:
-                if block.type == "tool_use":
-                    # Execute the tool
-                    result = execute_tool(block.name, block.input)
-
-                    # Package result referencing the tool use block's id
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result
-                    })
-
-            # Append tool results as a user message to continue the loop
-            messages.append({
-                "role": "user",
-                "content": tool_results
-            })
-            # Loop continues — do not return, go back to top of while True
-
-        else:
-            # Handle edge conditions: max_tokens, stop_sequence, etc.
-            raise RuntimeError(f"Unexpected stop_reason: {response.stop_reason}")
-
-
-def execute_tool(tool_name: str, tool_input: dict) -> str:
-    """Dispatches to the appropriate tool implementation."""
-    tool_registry = {
-        "get_customer": get_customer,
-        "lookup_order": lookup_order,
-        "process_refund": process_refund,
-    }
-    if tool_name not in tool_registry:
-        return f"Error: Unknown tool '{tool_name}'"
-    return tool_registry[tool_name](**tool_input)
+    else:
+        raise RuntimeError(f"Unexpected stop_reason: {response.stop_reason}")
 ```
 
 #### Why Conversation History Is the Memory Layer
@@ -229,20 +173,11 @@ User Query
 
 #### Dynamic vs Fixed Pipeline Routing
 
-A naive implementation always invokes all four subagents for every query. This is wasteful and slow. A well-designed coordinator analyzes the query first and routes selectively:
+A naive implementation always invokes all four subagents for every query. This is wasteful and slow. A well-designed coordinator analyzes the query first and routes selectively. The coordinator's system prompt should specify:
 
-```python
-# Coordinator system prompt excerpt:
-"""
-Analyze the research query and determine which subagents are needed.
-- For queries about recent events: invoke web_search_agent first
-- For queries with attached documents: invoke document_analysis_agent
-- For factual synthesis tasks: invoke synthesis_agent after data collection
-- For final output: invoke report_generation_agent only when synthesis is complete
-
-Do NOT invoke agents whose outputs are not needed for this query.
-"""
-```
+- **When to invoke each subagent type**: for example, invoke `web_search_agent` for queries requiring current data; invoke `document_analysis_agent` only when documents are attached; invoke `report_generation_agent` only after synthesis is complete.
+- **When NOT to invoke**: explicitly instruct the coordinator not to call agents whose outputs are not needed for the current query.
+- **Routing based on query analysis**: the coordinator inspects query characteristics (recency requirements, presence of attachments, output format needed) to determine the minimal required subagent set.
 
 The coordinator's tool set includes a Task tool (or Agent tool) for each subagent type. The coordinator calls only the subset that the query requires.
 
@@ -250,52 +185,19 @@ The coordinator's tool set includes a Task tool (or Agent tool) for each subagen
 
 The most sophisticated coordinator pattern is the iterative refinement loop. After the synthesis subagent produces a draft, the coordinator evaluates it for coverage gaps and re-delegates targeted queries if gaps exist. This continues until the synthesis meets quality criteria:
 
-```python
-# Pseudocode for coordinator's iterative refinement logic
-def coordinate_research(query):
-    # Phase 1: Initial data collection
-    search_results = invoke_subagent("web_search_agent", query=query)
-    doc_analysis = invoke_subagent("doc_analysis_agent", documents=attached_docs)
-
-    # Phase 2: Initial synthesis
-    synthesis = invoke_subagent("synthesis_agent",
-                                search_data=search_results,
-                                doc_data=doc_analysis)
-
-    # Phase 3: Iterative refinement
-    max_refinement_rounds = 3
-    for round in range(max_refinement_rounds):
-        gaps = evaluate_coverage(synthesis, original_query)
-        if not gaps:
-            break  # Coverage is sufficient, proceed to report
-        # Re-delegate targeted searches for each gap
-        for gap in gaps:
-            additional_data = invoke_subagent("web_search_agent",
-                                              query=gap.targeted_query)
-            synthesis = invoke_subagent("synthesis_agent",
-                                        prior_synthesis=synthesis,
-                                        new_data=additional_data)
-
-    # Phase 4: Report generation
-    return invoke_subagent("report_generation_agent", synthesis=synthesis)
-```
+1. **Initial collection**: invoke the web search and document analysis subagents with the original query to gather a first round of evidence.
+2. **Initial synthesis**: pass all collected findings to the synthesis subagent to produce a first-draft synthesis.
+3. **Gap evaluation loop**: the coordinator examines the synthesis against the original query. If coverage gaps exist, it issues targeted follow-up searches for each gap and re-invokes the synthesis subagent with both the prior synthesis and new data. This loop repeats up to a maximum number of refinement rounds, stopping early when no gaps remain.
+4. **Report generation**: once synthesis quality is sufficient, invoke the report generation subagent with the final synthesis to produce the deliverable.
 
 #### Scoping Subagents to Minimize Duplication
 
 When multiple search subagents are invoked, topic overlap wastes API calls and produces redundant findings that the coordinator must deduplicate. The coordinator should partition scope:
 
-```python
-# Instead of: giving all agents the same broad query
-invoke_subagent("search_agent_1", query="climate change impacts")
-invoke_subagent("search_agent_2", query="climate change impacts")
-
-# Do: assign distinct scope to each agent
-invoke_subagent("search_agent_1", query="climate change economic impacts",
-                source_types=["academic_papers", "government_reports"])
-invoke_subagent("search_agent_2", query="climate change policy responses",
-                source_types=["news", "think_tanks"],
-                date_range="last_2_years")
-```
+| Approach | Assignment | Result |
+|---|---|---|
+| Bad: same query to all agents | Both agents get "climate change impacts" | Redundant findings, wasted API calls, deduplication burden |
+| Good: distinct scope per agent | Agent 1 gets "economic impacts / academic papers"; Agent 2 gets "policy responses / news / last 2 years" | Complementary, non-overlapping coverage |
 
 ---
 
@@ -358,156 +260,59 @@ Questions on this task statement frequently present a multi-agent architecture a
 
 #### The Task Tool: Coordinator Configuration
 
-For a coordinator to spawn subagents, the Task (or Agent) tool must be in its `allowedTools`. Here is an example `AgentDefinition` for a research coordinator:
+For a coordinator to spawn subagents, the Task (or Agent) tool must be in its `allowedTools`. The coordinator's `AgentDefinition` shows the five key fields:
 
 ```json
 {
   "name": "research_coordinator",
-  "description": "Coordinates a team of specialized research subagents to produce comprehensive reports.",
-  "system_prompt": "You are a research coordinator. Analyze the research query, delegate to specialized subagents, evaluate their outputs for completeness, and synthesize a final report. You have access to web_search_agent, document_analysis_agent, synthesis_agent, and report_generation_agent via the Task tool.",
+  "description": "Coordinates specialized research subagents to produce comprehensive reports.",
+  "system_prompt": "You are a research coordinator. Analyze queries, delegate to subagents...",
   "allowed_tools": ["Task"],
   "model": "claude-opus-4-5"
 }
 ```
 
-The subagent definitions are configured separately:
-
-```json
-{
-  "name": "web_search_agent",
-  "description": "Searches the web for recent information on a given topic. Invoke this agent when the query requires current data, news, or recent developments.",
-  "system_prompt": "You are a web search specialist. Search for information on the provided topic using the web_search and fetch_url tools. Return structured findings with source URLs and publication dates.",
-  "allowed_tools": ["web_search", "fetch_url"],
-  "model": "claude-haiku-4-5"
-}
-```
+Subagent definitions are configured separately with the same five fields. For example, a `web_search_agent` would have `"allowed_tools": ["web_search", "fetch_url"]`, a focused description telling the coordinator exactly when to invoke it (i.e., when current data or recent developments are required), and a lighter model such as `claude-haiku-4-5`. The description field in a subagent definition is particularly important: it is what the coordinator reads to decide whether to invoke that agent for a given query.
 
 #### Explicit Context Passing
 
-The most common configuration mistake is assuming the subagent will "know" what was found earlier. It will not. Here is the contrast:
+The most common configuration mistake is assuming the subagent will "know" what was found earlier. It will not. The anti-pattern is a vague prompt with no context, such as "Synthesize the research findings into a comprehensive report" — the subagent receives this with no findings attached and cannot proceed meaningfully.
 
-```python
-# WRONG: Subagent has no idea what the coordinator has collected
-synthesis_prompt = "Synthesize the research findings into a comprehensive report."
-
-# CORRECT: All relevant prior context is embedded in the prompt
-synthesis_prompt = f"""
-Synthesize the following research findings into a comprehensive report on: {research_topic}
-
-## Web Search Findings
-{format_search_results(search_results)}
-  - Each finding includes: title, URL, publication_date, key_excerpt
-
-## Document Analysis Findings
-{format_doc_analysis(doc_analysis)}
-  - Each finding includes: document_name, page_number, relevant_passage
-
-## Quality Criteria
-- Minimum 5 distinct sources cited
-- Address economic, social, and policy dimensions
-- Identify areas of consensus and areas of ongoing debate
-- Flag any contradictions between sources
-"""
-```
+The correct approach embeds all prior findings directly in the subagent's prompt: the full web search results (with titles, URLs, dates, and key excerpts), the full document analysis findings (with document names, page numbers, and relevant passages), and explicit quality criteria (minimum source count, dimensions to address, how to handle contradictions). The subagent should receive everything it needs to complete its task without calling back to the coordinator for clarification.
 
 #### Structured Data for Attribution Preservation
 
 When passing findings between agents, use structured formats that keep content separate from metadata:
 
 ```json
-{
-  "search_findings": [
-    {
-      "source_url": "https://example.com/article1",
-      "publication_date": "2025-11-15",
-      "title": "New Developments in Renewable Energy",
-      "key_excerpt": "Solar capacity exceeded 1TW globally...",
-      "relevance_score": 0.92
-    },
-    {
-      "source_url": "https://research.org/paper42",
-      "publication_date": "2025-09-03",
-      "title": "Grid Integration Challenges",
-      "key_excerpt": "Intermittency remains the primary barrier...",
-      "relevance_score": 0.87
-    }
-  ]
-}
+{ "source_url": "https://research.org/paper42",
+  "key_excerpt": "Intermittency remains the primary barrier...",
+  "relevance_score": 0.87 }
 ```
 
-This structure allows the synthesis agent to cite specific sources ("According to [research.org/paper42, p.3]...") without conflating content with its origin.
+Each finding carries its origin alongside its content, so the synthesis agent can cite specific sources without conflating content with its provenance.
 
 #### Parallel Subagent Spawning
 
-To spawn multiple subagents in parallel, the coordinator must emit all Task tool calls in a **single response**, not across multiple turns:
+To spawn multiple subagents in parallel, the coordinator must emit all Task tool calls in a **single response**, not across multiple turns. A single coordinator response containing three Task tool_use blocks looks like:
 
-```python
-# This is what the coordinator's single response looks like — multiple tool_use blocks:
-response_content = [
-    {
-        "type": "text",
-        "text": "I'll search multiple dimensions of this topic in parallel."
-    },
-    {
-        "type": "tool_use",
-        "id": "task_001",
-        "name": "Task",
-        "input": {
-            "agent": "web_search_agent",
-            "prompt": "Search for economic impacts of renewable energy transition..."
-        }
-    },
-    {
-        "type": "tool_use",
-        "id": "task_002",
-        "name": "Task",
-        "input": {
-            "agent": "web_search_agent",
-            "prompt": "Search for policy frameworks for renewable energy..."
-        }
-    },
-    {
-        "type": "tool_use",
-        "id": "task_003",
-        "name": "Task",
-        "input": {
-            "agent": "document_analysis_agent",
-            "prompt": "Analyze attached IPCC report for relevant findings..."
-        }
-    }
-]
+```
+[text block: "I'll search multiple dimensions in parallel."]
+[tool_use: Task → web_search_agent, "Search for economic impacts..."]
+[tool_use: Task → web_search_agent, "Search for policy frameworks..."]
+[tool_use: Task → document_analysis_agent, "Analyze attached IPCC report..."]
 ```
 
-All three subagents execute in parallel. The orchestration framework handles the concurrent execution and returns all three results before the coordinator's next turn. If the coordinator had emitted these across three separate turns, the agents would execute sequentially, tripling latency.
+All three subagents execute concurrently. Emitting them across three separate turns forces sequential execution, tripling latency.
 
 #### Goals and Criteria vs Procedures
 
 Coordinator prompts should specify what success looks like, not enumerate every step:
 
-```python
-# Too procedural — constrains the subagent's ability to adapt
-synthesis_prompt = """
-Step 1: Read the web search results.
-Step 2: Read the document analysis results.
-Step 3: Identify common themes.
-Step 4: Write a summary paragraph.
-Step 5: List citations.
-"""
-
-# Goals-and-criteria approach — gives the subagent flexibility to adapt
-synthesis_prompt = """
-Synthesize the provided findings into a comprehensive analysis of {topic}.
-
-Success criteria:
-- Covers all major dimensions: economic, technical, policy, social
-- Resolves contradictions between sources with explicit reasoning
-- Every factual claim attributed to a specific source
-- Identifies knowledge gaps where evidence is insufficient
-- Suitable for a technical audience with domain expertise
-
-Adapt your approach as needed to meet these criteria given the available evidence.
-"""
-```
+| Approach | Example | Problem |
+|---|---|---|
+| Procedural | "Step 1: Read web results. Step 2: Read doc analysis. Step 3: Identify themes. Step 4: Write summary. Step 5: List citations." | Constrains adaptability; if a step is irrelevant, the subagent may hallucinate to satisfy the instruction |
+| Goals-and-criteria | "Synthesize findings into a comprehensive analysis. Success criteria: all major dimensions covered, contradictions resolved with reasoning, every claim attributed, knowledge gaps flagged." | Gives the subagent flexibility to adapt its approach to the available evidence |
 
 ---
 
@@ -581,45 +386,8 @@ Do not process any refund without first confirming the customer's identity.
 This works most of the time. But Claude is a probabilistic system. Under unusual phrasing, extreme context length, or adversarial prompting, it may occasionally call `process_refund` without the prerequisite. In a financial system, that is unacceptable.
 
 **Programmatic enforcement approach (deterministic):**
-```python
-class WorkflowEnforcer:
-    def __init__(self):
-        self.verified_customer_id = None
-        self.completed_steps = set()
 
-    def pre_tool_call_hook(self, tool_name: str, tool_input: dict) -> dict | None:
-        """
-        Intercepts tool calls before they execute.
-        Returns None to allow, or raises/returns error to block.
-        """
-        if tool_name == "process_refund":
-            if self.verified_customer_id is None:
-                # Block the refund — prerequisite not met
-                return {
-                    "error": "PREREQUISITE_VIOLATION",
-                    "message": "Cannot process refund: customer identity not verified. "
-                               "Call get_customer first to verify identity.",
-                    "required_step": "get_customer"
-                }
-            # Additional check: verified ID matches the refund request
-            if tool_input.get("customer_id") != self.verified_customer_id:
-                return {
-                    "error": "IDENTITY_MISMATCH",
-                    "message": f"Refund customer_id does not match verified customer.",
-                }
-
-        if tool_name == "get_customer":
-            # Allow this call — record completion after it returns
-            self.completed_steps.add("get_customer")
-            return None  # Proceed
-
-        return None  # Default: allow all other tools
-
-    def post_tool_call_hook(self, tool_name: str, result: dict):
-        """Records verified identity after successful get_customer call."""
-        if tool_name == "get_customer" and result.get("status") == "verified":
-            self.verified_customer_id = result["customer_id"]
-```
+A `WorkflowEnforcer` class maintains session state (e.g., `verified_customer_id = None`) and registers a `pre_tool_call_hook` that intercepts every outgoing tool call before it executes. When Claude attempts to call `process_refund`, the hook checks whether `verified_customer_id` is set. If it is not, the hook returns a structured error (`PREREQUISITE_VIOLATION`) and the tool call is blocked — the refund never executes. The hook also validates that the customer ID in the refund request matches the verified ID. A `post_tool_call_hook` records the verified ID after a successful `get_customer` call.
 
 The critical difference: the programmatic enforcer **cannot be bypassed**. No matter what Claude reasons, no matter how the user phrases the request, `process_refund` will not execute until `get_customer` has returned a verified ID.
 
@@ -627,25 +395,9 @@ The critical difference: the programmatic enforcer **cannot be bypassed**. No ma
 
 When a customer submits a request with multiple issues ("my order arrived damaged AND I was charged twice"), the agent should:
 
-1. Parse and identify distinct concerns (damaged item, duplicate charge).
-2. Investigate each concern in parallel using shared customer context.
-3. Synthesize results into a single, coherent response.
-
-```python
-def handle_multi_concern_request(customer_message: str, customer_id: str):
-    # Step 1: Decompose into concerns
-    concerns = identify_concerns(customer_message)
-    # e.g., ["damaged_item", "duplicate_charge"]
-
-    # Step 2: Investigate each concern in parallel
-    # (Using concurrent execution via the agentic loop's multi-tool response)
-    results = {}
-    for concern in concerns:
-        results[concern] = investigate_concern(concern, customer_id)
-
-    # Step 3: Synthesize a unified response
-    return synthesize_resolution(results, customer_id)
-```
+1. **Parse concerns**: identify all distinct issues in the message (e.g., damaged item, duplicate charge).
+2. **Investigate in parallel**: emit tool calls for each concern simultaneously within a single response, using shared customer context.
+3. **Synthesize**: combine all investigation results into one coherent resolution response, addressing each concern.
 
 #### Structured Handoff Summaries
 
@@ -653,30 +405,11 @@ When escalating to a human agent, the summary must be self-contained. Human agen
 
 ```json
 {
-  "handoff_summary": {
-    "timestamp": "2025-11-22T14:35:00Z",
-    "handoff_reason": "Refund amount exceeds automated authorization limit ($500)",
-    "customer": {
-      "id": "CUST-78234",
-      "name": "Sarah Mitchell",
-      "tier": "premium",
-      "account_standing": "good"
-    },
-    "issue_root_cause": "Order #ORD-445521 delivered damaged (broken screen protector). Customer reported on 2025-11-20. Photos submitted via app confirm damage.",
-    "steps_completed": [
-      "Customer identity verified via get_customer",
-      "Order status confirmed as delivered on 2025-11-18",
-      "Damage confirmed from customer-submitted photos",
-      "Refund eligibility confirmed under return policy"
-    ],
-    "requested_action": {
-      "type": "refund",
-      "amount_usd": 649.00,
-      "reason": "damaged_product",
-      "items": ["Screen Protector Pro X1 - $649.00"]
-    },
-    "recommended_action": "Approve full refund of $649.00. Customer is premium tier with good standing and damage is confirmed. Standard approval expected."
-  }
+  "handoff_reason": "Refund of $649 exceeds automated authorization limit ($500)",
+  "customer": { "id": "CUST-78234", "tier": "premium" },
+  "issue_root_cause": "Order #ORD-445521 delivered damaged; photos confirm damage.",
+  "steps_completed": ["Identity verified", "Damage confirmed", "Refund eligibility confirmed"],
+  "recommended_action": "Approve full refund of $649.00 — premium customer, confirmed damage."
 }
 ```
 
@@ -742,121 +475,23 @@ Questions about handoff summaries test whether you know what information a human
 Hooks sit between the tool execution layer and Claude's message processing. In the Agent SDK, you register hooks when constructing the agent session:
 
 ```python
-from anthropic.agent_sdk import AgentSession, HookContext
-
-def create_customer_support_session():
-    session = AgentSession(
-        model="claude-opus-4-5",
-        tools=[get_customer, lookup_order, process_refund, escalate_to_human],
-        hooks={
-            "pre_tool_use": authorization_and_policy_hook,
-            "post_tool_use": data_normalization_hook,
-        }
-    )
-    return session
+session = AgentSession(
+    model="claude-opus-4-5", tools=[...],
+    hooks={"pre_tool_use": authorization_and_policy_hook,
+           "post_tool_use": data_normalization_hook})
 ```
 
 #### PostToolUse Hook: Data Normalization
 
-Different MCP tools in a heterogeneous system return data in different formats. Rather than writing normalization logic into every prompt or asking Claude to handle it, a PostToolUse hook normalizes once, centrally:
+Different MCP tools in a heterogeneous system return data in different formats. Rather than writing normalization logic into every prompt or asking Claude to handle it, a PostToolUse hook normalizes once, centrally.
 
-```python
-import datetime
-
-def data_normalization_hook(ctx: HookContext) -> dict:
-    """
-    Normalizes tool results from heterogeneous MCP tools to a consistent format
-    before Claude processes them.
-    """
-    tool_name = ctx.tool_name
-    result = ctx.result
-
-    if tool_name == "get_customer":
-        # This MCP tool returns Unix timestamps
-        if "created_at" in result and isinstance(result["created_at"], int):
-            result["created_at"] = datetime.datetime.utcfromtimestamp(
-                result["created_at"]
-            ).isoformat() + "Z"
-
-        # Numeric status codes -> human-readable strings
-        status_map = {1: "active", 2: "suspended", 3: "closed", 4: "pending"}
-        if "account_status" in result:
-            result["account_status"] = status_map.get(
-                result["account_status"],
-                f"unknown_status_{result['account_status']}"
-            )
-
-    elif tool_name == "lookup_order":
-        # This MCP tool returns ISO 8601 with timezone offset — normalize to UTC Z
-        if "order_date" in result:
-            dt = datetime.datetime.fromisoformat(result["order_date"])
-            result["order_date"] = dt.astimezone(
-                datetime.timezone.utc
-            ).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        # Numeric fulfillment status -> descriptive string
-        fulfillment_map = {
-            100: "pending", 200: "processing", 300: "shipped",
-            400: "delivered", 500: "cancelled", 600: "returned"
-        }
-        if "fulfillment_status" in result:
-            result["fulfillment_status"] = fulfillment_map.get(
-                result["fulfillment_status"],
-                f"unknown_{result['fulfillment_status']}"
-            )
-
-    # Return the normalized result — Claude receives this, not the raw tool output
-    return result
-```
-
-Claude now sees consistent ISO 8601 UTC timestamps and human-readable status strings regardless of which tool returned the data. No prompt instruction needed. No risk of Claude misinterpreting "1" as an account status.
+For example, a `data_normalization_hook` inspects the tool name on every result. For `get_customer` results, it converts Unix timestamp integers to ISO 8601 strings (`created_at: 1700000000` becomes `"2023-11-14T22:13:20Z"`) and maps numeric account status codes to human-readable strings (`1` becomes `"active"`). For `lookup_order` results, it normalizes timezone-offset timestamps to UTC and maps numeric fulfillment status codes to descriptive strings. Claude receives the normalized result — never the raw tool output. No prompt instruction is needed, and there is no risk of Claude misinterpreting `1` as an account status.
 
 #### PreToolUse Hook: Authorization Enforcement
 
-```python
-def authorization_and_policy_hook(ctx: HookContext) -> dict | None:
-    """
-    Intercepts outgoing tool calls to enforce business rules.
-    Returns None to allow the call, or a dict to block it and return that as the result.
-    """
-    tool_name = ctx.tool_name
-    tool_input = ctx.tool_input
+PreToolUse hooks enforce business rules deterministically. The hook function inspects the tool name and input before the call executes. If the rules are violated, it returns a structured blocking response instead of allowing the call through; returning `None` allows the call to proceed.
 
-    if tool_name == "process_refund":
-        refund_amount = tool_input.get("amount_usd", 0)
-
-        # Business rule: refunds over $500 require human authorization
-        if refund_amount > 500:
-            # Block the tool call and return a structured error
-            # Claude receives this as the tool result
-            return {
-                "blocked": True,
-                "reason": "EXCEEDS_AUTOMATED_LIMIT",
-                "message": f"Refund of ${refund_amount:.2f} exceeds automated authorization limit of $500.00.",
-                "required_action": "escalate_to_human",
-                "escalation_context": {
-                    "customer_id": tool_input.get("customer_id"),
-                    "refund_amount": refund_amount,
-                    "reason": tool_input.get("reason")
-                }
-            }
-
-        # Business rule: refunds require a valid reason code
-        valid_reason_codes = {"damaged_product", "wrong_item", "never_arrived",
-                               "quality_issue", "duplicate_charge"}
-        if tool_input.get("reason") not in valid_reason_codes:
-            return {
-                "blocked": True,
-                "reason": "INVALID_REASON_CODE",
-                "message": f"Reason code '{tool_input.get('reason')}' is not valid.",
-                "valid_codes": list(valid_reason_codes)
-            }
-
-    # Return None to allow the tool call to proceed normally
-    return None
-```
-
-When this hook returns a blocking response, Claude receives it as the `tool_result`. Claude cannot retry the blocked call — it must reason about the hook's response and take an alternative path (in this case, it would call `escalate_to_human` as indicated).
+For example, an `authorization_and_policy_hook` intercepts calls to `process_refund`. If the refund amount exceeds $500, the hook returns a structured error with `reason: "EXCEEDS_AUTOMATED_LIMIT"` and `required_action: "escalate_to_human"` — the refund tool never executes. If the reason code is not in the permitted set, the hook returns `reason: "INVALID_REASON_CODE"` with the valid options. Claude receives this blocking response as the `tool_result` and must take an alternative path (e.g., calling `escalate_to_human`). Claude cannot retry the blocked call or reason around the enforcement.
 
 #### Choosing Between Hooks and Prompt Instructions
 
@@ -928,145 +563,23 @@ Also watch for questions about data normalization: when tool outputs from differ
 
 #### Prompt Chaining: When the Pipeline Is Known
 
-For a code review workflow, the steps are predictable: review each file, then assess cross-file concerns, then generate a summary. This is a prompt chaining pattern:
+For a code review workflow, the steps are predictable: review each file, then assess cross-file concerns, then generate a summary. This is a prompt chaining pattern with three phases:
 
-```python
-def run_code_review_pipeline(file_paths: list[str]) -> dict:
-    """
-    Prompt chaining pattern for predictable multi-file code review.
-    """
-    # Phase 1: Per-file local analysis (can be parallelized)
-    per_file_reviews = {}
-    for file_path in file_paths:
-        file_content = read_file(file_path)
-        per_file_reviews[file_path] = claude_review(
-            prompt=f"""
-            Review this file for:
-            - Logic errors and bugs
-            - Performance issues
-            - Security vulnerabilities
-            - Code style and readability
-            - Missing error handling
-
-            File: {file_path}
-            ```
-            {file_content}
-            ```
-
-            Return structured findings with severity (critical/high/medium/low)
-            and line numbers for each issue.
-            """
-        )
-
-    # Phase 2: Cross-file integration pass (sequential — needs all per-file results)
-    cross_file_review = claude_review(
-        prompt=f"""
-        Given the following per-file reviews, identify cross-file concerns:
-        - Interface mismatches between modules
-        - Inconsistent error handling patterns across the codebase
-        - Duplicate logic that should be extracted to shared utilities
-        - Dependency cycles or architectural concerns
-
-        Per-file findings:
-        {format_per_file_reviews(per_file_reviews)}
-
-        Focus on issues that only become visible when considering multiple files together.
-        """
-    )
-
-    # Phase 3: Summary synthesis
-    summary = claude_review(
-        prompt=f"""
-        Synthesize the following per-file and cross-file findings into a
-        prioritized review summary suitable for a pull request comment.
-
-        Per-file findings: {format_per_file_reviews(per_file_reviews)}
-        Cross-file findings: {cross_file_review}
-
-        Prioritize by: (1) critical issues, (2) high-severity security concerns,
-        (3) architectural issues, (4) style/consistency issues.
-        Include a top-5 action items list.
-        """
-    )
-
-    return {
-        "per_file_reviews": per_file_reviews,
-        "cross_file_review": cross_file_review,
-        "summary": summary
-    }
-```
+1. **Per-file local analysis** (can be parallelized): each file is reviewed independently for logic errors, performance, security vulnerabilities, style, and missing error handling. Each call returns structured findings with severity levels and line numbers. Because files are independent, these passes can be distributed to parallel subagents.
+2. **Cross-file integration pass** (sequential — requires all per-file results): a single call receives all per-file findings and identifies concerns that only appear across files, such as interface mismatches between modules, inconsistent error handling patterns, duplicate logic eligible for extraction, and dependency cycles.
+3. **Summary synthesis**: a final call combines per-file and cross-file findings into a prioritized pull request comment, ordered by severity, with a top-5 action items list.
 
 Each phase has a defined structure. The pipeline does not need to adapt based on what it finds.
 
 #### Dynamic Adaptive Decomposition: When the Structure Is Unknown
 
-For "add comprehensive tests to a legacy codebase," the correct approach is not to immediately start writing tests — it is to first understand the codebase, then plan, then adapt as constraints emerge:
+For "add comprehensive tests to a legacy codebase," the correct approach is not to immediately start writing tests — it is to first understand the codebase, then plan, then adapt as constraints emerge. Three phases:
 
-```python
-def adaptive_test_coverage_workflow(repo_path: str) -> str:
-    """
-    Dynamic adaptive decomposition for open-ended investigation.
-    The plan evolves as the agent discovers the codebase structure.
-    """
-    # Phase 1: Map structure — discover what we're working with
-    structure_map = claude_investigate(
-        prompt=f"""
-        Explore the repository at {repo_path} and map its structure:
-        - List all modules and their responsibilities
-        - Identify existing test coverage (which files have tests, which don't)
-        - Note testing frameworks already in use
-        - Identify any files that appear to be critical path or high-risk
+1. **Map structure**: explore the repository with read and search tools to list all modules and their responsibilities, identify which files already have tests and which do not, note existing testing frameworks, and flag critical-path or high-risk files. No tests are written at this stage.
+2. **Prioritize targets**: given the structure map, identify highest-impact targets: files with zero coverage on the critical path, functions with high cyclomatic complexity and no tests, code that calls external systems (databases, APIs, file I/O), and utility functions used widely across the codebase. Produce a prioritized work list with justification and flag known ordering constraints.
+3. **Adaptive execution**: work through the prioritized list, implementing tests one item at a time and accumulating prior results as context. When a new dependency or constraint is discovered mid-implementation (e.g., testing `payment_processor.py` reveals that `config_loader.py` must be tested first to enable mocking), the remaining work list is updated before proceeding.
 
-        Use Read, Glob, and Grep tools to explore. Do NOT write any tests yet.
-        Return a structured map of the codebase.
-        """
-    )
-
-    # Phase 2: Identify high-impact areas — prioritize based on structure map
-    prioritized_plan = claude_plan(
-        prompt=f"""
-        Given this codebase structure:
-        {structure_map}
-
-        Identify the highest-impact areas for test coverage:
-        1. Files with zero test coverage that are on the critical path
-        2. Complex functions with high cyclomatic complexity and no tests
-        3. Functions that interact with external systems (DB, API, file I/O)
-        4. Utility functions used by many other modules
-
-        Return a prioritized list of files/functions to test, with justification.
-        Note any dependencies or constraints that will affect the order of work.
-        """
-    )
-
-    # Phase 3: Adaptive execution — plan evolves as dependencies are discovered
-    test_results = []
-    remaining_work = parse_prioritized_plan(prioritized_plan)
-
-    while remaining_work:
-        next_item = remaining_work.pop(0)
-        result = claude_implement_tests(
-            prompt=f"""
-            Implement tests for: {next_item['target']}
-            Priority: {next_item['priority']}
-            Known dependencies: {next_item['dependencies']}
-
-            Context from prior work: {format_prior_results(test_results)}
-
-            If you discover additional dependencies or constraints while implementing,
-            report them so the plan can be updated.
-            """,
-        )
-        test_results.append(result)
-
-        # Adaptive step: update remaining work based on discoveries
-        if result.get("discovered_dependencies"):
-            remaining_work = update_plan(remaining_work, result["discovered_dependencies"])
-
-    return synthesize_test_coverage_report(test_results)
-```
-
-The key difference: the plan can change. If testing `payment_processor.py` reveals it depends on a `config_loader.py` that has no tests and must be mocked, the remaining work is updated to add `config_loader.py` tests first.
+The key difference from prompt chaining: the plan can change. Unknown dependencies discovered during execution feed back into the work queue.
 
 #### Why Per-File Passes Prevent Attention Dilution
 
@@ -1136,74 +649,24 @@ Watch for answer options that suggest reviewing all files in one pass — these 
 In Claude Code, sessions can be named for later resumption. The `--resume` flag continues from the exact state where the prior session ended:
 
 ```bash
-# Start a named investigation session
-claude --session-name "payment-service-investigation" \
-  "Investigate the payment service codebase and identify all database query patterns."
-
-# Later — resume the same session to continue
-claude --resume "payment-service-investigation" \
-  "Now that you've mapped the query patterns, which ones lack proper index coverage?"
+claude --session-name "payment-investigation" "Map all database query patterns."
+claude --resume "payment-investigation" "Which queries lack index coverage?"
 ```
 
-When resuming, the agent has access to all prior tool results, observations, and reasoning. This is efficient for long investigation tasks that span multiple work sessions.
-
-**Critical caveat**: if files have changed since the last session, the agent does not know this. You must explicitly tell it:
-
-```bash
-# Correct: inform the agent about changes before asking follow-up questions
-claude --resume "payment-service-investigation" \
-  "The payment_processor.py file has been refactored since our last session — the \
-   process_payment function has been split into validate_payment and execute_payment. \
-   Please re-analyze payment_processor.py and update your understanding before \
-   answering questions about it."
-
-# Incorrect: ask follow-up questions without informing about changes
-# (The agent will answer based on stale cached understanding of the old code)
-claude --resume "payment-service-investigation" \
-  "Is the process_payment function thread-safe?"
-```
+**Critical caveat**: if files have changed since the last session, the agent does not know this. When resuming, explicitly inform it which files were modified and ask it to re-analyze them before answering questions about them. Asking questions about changed files without this notification will produce answers based on stale cached understanding.
 
 #### fork_session: Parallel Exploration
 
 `fork_session` is ideal when you have completed an analysis phase and want to explore multiple implementation approaches independently from that shared baseline:
 
 ```python
-from anthropic.agent_sdk import AgentSession
-
-# Phase 1: Shared baseline analysis (run once)
-baseline_session = AgentSession(session_name="codebase-baseline")
-baseline_session.run("""
-    Analyze the authentication module comprehensively:
-    - Map all authentication flows
-    - Identify current test coverage
-    - List all external dependencies
-    - Document all edge cases in the current implementation
-""")
-
-# Phase 2: Fork from the baseline to explore two approaches in parallel
-session_a = baseline_session.fork_session(
-    session_name="refactor-approach-jwt",
-    prompt="""
-    Using the baseline analysis, design a refactoring plan that migrates
-    the authentication module to JWT-based stateless tokens.
-    Estimate effort, identify risks, and outline implementation order.
-    """
-)
-
-session_b = baseline_session.fork_session(
-    session_name="refactor-approach-oauth",
-    prompt="""
-    Using the baseline analysis, design a refactoring plan that migrates
-    the authentication module to OAuth 2.0 with PKCE.
-    Estimate effort, identify risks, and outline implementation order.
-    """
-)
-
-# Both sessions start from the same baseline knowledge and explore independently
-# Results can be compared to choose the better approach
+baseline = AgentSession(session_name="codebase-baseline")
+baseline.run("Analyze the authentication module: map flows, coverage, dependencies.")
+fork_a = baseline.fork_session("approach-jwt", prompt="Design a JWT migration plan...")
+fork_b = baseline.fork_session("approach-oauth", prompt="Design an OAuth 2.0/PKCE plan...")
 ```
 
-Without `fork_session`, you would need to run the baseline analysis twice (once per approach), doubling the cost and time. With `fork_session`, the analysis is done once, and both exploration branches inherit it.
+Both forks start from identical baseline knowledge and diverge independently. Running the baseline analysis once instead of twice eliminates duplicate API cost and time.
 
 #### Resumption vs Fresh Start: The Decision
 
@@ -1221,22 +684,13 @@ The choice between resuming a prior session and starting fresh with injected con
 - The prior session contained errors or misunderstandings you want to correct.
 - The prior session's tool results are stale and would mislead the agent if relied upon.
 
-```python
-# Fresh start with structured summary (when prior context is stale)
-fresh_session_prompt = """
-CONTEXT SUMMARY (from prior investigation, some findings may be outdated):
-- Authentication module: 3 files, ~1,200 LOC total
-- Test coverage: 45% line coverage as of 2025-10-01
-- Key finding: session management logic is not thread-safe
-- Note: payment_processor.py was refactored on 2025-11-15 — re-analyze if relevant
+A fresh session prompt with injected context should include:
 
-CURRENT TASK: {current_task}
-
-NOTE: The above summary is from a prior investigation. Re-verify any findings
-that are critical before acting on them. Files modified after 2025-10-01
-should be re-read rather than relying on the summary.
-"""
-```
+- A labeled context summary section (clearly marked as from a prior investigation)
+- Key prior findings that are still likely valid (file counts, architecture notes, critical bugs found)
+- Explicit dates and modification flags for any findings that may be stale
+- The current task statement
+- An instruction to re-verify critical findings and re-read any files modified since the prior session rather than relying on the summary
 
 The fresh start explicitly marks what is known vs what needs verification, protecting against stale data.
 

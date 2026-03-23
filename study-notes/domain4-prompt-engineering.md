@@ -21,12 +21,9 @@
 
 The core insight: vague instructions make the model apply its own interpretation of what counts as an issue. This creates inconsistency. Explicit criteria leave no room for interpretation.
 
-```markdown
-# Vague (produces false positives and inconsistency):
-"Review the code and flag any issues you find with high confidence."
-"Be conservative — only report things that are definitely problems."
-"Check comments for accuracy."
+Vague examples that fail: `"flag any issues you find with high confidence"`, `"be conservative"`, `"check comments for accuracy"`.
 
+```markdown
 # Explicit (consistent, auditable):
 "Flag a comment as inaccurate ONLY when:
   - The comment claims the function does X, but reading the code shows it does Y
@@ -46,39 +43,23 @@ Do NOT flag:
 Classify findings into exactly three severity levels:
 
 CRITICAL — report immediately, blocks merge:
-  - Code example: `query = f"SELECT * FROM users WHERE id = {user_input}"`
+  - `query = f"SELECT * FROM users WHERE id = {user_input}"`
     (SQL injection; unsanitized user input in query string)
-  - Code example: `password = "admin123"` (hardcoded credential)
 
 HIGH — report, should fix before merge:
-  - Code example: API call without try/except where network failure crashes app
-  - Code example: Integer overflow possible in payment calculation
+  - API call without try/except where network failure crashes app
 
 MEDIUM — report as advisory, can fix later:
-  - Code example: N+1 query in loop (performance degradation at scale)
-  - Code example: Missing input validation (not security-critical path)
-
-SKIP entirely (not worth reporting):
-  - Inconsistent spacing within files that use a linter
-  - Variable names that are shorter than preferred but clear
-  - Minor style choices not covered by team standards
+  - N+1 query in loop (performance degradation at scale)
 ```
+
+SKIP (not worth reporting): minor style issues covered by a linter, short-but-clear variable names, style choices not in team standards. These categories should be omitted from the prompt entirely rather than listed as low-priority, to avoid the model producing low-value findings that erode trust.
 
 **Managing False Positive Trust Erosion**
 
-```
-Scenario: Code review tool reports 40% false positives in "performance" category
-  → Developers start ignoring ALL findings including legitimate security issues
-  → Trust erosion spreads from bad category to accurate categories
+When one category (e.g., "performance") produces 40% false positives, developers begin ignoring ALL findings — including legitimate security issues. Trust erosion spreads from the noisy category to accurate ones.
 
-Strategy:
-  Step 1: Temporarily disable the performance category entirely
-          → Developers regain trust in security findings
-  Step 2: Refine performance criteria with concrete examples
-          → Test on subset before re-enabling
-  Step 3: Re-enable with improved criteria and validate false positive rate
-          → Target < 10% false positives before restoring to CI
-```
+The three-step recovery strategy: (1) temporarily disable the noisy category entirely so developers regain trust in the accurate categories; (2) refine the disabled category's criteria with concrete examples and test on a subset; (3) re-enable only once the false positive rate is acceptable (target < 10% before restoring to CI).
 
 > **Exam Tip:** Questions about reducing false positives always have two candidates: (A) add explicit categorical criteria, and (B) add hedging language like "be conservative" or "only report high-confidence findings." The answer is always (A). Hedging language doesn't work — it shifts interpretation to the model without improving its calibration.
 
@@ -110,84 +91,52 @@ Strategy:
 ```markdown
 # Few-shot examples for code review findings
 
-## Output format to use:
+## Output format:
 [SEVERITY] file:line — Issue description. Suggested fix.
 
-## Examples:
-
-### Example 1 — Security finding (report):
+## Example 1 — Security finding (report):
 Code: `cursor.execute("SELECT * FROM orders WHERE user_id = " + user_id)`
 Finding: [CRITICAL] payment.py:47 — SQL injection via string concatenation.
   Use parameterized query: cursor.execute("SELECT * FROM orders WHERE user_id = %s", (user_id,))
 
-### Example 2 — Local pattern (skip):
+## Example 2 — Local pattern (skip):
 Code: `x = get_user(id)  # get user by id`
 Finding: SKIP — Redundant comment, but not contradictory or misleading.
   Self-documenting code doesn't require comment; omitting doesn't improve anything.
-
-### Example 3 — Ambiguous case (reasoning shown):
-Code:
-  async function fetchUser(id) {
-    const user = await db.query(...)
-    return user  // note: no try/catch
-  }
-Finding: [HIGH] userService.js:23 — Unhandled promise rejection. DB failure propagates uncaught.
-  Reasoning: async function without try/catch is HIGH not MEDIUM because unhandled rejections
-  in this framework silently crash the process, not just fail the request.
-  Fix: Wrap in try/catch and return structured error response.
 ```
+
+A third ambiguous-case example is valuable when false positives cluster around a specific pattern (e.g., async functions without try/catch that are HIGH not MEDIUM because of how the framework handles unhandled rejections). Add it only when you have a real ambiguous case to resolve.
 
 **Few-Shot for Ambiguous Tool Selection**
 
 ```markdown
 # System prompt few-shot examples for agent tool selection
 
-## Examples:
-
-Query: "What happened to order ORD-12345?"
-Tool: lookup_order
-Reasoning: The query contains a specific order identifier — use the tool
-  designed for order lookups, not customer account lookup.
-
-Query: "I need help with my account"
-Tool: get_customer
-Reasoning: No order ID mentioned; start with customer lookup to understand
-  account status before proceeding.
-
+## Example 1 — No order ID:
 Query: "I placed an order last Tuesday"
 Tool: get_customer
-Reasoning: No order ID available; must retrieve customer first, then
-  search their orders by date. Start with get_customer.
+Reasoning: No order ID available; must retrieve customer first, then search
+  their orders by date. Start with get_customer.
 
+## Example 2 — Order ID present but customer unverified:
 Query: "Can you check order 12345 for John Smith?"
 Tool: get_customer
 Reasoning: Despite the order ID being present, customer identity is unverified.
   Always verify customer identity via get_customer before accessing order data.
 ```
 
+The key insight these two examples teach: even when an order ID is available, the correct first step is identity verification via `get_customer`. The examples together rule out the plausible-but-wrong shortcut of jumping straight to `lookup_order`.
+
 **Few-Shot for Extraction from Varied Document Structures**
 
-```markdown
-# Few-shot examples for extracting methodology from research papers
+Provide one example for each of the four key document conditions the model will encounter:
 
-## Example 1 — Methodology in dedicated section:
-Document excerpt: "## Methodology\nWe surveyed 500 participants over 6 months..."
-Extraction: {"methodology": "Survey-based", "sample_size": 500, "duration_months": 6}
+- **(a) Dedicated section** — data is clearly labelled and present: extract all fields normally.
+- **(b) Embedded data** — data is present but not in a labelled section (e.g., buried in the introduction): extract what is stated; leave unprovided fields as null.
+- **(c) Absent data** — the document does not mention the field at all: return null. Do NOT infer or fabricate from context.
+- **(d) Imprecise data** — field is mentioned but cannot be quantified (e.g., "a handful of interviews", "several years"): return null for the numeric field. "Handful" is not a number; fabricating one is hallucination.
 
-## Example 2 — Methodology embedded in introduction:
-Document excerpt: "...this analysis draws on 3 years of transaction logs from..."
-Extraction: {"methodology": "Longitudinal data analysis", "sample_size": null, "duration_months": 36}
-
-## Example 3 — No methodology mentioned:
-Document excerpt: "This report summarizes the quarterly findings from our team..."
-Extraction: {"methodology": null, "sample_size": null, "duration_months": null}
-Note: Return null, do NOT infer or fabricate methodology from context.
-
-## Example 4 — Informal measurement:
-Document excerpt: "...based on a handful of customer interviews..."
-Extraction: {"methodology": "Qualitative interviews", "sample_size": null, "duration_months": null}
-Note: "handful" is imprecise; do not fabricate a number. Return null for sample_size.
-```
+The overriding principle demonstrated by all four examples: **never fabricate**. If the document does not clearly state the value, null is always the correct answer.
 
 > **Exam Tip:** When a question describes "inconsistent output format" or "incorrect tool selection on ambiguous cases" and asks for the most effective fix — the answer is few-shot examples. Not more detailed instructions, not confidence thresholds, not routing classifiers.
 
@@ -219,156 +168,61 @@ Note: "handful" is imprecise; do not fabricate a number. Return null for sample_
 
 **Tool Use for Structured Extraction**
 
+The schema below illustrates the three key design patterns in a single tool definition: a required string field, a nullable field (data may be absent), and an enum-with-other field (extensible category). In production the `required` list and `tool_choice` setting enforce that the model always calls the tool and always returns a schema-compliant object.
+
 ```python
-import anthropic
-import json
-
-client = anthropic.Anthropic()
-
-# Define extraction tool with JSON schema
 extract_invoice_tool = {
     "name": "extract_invoice",
     "description": "Extract structured data from an invoice document",
     "input_schema": {
         "type": "object",
         "properties": {
-            "invoice_number": {
-                "type": "string",
-                "description": "Invoice identifier (e.g., INV-2026-0042)"
-            },
-            "vendor_name": {
-                "type": "string"
-            },
-            "invoice_date": {
-                "type": ["string", "null"],    # nullable — may be absent
-                "description": "ISO 8601 date (YYYY-MM-DD) or null if not found"
-            },
-            "total_amount": {
-                "type": ["number", "null"],
-                "description": "Total invoice amount in USD, or null if ambiguous"
-            },
-            "line_items": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "description": {"type": "string"},
-                        "quantity": {"type": ["number", "null"]},
-                        "unit_price": {"type": ["number", "null"]},
-                        "total": {"type": "number"}
-                    },
-                    "required": ["description", "total"]
-                }
-            },
-            "payment_terms": {
-                "type": "string",
-                "enum": ["net_30", "net_60", "net_90", "immediate", "other"],
-                "description": "Payment terms; use 'other' if non-standard"
-            },
-            "payment_terms_detail": {
-                "type": ["string", "null"],
-                "description": "Detail when payment_terms is 'other'; null otherwise"
-            },
-            "confidence": {
-                "type": "string",
-                "enum": ["high", "medium", "low"],
-                "description": "Extraction confidence based on document clarity"
-            }
+            "invoice_number": {"type": "string"},                          # required
+            "invoice_date":   {"type": ["string", "null"],                 # nullable
+                               "description": "ISO 8601 or null if absent"},
+            "total_amount":   {"type": ["number", "null"]},                # nullable
+            "payment_terms":  {"type": "string",                           # enum with other
+                               "enum": ["net_30", "net_60", "net_90", "immediate", "other"]},
+            "payment_terms_detail": {"type": ["string", "null"],
+                               "description": "Original text when payment_terms='other'"},
+            "confidence":     {"type": "string", "enum": ["high", "medium", "low"]}
         },
-        "required": ["invoice_number", "vendor_name", "line_items", "payment_terms", "confidence"]
+        "required": ["invoice_number", "payment_terms", "confidence"]
     }
 }
 
-# Force tool use to guarantee structured output
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=2048,
-    tools=[extract_invoice_tool],
-    tool_choice={"type": "tool", "name": "extract_invoice"},  # forced
-    messages=[{
-        "role": "user",
-        "content": f"Extract invoice data. Normalize all dates to ISO 8601 (YYYY-MM-DD).\n\n{document_text}"
-    }]
-)
-
-# Extract tool result
-for block in response.content:
-    if block.type == "tool_use":
-        invoice_data = block.input
-        break
+# Forced tool use — model cannot return plain text
+tool_choice = {"type": "tool", "name": "extract_invoice"}
 ```
 
 **Nullable Fields to Prevent Hallucination**
 
-```python
-# Without nullable fields: model MUST provide a value
-# → Model fabricates plausible-sounding data when field is absent
-"invoice_date": {"type": "string"}  # BAD: forces hallucination
-
-# With nullable fields: model can honestly report absence
-"invoice_date": {
-    "type": ["string", "null"],
-    "description": "ISO 8601 date or null if not clearly stated in document"
-}
-
-# Same pattern for any field that may be absent:
-"serial_number": {"type": ["string", "null"]}
-"discount_rate": {"type": ["number", "null"]}
-"purchase_order_reference": {"type": ["string", "null"]}
-```
+A field typed `"type": "string"` forces the model to provide a value — so when the field is absent from the source document, the model fabricates a plausible-sounding one. Typing it `"type": ["string", "null"]` lets the model honestly report absence with `null` instead of inventing data. Apply this pattern to every field that may not appear in every document.
 
 **Enum with "other" Pattern**
 
-```python
-# Without "other": forces the model to pick the closest category
-# → Misclassification of genuinely different cases
-"department": {
-    "type": "string",
-    "enum": ["engineering", "marketing", "sales", "hr", "finance"]
-    # What if the document says "R&D" or "Customer Success"? → forced wrong pick
-}
+Without `"other"`, a closed enum forces the model to pick the closest category for unanticipated values — producing systematic misclassifications.
 
-# With "other" + detail: handles extensibility gracefully
-"department": {
-    "type": "string",
-    "enum": ["engineering", "marketing", "sales", "hr", "finance", "other"]
-},
-"department_detail": {
-    "type": ["string", "null"],
-    "description": "Original department name when 'other'; null otherwise"
-}
-# "R&D" → department: "other", department_detail: "R&D"
+```python
+# Before: "R&D" or "Customer Success" → forced wrong pick
+"enum": ["engineering", "marketing", "sales", "hr", "finance"]
+
+# After: captures original value without misclassifying
+"enum": ["engineering", "marketing", "sales", "hr", "finance", "other"]
+"department_detail": {"type": ["string", "null"]}  # "R&D"; null if not "other"
 ```
 
 **Syntax vs. Semantic Errors**
 
-```python
-# Tool use eliminates: syntax errors
-# - Unclosed braces
-# - Missing quotes
-# - Invalid JSON
-# - Wrong field types
+`tool_use` with a JSON schema eliminates syntax errors: unclosed braces, missing quotes, invalid JSON, wrong field types. The model cannot return a response that violates the schema.
 
-# Tool use does NOT eliminate: semantic errors
-# These require additional validation logic
+`tool_use` does NOT eliminate semantic errors. These require additional validation logic applied after extraction:
 
-def validate_invoice(data):
-    errors = []
-
-    # Semantic check 1: line items must sum to total
-    if data.get("total_amount") and data.get("line_items"):
-        calculated = sum(item["total"] for item in data["line_items"])
-        if abs(calculated - data["total_amount"]) > 0.01:
-            errors.append(f"Line items sum {calculated} != stated total {data['total_amount']}")
-
-    # Semantic check 2: date must be in the past or near-present
-    if data.get("invoice_date"):
-        invoice_date = datetime.fromisoformat(data["invoice_date"])
-        if invoice_date > datetime.now() + timedelta(days=30):
-            errors.append(f"Invoice date {data['invoice_date']} is implausibly far in the future")
-
-    return errors
-```
+- Line items do not sum to the stated total
+- Invoice date is implausibly far in the future
+- A discount rate exceeds 100%
+- A required reference number is structurally valid but does not match the expected format for this vendor
+- The same field contains contradictory values sourced from different parts of the document
 
 > **Exam Tip:** "What prevents JSON syntax errors?" → `tool_use` with JSON schema. "What prevents semantic errors (totals don't add up)?" → additional validation logic (Task 4.4). These are distinct questions with distinct answers.
 
@@ -396,183 +250,42 @@ def validate_invoice(data):
 
 **Retry-with-Error-Feedback Pattern**
 
-```python
-import anthropic
-import json
+The retry-with-feedback loop follows five steps:
 
-client = anthropic.Anthropic()
-
-def extract_with_retry(document_text, tool, max_retries=2):
-    messages = [{
-        "role": "user",
-        "content": f"Extract invoice data from this document:\n\n{document_text}"
-    }]
-
-    for attempt in range(max_retries + 1):
-        response = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=2048,
-            tools=[tool],
-            tool_choice={"type": "tool", "name": tool["name"]},
-            messages=messages
-        )
-
-        # Extract result
-        extracted = None
-        for block in response.content:
-            if block.type == "tool_use":
-                extracted = block.input
-                break
-
-        if not extracted:
-            break
-
-        # Validate
-        errors = validate_invoice(extracted)
-        if not errors:
-            return {"success": True, "data": extracted, "attempts": attempt + 1}
-
-        if attempt < max_retries:
-            # Retry with specific error feedback — NOT just "try again"
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({
-                "role": "user",
-                "content": (
-                    f"The extraction has validation errors. Please correct:\n\n"
-                    f"Errors:\n" + "\n".join(f"- {e}" for e in errors) + "\n\n"
-                    f"Original document:\n{document_text}\n\n"
-                    f"Previous extraction:\n{json.dumps(extracted, indent=2)}\n\n"
-                    f"Resubmit corrected extraction."
-                )
-            })
-
-    return {"success": False, "data": extracted, "errors": errors, "attempts": attempt + 1}
-```
+1. **Extract** — send document with forced tool use; receive structured output.
+2. **Validate** — run semantic validation checks against the extracted data.
+3. **Return on success** — if no errors, return the result immediately.
+4. **Build retry message on failure** — append to the conversation: the assistant's previous tool call, then a user message containing (a) the specific validation errors, (b) the original document, and (c) the previous extraction. Do NOT simply say "try again."
+5. **Repeat up to max_retries** — after exhausting retries, return the best available result with errors flagged for human review.
 
 **When to Retry vs. When to Stop**
 
-```python
-def should_retry(validation_error, document_text):
-    """
-    Retry is useful: format/structural errors where data IS present but malformed
-    Retry is wasteful: data simply doesn't exist in the document
-
-    Returns: (should_retry: bool, reason: str)
-    """
-
-    # Retry will help: data present but wrong format
-    if "date format" in validation_error:
-        # Data is there, format is wrong — retry with format guidance
-        return True, "Format error; data likely present in different format"
-
-    if "line items don't sum to total" in validation_error:
-        # Arithmetic error or wrong field placement — retry to recalculate
-        return True, "Semantic arithmetic error; retry to recalculate"
-
-    # Retry won't help: data is genuinely absent
-    if "required field" in validation_error and field_mentioned_in_doc(validation_error, document_text):
-        return False, "Field mentioned in document exists but cannot be parsed"
-
-    if "vendor_name" in validation_error and "invoice" not in document_text.lower():
-        # Not actually an invoice
-        return False, "Document type mismatch; this is not an invoice"
-
-    if validation_error.startswith("external_reference"):
-        # Error requires data from another document
-        return False, "Validation requires external document not provided"
-
-    return True, "Generic error; retry may help"
-```
+| Error type | Retry? | Reason |
+|---|---|---|
+| Date in wrong format | Yes | Data is present; format guidance will fix it |
+| Line items don't sum to stated total | Yes | Arithmetic/placement error; model can recalculate |
+| Required field absent from document | No | Data does not exist; retry cannot invent it |
+| Document is wrong type (not an invoice) | No | Type mismatch; retrying same document won't help |
+| Validation requires an external document not provided | No | Missing context cannot be supplied via retry |
+| Generic / unknown error | Yes | Retry may help; include specific error text |
 
 **detected_pattern for Feedback Loop Analysis**
 
-```python
-# Code review tool structure with detected_pattern field
-code_review_tool = {
-    "name": "report_finding",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "file": {"type": "string"},
-            "line": {"type": "integer"},
-            "severity": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
-            "category": {"type": "string"},
-            "description": {"type": "string"},
-            "detected_pattern": {
-                "type": "string",
-                "description": (
-                    "The specific code construct that triggered this finding. "
-                    "Example: 'string concatenation in SQL', 'bare except clause', "
-                    "'mutable default argument'. Used for false positive analysis."
-                )
-            },
-            "suggested_fix": {"type": "string"}
-        },
-        "required": ["file", "line", "severity", "category", "description", "detected_pattern"]
-    }
-}
+The `detected_pattern` field in a code review tool schema captures the specific code construct that triggered each finding (e.g., `"string concatenation in SQL"`, `"bare except clause"`, `"mutable default argument"`). It is required on every finding.
 
-# Developer dismisses finding → log detected_pattern
-def on_developer_dismiss(finding_id, reason):
-    finding = get_finding(finding_id)
-    log_dismissal({
-        "detected_pattern": finding["detected_pattern"],
-        "category": finding["category"],
-        "reason": reason,
-        "timestamp": datetime.now()
-    })
-
-# Analysis: which patterns have high dismissal rates?
-def analyze_false_positive_patterns():
-    dismissals = load_dismissal_log()
-    pattern_dismissal_rates = {}
-    for d in dismissals:
-        p = d["detected_pattern"]
-        pattern_dismissal_rates[p] = pattern_dismissal_rates.get(p, 0) + 1
-
-    # High dismissal rate → update prompt to skip this pattern
-    # or add few-shot examples showing why it's acceptable
-    return sorted(pattern_dismissal_rates.items(), key=lambda x: -x[1])
-```
+The feedback loop works as follows: when a developer dismisses a finding, the system logs the `detected_pattern` alongside the dismissal reason. Over time, aggregating dismissals by pattern reveals which constructs have high false positive rates. Patterns with consistently high dismissal rates are candidates for prompt refinement — either by adding an explicit SKIP rule for that pattern, or by adding a few-shot example showing why it is acceptable code. This turns individual developer dismissals into systematic prompt improvements.
 
 **Self-Correction Validation Fields**
 
-```python
-# Adding explicit validation-helper fields to schema
-extraction_schema = {
-    "properties": {
-        "stated_total": {
-            "type": ["number", "null"],
-            "description": "Total amount as explicitly stated in document"
-        },
-        "calculated_total": {
-            "type": ["number", "null"],
-            "description": "Sum of all line items (model calculates this)"
-        },
-        "totals_match": {
-            "type": "boolean",
-            "description": "True if stated_total == calculated_total (within $0.01)"
-        },
-        "conflict_detected": {
-            "type": "boolean",
-            "description": "True if document contains contradictory values for same field"
-        },
-        "conflict_description": {
-            "type": ["string", "null"],
-            "description": "Describe conflict if conflict_detected is true"
-        }
-    }
-}
+The schema can include fields that make the model perform validation work at extraction time, reducing the complexity of post-extraction checks:
 
-# Validation using these self-reported fields
-def validate_with_self_reported(data):
-    if data.get("conflict_detected"):
-        route_to_human_review(data, reason=data["conflict_description"])
+- `stated_total` — the total amount as literally written in the document (nullable)
+- `calculated_total` — the model's own sum of line items; computed by the model, not copied from the document (nullable)
+- `totals_match` — boolean; `true` if `stated_total == calculated_total` within $0.01; the discrepancy is surfaced before your code runs any checks
+- `conflict_detected` — boolean; `true` if the document contains contradictory values for the same field (e.g., different totals on different pages)
+- `conflict_description` — string describing the conflict when `conflict_detected` is `true`; null otherwise
 
-    if not data.get("totals_match") and data.get("stated_total") is not None:
-        # Retry with specific arithmetic feedback
-        retry_with_feedback(data, "Line items sum does not match stated total")
-```
+When `conflict_detected` is true, route directly to human review rather than retrying — the source document is ambiguous, not the extraction.
 
 > **Exam Tip:** Retry questions come in two flavors: (1) "What to include in a retry prompt?" — the answer is specific validation errors + original document + failed extraction. (2) "When is retry ineffective?" — the answer is when the required data does not exist in the provided document.
 
@@ -618,95 +331,20 @@ NO → Consider batch API (50% savings, up to 24h)
 
 **Batch API Request Structure**
 
-```python
-import anthropic
+Each request in the batch is a standard Messages API params object plus a `custom_id` string you supply. The `custom_id` is the only way to correlate a response back to the source document, since batch responses are not guaranteed to arrive in submission order.
 
-client = anthropic.Anthropic()
-
-# Build batch requests
-def build_batch_requests(documents):
-    return [
-        {
-            "custom_id": f"doc-{doc['id']}",  # For correlation on response
-            "params": {
-                "model": "claude-opus-4-6",
-                "max_tokens": 2048,
-                "tools": [extract_invoice_tool],
-                "tool_choice": {"type": "tool", "name": "extract_invoice"},
-                "messages": [{
-                    "role": "user",
-                    "content": f"Extract invoice data:\n\n{doc['text']}"
-                }]
-            }
-        }
-        for doc in documents
-    ]
-
-# Submit batch
-batch = client.beta.messages.batches.create(
-    requests=build_batch_requests(documents)
-)
-batch_id = batch.id
-
-# Poll for completion (batch takes up to 24 hours)
-import time
-while True:
-    status = client.beta.messages.batches.retrieve(batch_id)
-    if status.processing_status == "ended":
-        break
-    time.sleep(3600)  # Check hourly; no SLA guarantee
-
-# Process results — correlate via custom_id
-results = {}
-for result in client.beta.messages.batches.results(batch_id):
-    doc_id = result.custom_id  # Matches our "doc-{id}"
-    if result.result.type == "succeeded":
-        results[doc_id] = result.result.message
-    else:
-        # Track failures for resubmission
-        handle_failure(doc_id, result.result)
-```
+Submit the batch as a single API call (`batches.create`). Poll `batches.retrieve` until `processing_status == "ended"` — up to 24 hours. When ended, iterate `batches.results` and match each result back to its source document via `custom_id`. Results with `result.type == "succeeded"` contain the full message; failures contain an error type used to decide resubmission strategy.
 
 **Handling Batch Failures**
 
-```python
-def process_batch_results(batch_id):
-    successes = []
-    failures = []
+When a batch completes, resubmit only the failed documents (identified by `custom_id`) — never the whole batch. The action depends on the error type:
 
-    for result in client.beta.messages.batches.results(batch_id):
-        if result.result.type == "succeeded":
-            successes.append({
-                "custom_id": result.custom_id,
-                "data": extract_tool_result(result.result.message)
-            })
-        else:
-            failures.append({
-                "custom_id": result.custom_id,
-                "error_type": result.result.type,
-                "error": result.result.error if hasattr(result.result, 'error') else None
-            })
-
-    # Resubmit only failures — not the whole batch
-    if failures:
-        retry_requests = []
-        for failure in failures:
-            doc = get_document_by_custom_id(failure["custom_id"])
-
-            if failure.get("error_type") == "overloaded_error":
-                # Transient: resubmit same request
-                retry_requests.append(build_single_request(doc))
-
-            elif "context_window" in str(failure.get("error", "")):
-                # Too long: chunk the document
-                chunks = chunk_document(doc, max_tokens=50000)
-                retry_requests.extend(build_chunked_requests(doc["id"], chunks))
-
-        if retry_requests:
-            retry_batch = client.beta.messages.batches.create(requests=retry_requests)
-
-    return successes, failures
-```
+| Error type | Action |
+|---|---|
+| `overloaded_error` | Resubmit same request unchanged; transient capacity issue |
+| Context window exceeded | Chunk the document and resubmit as multiple smaller requests |
+| `succeeded` | Extract tool result and store; no resubmission needed |
+| Other / unknown | Log for human review; resubmission unlikely to help without prompt changes |
 
 **SLA Calculation for Batch Submission Frequency**
 
@@ -729,31 +367,7 @@ Calculation:
 
 **Prompt Refinement Before Bulk Processing**
 
-```python
-# Never send 10,000 documents through a new prompt without testing
-def validate_prompt_before_bulk(sample_documents, prompt_template, n_samples=50):
-    """
-    Test on a stratified sample before bulk processing:
-    1. Diverse document types and quality levels
-    2. Manual review of results
-    3. Iteration until acceptable quality
-
-    Reason: Iterative resubmission of 10k documents is expensive.
-    A 50-document sample catches prompt issues at 0.5% of full cost.
-    """
-    sample = random.sample(sample_documents, min(n_samples, len(sample_documents)))
-    results = []
-    for doc in sample:
-        result = extract_synchronously(doc, prompt_template)
-        results.append(result)
-
-    # Manual review
-    accuracy = manual_review(results)
-    if accuracy < 0.90:
-        raise ValueError(f"Prompt accuracy {accuracy:.1%} insufficient for bulk; refine first")
-
-    return results
-```
+Always test a new prompt on a stratified sample of 30–50 documents (covering diverse document types and quality levels) before submitting a large batch. A 50-document synchronous sample costs 0.5% of the full 10,000-document run and catches prompt failures before they propagate at scale. Iterate until extraction quality is acceptable; only then submit the bulk batch.
 
 > **Exam Tip:** The critical batch API facts for the exam: (1) 50% cost savings, (2) up to 24-hour window, (3) no guaranteed latency SLA, (4) no multi-turn tool calling support. Questions about batch use case fit always turn on whether the workflow blocks something (synchronous needed) or runs offline (batch appropriate).
 
@@ -779,143 +393,34 @@ def validate_prompt_before_bulk(sample_documents, prompt_template, n_samples=50)
 
 **Independent Review Instance Pattern**
 
-```python
-import anthropic
+The pattern uses two completely separate API calls — two distinct sessions with no shared message history:
 
-client = anthropic.Anthropic()
+Session A (generator) receives the specification and produces code. Its system prompt frames it as a software engineer writing production code. When this call completes, only the generated code text is extracted and passed forward — not the conversation, not the spec, not any reasoning.
 
-def generate_and_review_independently(spec: str):
-    # Step 1: Generate code (Session A)
-    generation_response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=4096,
-        system="You are an expert software engineer. Generate clean, production-ready code.",
-        messages=[{"role": "user", "content": f"Implement: {spec}"}]
-    )
-    generated_code = generation_response.content[0].text
+Session B (reviewer) receives only the generated code, with a system prompt framing it as a senior reviewer with no knowledge of how the code was written. Because it has no access to the generation reasoning, it cannot unconsciously confirm the generator's assumptions. It reviews the code as a stranger would.
 
-    # Step 2: Independent review (Session B — fresh context, no generation history)
-    # Key: the reviewer does NOT see the generation prompt or reasoning
-    review_response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=2048,
-        system=(
-            "You are a senior code reviewer. You have no context about how this code was written. "
-            "Review it objectively for correctness, security, and edge cases."
-        ),
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Review this code for bugs, security issues, and missing edge cases.\n"
-                f"For each finding, include your confidence level (high/medium/low).\n\n"
-                f"Code:\n{generated_code}"
-            )
-        }]
-    )
-
-    return generated_code, review_response.content[0].text
-```
+The key implementation detail: Session B's `messages` array contains only the code-under-review, never the original generation prompt or the generator's message history. This is what makes the review genuinely independent.
 
 **Multi-Pass Review Architecture**
 
-```python
-def multi_pass_code_review(pr_files: list[dict]):
-    """
-    Pass 1: Per-file local analysis
-    Pass 2: Cross-file integration analysis
+See Domain 1 Task 1.6 for the full CI/CD integration context. Key architectural points:
 
-    Avoids attention dilution when reviewing 20+ files simultaneously.
-    """
-
-    # Pass 1: Per-file reviews — local issues only
-    per_file_findings = []
-    for file in pr_files:
-        response = client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"Review {file['name']} for LOCAL issues only:\n"
-                    f"- Logic errors within this file\n"
-                    f"- Missing null checks\n"
-                    f"- Security issues in this file\n"
-                    f"Do NOT flag cross-file integration issues.\n\n"
-                    f"Code:\n{file['content']}"
-                )
-            }]
-        )
-        per_file_findings.append({
-            "file": file["name"],
-            "findings": response.content[0].text
-        })
-
-    # Pass 2: Cross-file integration analysis
-    # Provide per-file summaries + full changed code for integration review
-    integration_context = "\n\n".join([
-        f"File: {f['file']}\n{f['findings']}" for f in per_file_findings
-    ])
-
-    integration_response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=2048,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Review these cross-file integration concerns:\n"
-                f"- Data flow across module boundaries\n"
-                f"- Inconsistent error handling across services\n"
-                f"- Breaking changes to shared interfaces\n"
-                f"- Circular dependencies introduced\n\n"
-                f"Per-file findings summary:\n{integration_context}\n\n"
-                f"Full diff:\n{get_full_diff(pr_files)}"
-            )
-        }]
-    )
-
-    return {
-        "per_file": per_file_findings,
-        "integration": integration_response.content[0].text
-    }
-```
+- **Pass 1 — per-file local analysis**: each file is reviewed in its own API call, scoped explicitly to local issues (logic errors, null checks, security within the file). The prompt instructs the model NOT to flag cross-file concerns. This prevents attention dilution across large PRs.
+- **Pass 2 — cross-file integration analysis**: a single subsequent call receives the per-file finding summaries plus the full diff. It focuses exclusively on integration concerns: data flow across module boundaries, inconsistent error handling across services, breaking changes to shared interfaces, circular dependencies.
+- The two-pass split is essential when reviewing 20+ files. Reviewing all files in one call causes attention dilution — findings in middle files are less reliable than findings in the first and last files.
 
 **Confidence-Based Review Routing**
 
-```python
-review_with_confidence_tool = {
-    "name": "report_finding",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "description": {"type": "string"},
-            "severity": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
-            "confidence": {
-                "type": "string",
-                "enum": ["high", "medium", "low"],
-                "description": (
-                    "High: clearly wrong. Medium: likely wrong, context dependent. "
-                    "Low: may be wrong, needs human judgment."
-                )
-            },
-            "requires_domain_knowledge": {"type": "boolean"}
-        },
-        "required": ["description", "severity", "confidence"]
-    }
-}
+Each finding includes `severity` (`critical/high/medium/low`), `confidence` (`high/medium/low`, where high = clearly wrong, low = may be wrong), and an optional `requires_domain_knowledge` boolean. Routing decisions:
 
-def route_finding(finding):
-    """Route findings based on confidence and severity"""
-    if finding["severity"] == "critical":
-        return "block_merge"  # Always block regardless of confidence
-
-    if finding["confidence"] == "high" and finding["severity"] in ["critical", "high"]:
-        return "auto_comment"  # High confidence high/critical: post automatically
-
-    if finding["confidence"] == "low" or finding.get("requires_domain_knowledge"):
-        return "human_review"  # Uncertain: send to human reviewer
-
-    return "auto_comment"  # Medium/high confidence medium/low: auto-comment
-```
+| Severity | Confidence | requires_domain_knowledge | Action |
+|---|---|---|---|
+| critical | any | any | block_merge |
+| high | high | false | auto_comment |
+| high | medium | false | auto_comment |
+| any | low | any | human_review |
+| any | any | true | human_review |
+| medium/low | medium/high | false | auto_comment |
 
 > **Exam Tip:** "Why is self-review less effective than independent review?" — The generating session retains reasoning context that biases toward confirming its own decisions. The exam will present self-review ("add a self-review instruction") as a wrong answer when independent instance review is an option.
 

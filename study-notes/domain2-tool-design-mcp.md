@@ -23,127 +23,18 @@
 
 When Claude encounters multiple tools with similar names or scopes, the tool description is consulted first to decide which tool is appropriate. A minimal description like `"Retrieves customer information"` gives the model nothing to distinguish `get_customer` from `lookup_order` when both accept identifier inputs.
 
-A high-quality description follows this structure:
-- What the tool does (one sentence)
-- What input formats it accepts (IDs, names, dates, etc.)
-- Example queries that should trigger it
-- What it does NOT handle (boundary cases)
-- When to use it versus similar tools
+**Poor description:** `"Retrieves customer information"` — gives the model nothing to distinguish `get_customer` from `lookup_order` when both accept identifier inputs.
 
-```python
-# Poor description — causes misrouting
-tools = [
-    {
-        "name": "get_customer",
-        "description": "Retrieves customer information",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "identifier": {"type": "string"}
-            }
-        }
-    },
-    {
-        "name": "lookup_order",
-        "description": "Retrieves order details",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "identifier": {"type": "string"}
-            }
-        }
-    }
-]
-
-# Strong descriptions — reliable selection
-tools = [
-    {
-        "name": "get_customer",
-        "description": (
-            "Look up a customer account by customer ID, email, or phone number. "
-            "Use this tool FIRST before any order operations to verify identity. "
-            "Returns: customer_id, name, account_status, tier. "
-            "Use when: the user asks about their account, wants to verify identity, "
-            "or before processing refunds/changes. "
-            "Do NOT use for order number lookups — use lookup_order instead."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "identifier": {
-                    "type": "string",
-                    "description": "Customer ID (CUST-XXXXX), email, or phone"
-                }
-            },
-            "required": ["identifier"]
-        }
-    },
-    {
-        "name": "lookup_order",
-        "description": (
-            "Look up order details by order number (e.g., ORD-12345). "
-            "Use when the customer references a specific order number. "
-            "Returns: order_id, status, items, amounts, shipping. "
-            "Requires: a customer must already be verified via get_customer. "
-            "Do NOT use for customer account information."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_id": {
-                    "type": "string",
-                    "description": "Order ID in format ORD-XXXXX"
-                },
-                "customer_id": {
-                    "type": "string",
-                    "description": "Verified customer ID from get_customer"
-                }
-            },
-            "required": ["order_id", "customer_id"]
-        }
-    }
-]
-```
+**Strong description structure (5 elements):**
+1. What the tool does (one sentence)
+2. Input formats accepted — specify accepted identifier formats (e.g., CUST-XXXXX vs ORD-XXXXX)
+3. Example queries that should trigger it
+4. What it does NOT handle (boundary cases)
+5. When to use it versus similar tools — require prerequisite steps (e.g., customer must be verified via `get_customer` before calling `lookup_order`), and state what the tool returns.
 
 **Splitting Generic Tools**
 
-A generic `analyze_document` tool forces the model to interpret what kind of analysis is needed. Purpose-specific tools communicate intent unambiguously:
-
-```python
-# Before: one generic tool
-{
-    "name": "analyze_document",
-    "description": "Analyzes a document"
-}
-
-# After: three purpose-specific tools with clear boundaries
-[
-    {
-        "name": "extract_data_points",
-        "description": (
-            "Extract structured numerical data, dates, and named entities from a document. "
-            "Use when: you need facts, figures, statistics, or structured data from the text. "
-            "Returns: a JSON object with extracted fields."
-        )
-    },
-    {
-        "name": "summarize_content",
-        "description": (
-            "Generate a concise prose summary of a document's main points. "
-            "Use when: you need a narrative overview for human consumption. "
-            "Returns: a plain text summary of 1-3 paragraphs."
-        )
-    },
-    {
-        "name": "verify_claim_against_source",
-        "description": (
-            "Check whether a specific claim is supported, contradicted, or absent in a document. "
-            "Use when: you need to fact-check or validate a specific statement. "
-            "Returns: {supported: bool, quote: str, confidence: float}"
-        )
-    }
-]
-```
+Before: one `analyze_document` tool forces the model to interpret what kind of analysis is needed. After: three purpose-specific tools with unambiguous intent — `extract_data_points` (returns JSON with structured facts and figures), `summarize_content` (returns plain text narrative), and `verify_claim_against_source` (returns supported/contradicted/absent).
 
 > **Exam Tip:** Questions about tool misrouting always point to tool descriptions as the root cause. The correct answer involves improving descriptions, not adding routing layers or few-shot examples. Few-shot examples add overhead without fixing the root cause — descriptions first.
 
@@ -171,148 +62,22 @@ A generic `analyze_document` tool forces the model to interpret what kind of ana
 
 **The Four Error Categories**
 
-```python
-# MCP tool error response structure
-def handle_tool_error(error_type, context):
-    if error_type == "timeout":
-        return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "errorCategory": "transient",
-                    "isRetryable": True,
-                    "description": "Database connection timed out after 5s",
-                    "suggestion": "Retry after 2 seconds; if persists, report to ops",
-                    "attemptedQuery": context.get("query")
-                })
-            }],
-            "isError": True
-        }
+| Error Category | Example | isRetryable | Agent Action |
+|---|---|---|---|
+| Transient | Database timeout | Yes | Retry after backoff |
+| Validation | Invalid order ID format | No | Ask customer to confirm |
+| Business | Refund exceeds $500 limit | No | Escalate to supervisor |
+| Permission | Lacks VIP account access | No | Escalate to senior agent |
 
-    elif error_type == "invalid_order_id":
-        return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "errorCategory": "validation",
-                    "isRetryable": False,
-                    "description": "Order ID format invalid. Expected ORD-XXXXX",
-                    "receivedValue": context.get("order_id"),
-                    "suggestion": "Ask the customer to confirm their order number"
-                })
-            }],
-            "isError": True
-        }
-
-    elif error_type == "refund_exceeds_limit":
-        return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "errorCategory": "business",
-                    "isRetryable": False,
-                    "description": "Refund amount ($750) exceeds automated limit ($500)",
-                    "customerMessage": (
-                        "Your refund request requires supervisor approval. "
-                        "I'm connecting you with our team now."
-                    ),
-                    "escalationRequired": True
-                })
-            }],
-            "isError": True
-        }
-
-    elif error_type == "unauthorized":
-        return {
-            "content": [{
-                "type": "text",
-                "text": json.dumps({
-                    "errorCategory": "permission",
-                    "isRetryable": False,
-                    "description": "Agent lacks permission to access VIP account records",
-                    "suggestion": "Escalate to senior agent with VIP access"
-                })
-            }],
-            "isError": True
-        }
-```
+All errors use `isError: true` in the MCP response, with a payload containing `errorCategory`, `isRetryable`, `description`, and `suggestion`.
 
 **Empty Results vs. Access Failures**
 
-This is a critical distinction. When a search returns no results legitimately (the customer has no orders), that is a successful operation. When a database is unavailable, that is an access failure. Conflating them causes the agent to either retry a genuinely empty search or silently drop real failures.
-
-```python
-def search_orders(customer_id, status_filter):
-    try:
-        results = db.query(customer_id, status_filter)
-
-        if results is None:
-            # Access failure — db returned None, not empty list
-            return {
-                "content": [{"type": "text", "text": json.dumps({
-                    "errorCategory": "transient",
-                    "isRetryable": True,
-                    "description": "Order database returned unexpected null response"
-                })}],
-                "isError": True
-            }
-
-        # Empty list is a valid result — NOT an error
-        return {
-            "content": [{"type": "text", "text": json.dumps({
-                "orders": results,          # [] is valid
-                "totalFound": len(results),
-                "queryDetails": {
-                    "customerId": customer_id,
-                    "statusFilter": status_filter
-                }
-            })}],
-            "isError": False
-        }
-
-    except TimeoutError:
-        return {
-            "content": [{"type": "text", "text": json.dumps({
-                "errorCategory": "transient",
-                "isRetryable": True,
-                "description": "Query timed out"
-            })}],
-            "isError": True
-        }
-```
+An empty list (`[]`) is a successful query result — the customer simply has no matching orders. A `None` response or timeout exception is an access failure, flagged `isError: true` with `isRetryable: true`. Conflating the two causes the agent to either retry a legitimately empty search (wasted calls) or silently drop a real failure (missed error handling).
 
 **Subagent Error Propagation Pattern**
 
-Subagents should resolve transient errors locally (retry once or twice) and only escalate errors they cannot resolve, always including partial results and what was attempted.
-
-```python
-class SearchSubagent:
-    def search_with_recovery(self, query):
-        # Attempt local recovery for transient errors
-        for attempt in range(2):
-            result = self.search_tool(query)
-            if not result.get("isError"):
-                return {"success": True, "data": result}
-
-            error = json.loads(result["content"][0]["text"])
-            if not error.get("isRetryable", False):
-                break  # Non-retryable: propagate immediately
-
-            time.sleep(2 ** attempt)  # Backoff
-
-        # Propagate with context for coordinator
-        return {
-            "success": False,
-            "errorCategory": error["errorCategory"],
-            "failedQuery": query,
-            "attemptsCount": attempt + 1,
-            "partialResults": [],
-            "alternatives": [
-                "Try narrowing date range",
-                "Search by order ID instead of customer name"
-            ]
-        }
-```
+Subagents handle transient errors locally — retry with exponential backoff up to a maximum of 2 attempts — before propagating anything to the coordinator. Non-retryable errors skip retries and propagate immediately. When propagating, the subagent includes error category, the failed query, attempt count, any partial results collected, and suggested alternatives for the coordinator to act on.
 
 > **Exam Tip:** When a question asks about the agent retrying a refund or taking the wrong escalation path, check if the error response includes `errorCategory` and `isRetryable`. The correct answer will always add structured error metadata, not just improve the prompt.
 
@@ -341,106 +106,26 @@ class SearchSubagent:
 
 **Scoped Tool Distribution Pattern**
 
-In a multi-agent research system, each agent should receive only the tools it needs:
+In a multi-agent research system, each agent receives only the tools for its role:
 
-```python
-# Coordinator agent — orchestration tools only
-coordinator_tools = ["Task", "summarize_findings", "compile_report"]
+- **Coordinator:** orchestration tools only — `Task`, `summarize_findings`, `compile_report`
+- **Search subagent:** search tools only — `web_search`, `fetch_url`, `search_database`
+- **Analysis subagent:** analysis tools only — `extract_data_points`, `verify_claim_against_source`, `parse_citation`
+- **Synthesis subagent:** synthesis tools plus one scoped cross-role tool — `combine_findings`, `structure_report`, `verify_fact`
 
-# Search subagent — search tools only
-search_agent_tools = ["web_search", "fetch_url", "search_database"]
-
-# Analysis subagent — analysis tools only
-analysis_agent_tools = ["extract_data_points", "verify_claim_against_source", "parse_citation"]
-
-# Synthesis subagent — synthesis tools + one cross-role tool
-synthesis_agent_tools = [
-    "combine_findings",
-    "structure_report",
-    "verify_fact"        # cross-role: high-frequency need, simpler than routing to coordinator
-]
-
-# NOT this — one agent with all 12+ tools
-bad_universal_tools = [
-    "web_search", "fetch_url", "search_database",
-    "extract_data_points", "verify_claim_against_source", "parse_citation",
-    "combine_findings", "structure_report", "verify_fact",
-    "compile_report", "summarize_findings", "Task"
-]
-```
+> **Anti-Pattern Alert:** Loading all 12+ tools onto a single agent or giving every agent the full toolkit is the wrong answer. Cross-role tools should be scoped and constrained (like `verify_fact`), not the full search or analysis toolkit.
 
 **tool_choice Configuration**
 
-```python
-import anthropic
-
-client = anthropic.Anthropic()
-
-# tool_choice: "auto" — model can call a tool OR return text
-# Use when: conversational responses are acceptable
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    tools=tools,
-    tool_choice={"type": "auto"},
-    messages=[{"role": "user", "content": "What can you do?"}]
-)
-
-# tool_choice: "any" — model MUST call some tool (no plain text)
-# Use when: you need structured output and have multiple tool options
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    tools=[extract_invoice_tool, extract_receipt_tool, extract_report_tool],
-    tool_choice={"type": "any"},  # Guarantees a tool is called
-    messages=[{"role": "user", "content": document_text}]
-)
-
-# tool_choice: forced — model MUST call this specific tool
-# Use when: a specific extraction must happen before enrichment steps
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    tools=all_tools,
-    tool_choice={"type": "tool", "name": "extract_metadata"},  # Forced first
-    messages=[{"role": "user", "content": document_text}]
-)
-# Process metadata, then send follow-up for enrichment
-```
+| Setting | Syntax | When to Use |
+|---|---|---|
+| `"auto"` | `tool_choice: {"type": "auto"}` | Model may respond conversationally; tool call is optional |
+| `"any"` | `tool_choice: {"type": "any"}` | Must call a tool; model picks which one |
+| Forced | `tool_choice: {"type": "tool", "name": "X"}` | Must call this specific tool first; follow-up turns handle remaining steps |
 
 **Constrained Tool Replacement**
 
-Replacing a generic tool with a constrained alternative limits misuse:
-
-```python
-# Generic tool — the synthesis agent can fetch arbitrary URLs
-{
-    "name": "fetch_url",
-    "description": "Fetch content from any URL"
-}
-
-# Constrained replacement — validates only document storage URLs
-{
-    "name": "load_document",
-    "description": (
-        "Load a document from the team's document storage system. "
-        "Accepts only URLs matching https://docs.internal/. "
-        "Use for loading research documents passed by the coordinator. "
-        "Will reject external URLs — use this instead of web_search for documents."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "document_url": {
-                "type": "string",
-                "pattern": "^https://docs\\.internal/",
-                "description": "Internal document URL (docs.internal only)"
-            }
-        },
-        "required": ["document_url"]
-    }
-}
-```
+Replace the generic `fetch_url` (accepts any URL) with `load_document`, which validates that the URL matches the internal document domain only (`https://docs.internal/`), states its purpose (loading coordinator-provided research documents), and explicitly rejects external URLs. The constrained tool prevents the synthesis agent from performing arbitrary web fetches while still covering its legitimate access need.
 
 > **Exam Tip:** When asked about reliability degradation as tool count grows, remember the 4–5 tool ideal per agent. Questions will present agents with 10–20 tools and ask what to change; the correct answer always involves scoping, not improving descriptions for all tools.
 
@@ -469,47 +154,21 @@ Replacing a generic tool with a constrained alternative limits misuse:
 
 **Project vs. User-Level MCP Configuration**
 
+`.mcp.json` is committed to version control and shared with the team. Credentials are never hardcoded — they use `${ENV_VAR}` expansion:
+
 ```json
-// .mcp.json (project-level, committed to version control, shared with team)
 {
   "mcpServers": {
     "github": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"    // Expanded from environment — never hardcoded
-      }
-    },
-    "jira": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-jira"],
-      "env": {
-        "JIRA_URL": "${JIRA_URL}",
-        "JIRA_TOKEN": "${JIRA_TOKEN}"
-      }
-    },
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]
+      "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" }
     }
   }
 }
 ```
 
-```json
-// ~/.claude.json (user-level, NOT committed, personal/experimental)
-{
-  "mcpServers": {
-    "my-experimental-tool": {
-      "command": "node",
-      "args": ["/home/simon/dev/experimental-mcp/index.js"],
-      "env": {
-        "API_KEY": "${MY_PERSONAL_API_KEY}"
-      }
-    }
-  }
-}
-```
+`~/.claude.json` is the user-level config file (not committed, not shared) used for personal or experimental MCP servers that should not appear in the team's project configuration.
 
 **When to Use Community vs. Custom MCP Servers**
 
@@ -525,57 +184,22 @@ option fits the team's specific API conventions or data schemas.
 
 **MCP Resources for Content Catalogs**
 
-MCP resources expose structured content to the agent without requiring exploratory tool calls. This is especially valuable when the agent needs to know what data exists before deciding what to query.
-
-```python
-# Without MCP resources: agent calls tools to discover what exists
-# Exploration phase consumes tokens and time:
-# 1. list_projects() → 47 projects
-# 2. get_project_issues(project_1) → scan all...
-# 3. get_project_issues(project_2) → scan all...
-
-# With MCP resources: agent gets catalog upfront
-# The MCP server exposes a resource:
-{
-    "uri": "issues://sprint-summary",
-    "name": "Current Sprint Issue Summary",
-    "description": "Summary of all open issues in current sprint, grouped by team",
-    "mimeType": "application/json",
-    "contents": {
-        "sprintId": "SP-2026-12",
-        "teamSummaries": {
-            "backend": {
-                "open": 14,
-                "inProgress": 6,
-                "highPriority": ["BACK-234", "BACK-891"]
-            },
-            "frontend": {
-                "open": 9,
-                "inProgress": 4,
-                "highPriority": ["FRONT-102"]
-            }
-        }
-    }
-}
-```
-
-**Enhancing MCP Tool Descriptions**
-
-When Claude Code has both built-in tools (like `Grep`) and MCP tools for similar tasks, the MCP tool needs a richer description to compete:
+Without resources, the agent must make exploratory tool calls to discover what data exists (e.g., `list_projects()` → iterate each project → scan issues), consuming tokens and time before any real work begins. With resources, the MCP server exposes a catalog upfront:
 
 ```json
 {
-  "name": "semantic_code_search",
-  "description": (
-    "Search the codebase using semantic meaning, not just text patterns. "
-    "Unlike Grep (which matches literal text), this tool understands intent: "
-    "searching 'authentication flow' finds login, session, JWT, and OAuth code "
-    "even if those exact words don't appear together. "
-    "Best for: understanding unfamiliar codebases, finding conceptually related code. "
-    "Use Grep instead for: exact string matches, import statements, error messages."
-  )
+  "uri": "issues://sprint-summary",
+  "name": "Current Sprint Issue Summary",
+  "description": "Summary of all open issues in current sprint, grouped by team",
+  "contents": { "sprintId": "SP-2026-12", "teamSummaries": { ... } }
 }
 ```
+
+Resources reduce exploratory tool calls by giving agents upfront visibility into what data is available before they decide what to query.
+
+**Enhancing MCP Tool Descriptions**
+
+The `semantic_code_search` description must explicitly distinguish it from `Grep`: unlike Grep (which matches literal text), this tool understands intent — searching "authentication flow" finds login, session, JWT, and OAuth code even when those exact words do not appear together. Best for conceptual discovery; use Grep for exact strings, imports, or error messages.
 
 > **Exam Tip:** Scoping questions always have two choices: `.mcp.json` (shared/team) vs. `~/.claude.json` (personal). Team = project-level. Personal/experimental = user-level. Never commit credentials — always use `${ENV_VAR}` expansion.
 
@@ -618,61 +242,14 @@ Need to work with file content?
 Need system operations? → Bash
 ```
 
-**Grep for Content Discovery**
+**Built-in Tool Quick Reference**
 
-```python
-# Finding all callers of a function
-Grep(pattern="processRefund(", path="src/")
-
-# Finding import statements
-Grep(pattern="from ['\"].*auth.*['\"]", path="src/", type="ts")
-
-# Finding error message definitions
-Grep(pattern="ERR_PAYMENT_", path="src/constants/")
-
-# Building incremental understanding
-# Step 1: Find entry point
-Grep(pattern="export.*Router", path="src/routes/")
-# Step 2: Read the route file
-Read(file_path="src/routes/payment.ts")
-# Step 3: Follow the import to the service
-Read(file_path="src/services/payment-service.ts")
-```
-
-**Glob for File Discovery**
-
-```python
-# Find all test files regardless of directory
-Glob(pattern="**/*.test.tsx")
-
-# Find all TypeScript files in the API layer
-Glob(pattern="src/api/**/*.ts")
-
-# Find all CLAUDE.md configuration files
-Glob(pattern="**/.claude/CLAUDE.md")
-Glob(pattern="**/CLAUDE.md")
-
-# Find all MCP configuration files
-Glob(pattern="**/.mcp.json")
-```
-
-**Edit vs. Read+Write**
-
-```python
-# Edit — works when anchor text is unique
-Edit(
-    file_path="src/utils/validator.ts",
-    old_string="function validateEmail(email: string) {",
-    new_string="function validateEmail(email: string): boolean {"
-)
-
-# Edit fails when anchor text appears multiple times
-# e.g., if there are multiple functions named the same
-# → fallback: Read full file, modify in memory, Write entire file
-content = Read(file_path="src/utils/validator.ts")
-# modify content string
-Write(file_path="src/utils/validator.ts", content=modified_content)
-```
+| Task | Tool | Example |
+|---|---|---|
+| Find all callers of `processRefund` | Grep | `Grep(pattern="processRefund(", path="src/")` |
+| Find all `.test.tsx` files | Glob | `Glob(pattern="**/*.test.tsx")` |
+| Change unique function signature | Edit | `old_string` / `new_string` targeting that signature |
+| Non-unique text edit | Read + Write | Load full file, modify in memory, write entire file back |
 
 **Incremental Codebase Exploration**
 

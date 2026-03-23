@@ -22,145 +22,43 @@
 
 **Progressive Summarization Risk**
 
-```python
-# Dangerous summarization — loses precision
-original_info = """
-Customer: Sarah Chen
-Order: ORD-20240892
-Ordered: 2024-11-15
-Issue: Received wrong color (ordered "Midnight Blue" but received "Royal Blue")
-Refund requested: $127.99
-Customer stated: "I need this resolved today, I have an event tomorrow"
-"""
+Bad summary (typical progressive summarization):
 
-# Bad summary (typical progressive summarization):
+```
 summary = "Customer had order issue and requested refund"
 # LOST: customer name, order ID, exact amounts, exact dates, customer urgency
+```
 
-# Better: extract critical facts separately
+Better: extract critical facts into a separate structured block:
+
+```python
 case_facts = {
     "customer_id": "CHEN-4892",
-    "customer_name": "Sarah Chen",
     "order_id": "ORD-20240892",
     "order_date": "2024-11-15",
-    "issue": "Wrong color received: ordered Midnight Blue, received Royal Blue",
+    "issue": "Wrong color: ordered Midnight Blue, received Royal Blue",
     "refund_amount": 127.99,
-    "customer_urgency": "Needs resolution today (event tomorrow)",
-    "session_start": "2024-03-22T14:30:00Z"
+    "customer_urgency": "Needs resolution today (event tomorrow)"
 }
-# case_facts is included verbatim in every prompt as structured JSON
-# Never summarized — preserved exactly as stated
+# Included verbatim in every prompt — never summarized
 ```
 
 **Case Facts Block Pattern**
 
-```python
-def build_prompt_with_case_facts(case_facts, conversation_summary, latest_message):
-    """
-    Three-layer context structure:
-    1. Case facts: exact numerical/date data (never summarized)
-    2. Conversation summary: prose summary of what happened
-    3. Current message: the latest user input
-    """
-    return f"""
-## Case Facts (do not alter these)
-{json.dumps(case_facts, indent=2)}
+**Three-Layer Context Structure:**
+1. **Case facts** (exact data — never summarized): customer ID, order ID, amounts, dates, customer-stated expectations
+2. **Conversation summary** (prose — can be summarized): what happened so far
+3. **Current message**: the latest user input
 
-## Conversation Summary
-{conversation_summary}
-
-## Current Message
-{latest_message}
-"""
-
-# When updating case facts — update, never summarize
-def update_case_facts(case_facts, new_info):
-    # New refund amount confirmed
-    if "confirmed_refund" in new_info:
-        case_facts["refund_confirmed"] = new_info["confirmed_refund"]
-        case_facts["confirmation_timestamp"] = new_info["timestamp"]
-    return case_facts
-```
+Case facts are included verbatim in every prompt. When new facts emerge, update the facts block — never merge into the summary.
 
 **Trimming Verbose Tool Outputs**
 
-```python
-# Full order lookup response: 40+ fields
-raw_order = {
-    "order_id": "ORD-20240892",
-    "customer_id": "CHEN-4892",
-    "status": "delivered",
-    "created_at": "2024-11-15T10:23:45Z",
-    "updated_at": "2024-11-20T16:00:00Z",
-    "delivery_date": "2024-11-20",
-    "items": [...],
-    "shipping_address": {...},
-    "billing_address": {...},
-    "payment_method": {...},
-    "warehouse_id": "WH-WEST-42",
-    "carrier": "FedEx",
-    "tracking_number": "793815649042",
-    "shipping_cost": 0.00,
-    "tax_amount": 10.72,
-    "discount_applied": 0.00,
-    "subtotal": 117.27,
-    "total": 127.99,
-    "fulfillment_center": "Phoenix",
-    "packing_timestamp": "2024-11-17T08:15:00Z",
-    # ... 20+ more warehouse/logistics fields
-}
-
-# Trim to return-relevant fields only
-def trim_order_for_context(raw_order):
-    return {
-        "order_id": raw_order["order_id"],
-        "status": raw_order["status"],
-        "delivery_date": raw_order["delivery_date"],
-        "total": raw_order["total"],
-        "items": [{
-            "sku": item["sku"],
-            "description": item["description"],
-            "color": item.get("color"),
-            "quantity": item["quantity"],
-            "price": item["price"]
-        } for item in raw_order["items"]],
-        "carrier": raw_order["carrier"],
-        "tracking_number": raw_order["tracking_number"]
-    }
-    # 7 fields instead of 40+; same information for return processing
-```
+A full order lookup returns 40+ fields (warehouse IDs, packing timestamps, fulfillment center details). For return-processing, trim to ~7 relevant fields: `order_id`, `status`, `delivery_date`, `total`, `items`, `carrier`, `tracking_number`. This prevents token waste from irrelevant data accumulating in context.
 
 **Mitigating the "Lost in the Middle" Effect**
 
-```python
-def build_aggregated_research_prompt(agent_findings):
-    """
-    When aggregating multiple agent results, structure matters:
-    - Key summaries at the BEGINNING (reliably attended)
-    - Detailed results with section headers
-    - Summary of gaps at the END (reliably attended)
-    """
-    key_findings = extract_key_findings(agent_findings)
-
-    return f"""
-## KEY FINDINGS SUMMARY (read this section first)
-{key_findings}
-
-## DETAILED RESULTS BY SOURCE
-
-### Source 1: Web Research Agent
-{agent_findings['web_search']}
-
-### Source 2: Document Analysis Agent
-{agent_findings['document_analysis']}
-
-### Source 3: Database Query Results
-{agent_findings['database']}
-
-## COVERAGE GAPS AND LIMITATIONS
-{summarize_gaps(agent_findings)}
-"""
-```
+When aggregating multiple agent results, structure the prompt to exploit model attention patterns: place key findings at the **BEGINNING** (reliably attended), put detailed results with explicit section headers in the **MIDDLE**, and place coverage gaps and limitations at the **END** (reliably attended). Content buried without headers in the middle of a long input is the most likely to be missed.
 
 > **Exam Tip:** When a question describes the agent "forgetting" exact amounts, dates, or customer-stated requirements after several turns — the fix is extracting those facts into a separate persistent "case facts" block, not summarizing more carefully.
 
@@ -193,97 +91,52 @@ def build_aggregated_research_prompt(agent_findings):
 
 **The Three Escalation Triggers (with examples)**
 
-```markdown
-## Escalation Decision Guide
+#### Trigger 1: Explicit human request → ESCALATE IMMEDIATELY
+Customer says: "I want to speak to a real person" / "Let me talk to your supervisor" / "Stop trying to help me with AI, I want a human"
 
-### Trigger 1: Explicit human request → ESCALATE IMMEDIATELY
-Customer says: "I want to speak to a real person"
-Customer says: "Let me talk to your supervisor"
-Customer says: "Stop trying to help me with AI, I want a human"
-Action: Escalate WITHOUT attempting investigation or resolution first
-Reasoning: Honoring explicit requests builds trust; investigating first is paternalistic
+**Action:** Escalate WITHOUT attempting investigation or resolution first.
+**Reasoning:** Honoring explicit requests builds trust; investigating first is paternalistic.
 
-### Trigger 2: Policy gap/exception → ESCALATE
-Customer requests: "Price match to competitor's price" (policy only covers own-site)
-Customer requests: "Retroactive discount for an order from 6 months ago" (policy: 30 days)
-Customer requests: "Custom invoice format for tax filing" (not in standard options)
-Action: Escalate with context (what was requested, why policy doesn't cover it)
-Reasoning: Agents should not make policy exceptions; escalate to human with authority
+#### Trigger 2: Policy gap/exception → ESCALATE
+Customer requests: "Price match to competitor's price" (policy only covers own-site) / "Retroactive discount for an order from 6 months ago" (policy: 30 days) / "Custom invoice format for tax filing" (not in standard options)
 
-### Trigger 3: Cannot make progress → ESCALATE
-After 3+ attempts: Information system returns no records despite customer certainty
-After attempts: Tool errors prevent access to required account data
-Pattern: Each attempt produces the same unhelpful result
-Action: Escalate with summary of what was tried and what information is missing
-Reasoning: Continued failed attempts frustrate customers; escalation unblocks them
+**Action:** Escalate with context (what was requested, why policy doesn't cover it).
+**Reasoning:** Agents should not make policy exceptions; escalate to human with authority.
 
-### NOT an escalation trigger:
-Customer is frustrated (frustration ≠ complexity; offer resolution first)
-Case seems complex (model's assessment of complexity is unreliable)
-Agent is unsure (uncertainty ≠ escalation; attempt with stated uncertainty)
-```
+#### Trigger 3: Cannot make progress → ESCALATE
+After 3+ attempts: information system returns no records despite customer certainty; tool errors prevent access to required account data; each attempt produces the same unhelpful result.
+
+**Action:** Escalate with summary of what was tried and what information is missing.
+**Reasoning:** Continued failed attempts frustrate customers; escalation unblocks them.
+
+#### NOT an escalation trigger:
+- Customer is frustrated (frustration ≠ complexity; offer resolution first)
+- Case seems complex (model's assessment of complexity is unreliable)
+- Agent is unsure (uncertainty ≠ escalation; attempt with stated uncertainty)
 
 **Few-Shot Examples for Escalation Calibration**
 
-```markdown
-## System Prompt: Escalation Examples
+**Example 1 — Straightforward case with frustrated customer:**
+> Customer: "I've been waiting 3 weeks for my order! This is ridiculous! I want this fixed!"
+>
+> Action: RESOLVE (do not escalate based on frustration alone)
+> Reasoning: Order delay is within the agent's capability to investigate and resolve.
+> Response: "I understand this has been frustrating. Let me look into your order right now and get this resolved for you."
 
-Example 1 — Straightforward case with frustrated customer:
-Customer: "I've been waiting 3 weeks for my order! This is ridiculous! I want this fixed!"
-Action: RESOLVE (do not escalate based on frustration alone)
-Reasoning: Order delay is within the agent's capability to investigate and resolve.
-Response: "I understand this has been frustrating. Let me look into your order right now
-and get this resolved for you."
-
-Example 2 — Explicit escalation request:
-Customer: "I've talked to two chatbots already. I need a real human."
-Action: ESCALATE IMMEDIATELY
-Reasoning: Explicit request for human agent; do not attempt resolution first.
-Response: "I'll connect you with a team member right away."
-
-Example 3 — Policy gap:
-Customer: "Can you price-match the item I bought to the price at BestBuy?"
-Action: ESCALATE
-Reasoning: Our policy covers only our own price adjustments, not competitor price matching.
-Response: "Price matching to other retailers requires supervisor approval. I'm connecting
-you with a team member who can review this."
-
-Example 4 — Multiple customer matches:
-Tool returns: [Sarah Chen (CHEN-4892), Sarah Chen (CHEN-1127)]
-Action: ASK FOR CLARIFICATION (not heuristic selection)
-Response: "I found two accounts matching that name. Could you provide your email address
-or account number so I can access the correct account?"
-```
+**Example 2 — Explicit escalation request:**
+> Customer: "I've talked to two chatbots already. I need a real human."
+>
+> Action: ESCALATE IMMEDIATELY
+> Reasoning: Explicit request for human agent; do not attempt resolution first.
+> Response: "I'll connect you with a team member right away."
 
 **Ambiguity Resolution: Multiple Matches**
 
-```python
-def handle_customer_lookup(results):
-    if len(results) == 0:
-        return {
-            "action": "ask_for_more_info",
-            "message": "I wasn't able to find an account with that name. "
-                       "Could you provide your email address or order number?"
-        }
+When a customer lookup returns results, the correct action depends on the match count:
 
-    if len(results) == 1:
-        return {
-            "action": "proceed",
-            "customer": results[0]
-        }
-
-    if len(results) > 1:
-        # Request additional identifiers — NEVER select by heuristic
-        # (e.g., "most recent account" or "first result")
-        return {
-            "action": "request_clarification",
-            "message": (
-                f"I found {len(results)} accounts matching that name. "
-                "To access the correct account, could you please provide "
-                "your email address, phone number, or order number?"
-            )
-        }
-```
+- **0 matches:** Ask for more information (email address or order number)
+- **1 match:** Proceed with that record
+- **Multiple matches:** Request additional identifiers (email, phone, order number). NEVER select by heuristic (e.g., "most recent account" or "first result")
 
 > **Exam Tip:** Three wrong answers always appear: (1) sentiment-based escalation, (2) self-reported confidence escalation, (3) "investigate first then offer escalation" when customer explicitly requested human. Remember: explicit request = immediate escalation.
 
@@ -311,130 +164,32 @@ def handle_customer_lookup(results):
 
 **Structured Error Context Pattern**
 
-```python
-# Bad error propagation — coordinator cannot recover intelligently
-def bad_search_agent_error():
-    return {
-        "status": "error",
-        "message": "Search unavailable"
-    }
-    # Coordinator has no idea: transient? permanent? retry? skip? escalate?
+A generic error response (`"status": "error", "message": "Search unavailable"`) tells the coordinator nothing useful: is this transient? permanent? should it retry, skip, or escalate?
 
-# Good error propagation — enables intelligent recovery
-def good_search_agent_error(query, error_type, partial_results=None):
-    error_info = {
-        "success": False,
-        "errorType": error_type,
-        "attemptedQuery": query,
-        "partialResults": partial_results or [],
-        "partialResultsCount": len(partial_results) if partial_results else 0
-    }
+A structured error response enables intelligent coordinator recovery. Key fields to include:
 
-    if error_type == "timeout":
-        error_info.update({
-            "isRetryable": True,
-            "retryAfterSeconds": 30,
-            "coordinatorOptions": [
-                "RETRY: Wait 30s and retry same query",
-                "NARROW: Retry with date range narrowed to last 90 days",
-                "SKIP: Use partial results (limited coverage)"
-            ]
-        })
-
-    elif error_type == "rate_limit":
-        error_info.update({
-            "isRetryable": True,
-            "retryAfterSeconds": 60,
-            "coordinatorOptions": [
-                "RETRY: Wait 60s and retry",
-                "BATCH: Combine with other queries to reduce request count"
-            ]
-        })
-
-    elif error_type == "source_unavailable":
-        error_info.update({
-            "isRetryable": False,
-            "alternativeSources": ["database_B", "archive_search"],
-            "coordinatorOptions": [
-                "SUBSTITUTE: Query database_B for similar data",
-                "PROCEED: Note gap in synthesis output"
-            ]
-        })
-
-    return error_info
-```
+- `success`: false
+- `errorType`: specific category (e.g., `timeout`, `rate_limit`, `source_unavailable`)
+- `attemptedQuery`: what was tried
+- `partialResults`: any results retrieved before failure
+- `isRetryable`: boolean — whether a retry is worth attempting
+- `retryAfterSeconds`: how long to wait before retry (for transient errors)
+- `coordinatorOptions`: list of specific recovery actions (RETRY, NARROW, SUBSTITUTE, SKIP)
+- `alternativeSources`: fallback sources to query (for permanent source failures)
 
 **Access Failure vs. Empty Result Distinction**
 
-```python
-def execute_search(query):
-    try:
-        results = search_engine.query(query)
-
-        if results is None:
-            # None from the API = access failure (shouldn't happen)
-            return build_error("unexpected_null", query)
-
-        # Empty list = valid result; NO matches found
-        # This is NOT an error — the coordinator should know search worked
-        return {
-            "success": True,
-            "results": results,                # Could be []
-            "resultsFound": len(results),
-            "queryExecuted": query,
-            "isEmptyResult": len(results) == 0,  # Explicit flag for clarity
-            "note": "Query executed successfully; no matching records found" if len(results) == 0 else None
-        }
-
-    except TimeoutError as e:
-        return build_error("timeout", query, str(e))
-
-    except ConnectionError as e:
-        return build_error("connection_failure", query, str(e))
-
-def build_error(error_type, query, detail=None):
-    return {
-        "success": False,
-        "errorType": error_type,
-        "attemptedQuery": query,
-        "detail": detail,
-        "isRetryable": error_type in ["timeout", "connection_failure", "rate_limit"]
-    }
-```
+See Task 2.2. Same principle: `[]` with `success: true` = no data found (not an error). Exception with `success: false` = access failure (retryable). Explicitly flag `isEmptyResult: true` so the coordinator does not retry a query that completed successfully.
 
 **Coverage Annotations in Synthesis Output**
 
-```python
-def synthesize_with_coverage(research_results):
-    synthesis = {
-        "findings": [],
-        "coverageAnnotations": {}
-    }
+Each finding in a synthesis output should carry a coverage annotation so downstream consumers know how much to trust it:
 
-    for topic, data in research_results.items():
-        if data["success"] and data["resultsFound"] > 0:
-            synthesis["coverageAnnotations"][topic] = {
-                "status": "well_supported",
-                "sourceCount": len(data["sources"]),
-                "confidence": "high"
-            }
-        elif data["success"] and data["resultsFound"] == 0:
-            synthesis["coverageAnnotations"][topic] = {
-                "status": "no_data_found",
-                "note": "Query executed successfully; topic may not have coverage in this source",
-                "confidence": "n/a"
-            }
-        else:
-            synthesis["coverageAnnotations"][topic] = {
-                "status": "access_failure",
-                "errorType": data["errorType"],
-                "note": f"Could not retrieve data: {data.get('detail', 'unknown error')}",
-                "confidence": "unknown",
-                "suggestion": "Retry or substitute alternative source"
-            }
-
-    return synthesis
-```
+| Data Status | `status` value | Confidence | Notes |
+|---|---|---|---|
+| Query succeeded, results found | `well_supported` | high | Include source count |
+| Query succeeded, zero results | `no_data_found` | n/a | Not an error; topic has no coverage in this source |
+| Query failed (access error) | `access_failure` | unknown | Include errorType; suggest retry or substitute source |
 
 > **Exam Tip:** Questions about error propagation always contrast two bad patterns: (1) silent suppression (returning empty results as if successful) and (2) total failure (crashing the entire workflow on one subagent failure). The correct answer is structured error propagation with partial results and coordinator options.
 
@@ -463,153 +218,21 @@ def synthesize_with_coverage(research_results):
 
 **Scratchpad File Pattern**
 
-```python
-# Agent writes findings to scratchpad as exploration progresses
-scratchpad_path = ".agent_workspace/exploration_notes.md"
+A scratchpad file is a persistent on-disk document (e.g., `.agent_workspace/exploration_notes.md`) that the agent appends to as it makes discoveries during codebase exploration. Each significant finding — a module's dependencies, a data flow, a security boundary — is written to the scratchpad with a section header immediately upon discovery.
 
-def update_scratchpad(section, content):
-    """Append a finding to the scratchpad"""
-    with open(scratchpad_path, "a") as f:
-        f.write(f"\n## {section}\n{content}\n")
-
-# During exploration phase:
-update_scratchpad(
-    "Auth Module Dependencies",
-    """
-    - auth/middleware.ts: imports SessionStore, TokenValidator
-    - auth/routes.ts: imports UserRepository, PasswordHasher
-    - 12 service files import from auth/middleware.ts
-    - Key concern: SessionStore is shared with WebSocket service
-    """
-)
-
-update_scratchpad(
-    "Refund Flow",
-    """
-    - payment/refund.ts → calls process_refund MCP tool
-    - Requires: customer_id (verified), order_id, amount
-    - Guard: RefundPolicy.check() before tool call
-    - Maximum: $500 without supervisor approval (line 47)
-    """
-)
-
-# On subsequent questions, reference the scratchpad:
-def answer_question_with_scratchpad(question):
-    notes = open(scratchpad_path).read()
-    prompt = f"""
-    Reference your exploration notes below before answering.
-    Do not re-explore; use these notes as your source of truth.
-
-    EXPLORATION NOTES:
-    {notes}
-
-    QUESTION: {question}
-    """
-    return call_claude(prompt)
-```
+This counteracts context degradation: as the context window fills with hundreds of tool call results, earlier findings get pushed outside the model's effective attention range. By writing findings to disk and referencing the scratchpad file at the start of subsequent prompts ("use these notes as your source of truth; do not re-explore"), the agent can answer questions accurately even after extensive exploration — drawing on the file rather than relying on context memory.
 
 **Subagent Delegation for Verbose Discovery**
 
-```python
-def explore_codebase_with_subagents(codebase_goal):
-    """
-    Main agent: coordinates, asks questions, builds understanding
-    Subagents: do verbose file reading, searching, tracing — return summaries
-    """
+The main agent spawns an Explore subagent for each investigation task (e.g., "map the codebase structure" or "trace the authentication flow"). The subagent performs the verbose work — reading 50+ files, running searches, tracing dependencies — using tools like Read, Grep, and Glob. It then returns a concise summary (~500 tokens) to the main agent, writes that summary to the scratchpad, and terminates.
 
-    # Phase 1: Spawn subagent for initial structure mapping
-    structure_summary = spawn_explore_subagent(
-        task="Map the overall codebase structure. Find entry points, main modules, "
-             "and their responsibilities. Return a concise summary — do not include "
-             "full file contents.",
-        allowed_tools=["Read", "Grep", "Glob"]
-    )
-    # Verbose: reads 50+ files. Summary returned to main agent: ~500 tokens
-
-    # Write summary to scratchpad before next phase
-    update_scratchpad("Codebase Structure", structure_summary)
-
-    # Phase 2: Spawn targeted subagent for specific investigation
-    auth_summary = spawn_explore_subagent(
-        task=f"Investigate the authentication module. Based on structure: {structure_summary}. "
-             "Focus on: what does auth flow look like, what are the dependencies, "
-             "where are the security boundaries?",
-        allowed_tools=["Read", "Grep"]
-    )
-
-    update_scratchpad("Auth Module Detail", auth_summary)
-
-    # Main agent context remains clean — saw only summaries, not 50+ file reads
-```
+The main agent's context stays clean: it only sees summaries, not the 50+ file reads the subagent performed. This allows the main agent to coordinate across many investigation phases without its context filling with raw tool output.
 
 **Crash Recovery with Manifests**
 
-```python
-import json
-import os
-from datetime import datetime
+Each agent periodically exports its current state — completed work, pending work, and partial results — to a known location (e.g., `.agent_workspace/manifest.json`). When an agent finishes, it updates its manifest entry to `"status": "complete"`.
 
-class AgentStateManifest:
-    def __init__(self, manifest_path):
-        self.path = manifest_path
-
-    def save(self, agent_id, state):
-        """Each agent exports its state before potential crash points"""
-        manifest = self.load()
-        manifest[agent_id] = {
-            "state": state,
-            "timestamp": datetime.now().isoformat(),
-            "status": "in_progress"
-        }
-        with open(self.path, "w") as f:
-            json.dump(manifest, f, indent=2)
-
-    def mark_complete(self, agent_id, result_path):
-        manifest = self.load()
-        if agent_id in manifest:
-            manifest[agent_id]["status"] = "complete"
-            manifest[agent_id]["result_path"] = result_path
-        with open(self.path, "w") as f:
-            json.dump(manifest, f, indent=2)
-
-    def load(self):
-        if os.path.exists(self.path):
-            with open(self.path) as f:
-                return json.load(f)
-        return {}
-
-    def get_pending_agents(self):
-        """On resume: which agents did not complete?"""
-        manifest = self.load()
-        return {
-            agent_id: data
-            for agent_id, data in manifest.items()
-            if data.get("status") != "complete"
-        }
-
-# Usage in coordinator
-manifest = AgentStateManifest(".agent_workspace/manifest.json")
-
-# Agent saves state periodically
-manifest.save("search_agent_1", {
-    "completedQueries": ["AI trends 2024", "ML frameworks comparison"],
-    "pendingQueries": ["GPT-5 analysis", "Claude architecture"],
-    "partialResults": [...]
-})
-
-# On crash recovery:
-def resume_coordinator():
-    manifest = AgentStateManifest(".agent_workspace/manifest.json")
-    pending = manifest.get_pending_agents()
-
-    if pending:
-        print(f"Resuming: {len(pending)} agents incomplete")
-        for agent_id, state in pending.items():
-            # Inject saved state into resumed agent
-            resume_agent(agent_id, prior_state=state["state"])
-    else:
-        print("All agents complete; proceeding to synthesis")
-```
+On crash recovery, the coordinator loads the manifest and inspects which agents have `"status": "in_progress"` (i.e., did not complete). It re-spawns only those agents, injecting their previously saved state so they resume from where they left off rather than starting over. Agents that completed are skipped; their results are already available on disk.
 
 > **Exam Tip:** When a question describes the agent "forgetting" classes it found 50 tool calls ago or giving inconsistent answers after extensive exploration — the fix is scratchpad files or subagent delegation. Both prevent context degradation.
 
@@ -657,110 +280,19 @@ Rule: Never reduce human review based on aggregate accuracy alone.
 
 **Stratified Random Sampling**
 
-```python
-import random
-
-def setup_ongoing_sampling(extraction_results, sample_rate=0.05):
-    """
-    Stratified sampling: sample proportionally from each confidence stratum
-    Purpose: catch errors in high-confidence extractions (most dangerous)
-    """
-    strata = {
-        "high_confidence": [r for r in extraction_results if r["confidence"] == "high"],
-        "medium_confidence": [r for r in extraction_results if r["confidence"] == "medium"],
-        "low_confidence": [r for r in extraction_results if r["confidence"] == "low"]
-    }
-
-    samples = {}
-    for stratum_name, stratum_results in strata.items():
-        # Sample each stratum at the same rate
-        sample_size = max(1, int(len(stratum_results) * sample_rate))
-        samples[stratum_name] = random.sample(stratum_results, min(sample_size, len(stratum_results)))
-
-    return samples
-
-def analyze_error_rates(reviewed_samples):
-    """
-    After human reviewers check the sample:
-    Calculate error rate per stratum, per field, per document type
-    """
-    analysis = {}
-    for stratum, reviewed in reviewed_samples.items():
-        errors = [r for r in reviewed if r["human_judgment"] != r["model_output"]]
-        analysis[stratum] = {
-            "error_rate": len(errors) / len(reviewed) if reviewed else 0,
-            "sample_size": len(reviewed),
-            "novel_patterns": [e for e in errors if e.get("is_novel_pattern")]
-        }
-
-    return analysis
-```
+Stratified random sampling draws a proportional sample from each confidence stratum (high, medium, low) at the same rate (e.g., 5% of each). The critical purpose is catching errors in **high-confidence extractions** — these are the most dangerous failures because they bypass review. After human reviewers check the samples, error rates are calculated per stratum, per field, and per document type. Novel error patterns discovered in the sample trigger prompt improvements or threshold adjustments before they affect production volume.
 
 **Field-Level Confidence Calibration**
 
-```python
-# Step 1: Model outputs field-level confidence scores
-extraction_schema_with_confidence = {
-    "type": "object",
-    "properties": {
-        "invoice_number": {"type": "string"},
-        "invoice_number_confidence": {
-            "type": "string",
-            "enum": ["high", "medium", "low"],
-            "description": "high=clearly stated, medium=inferred, low=ambiguous/imprecise"
-        },
-        "total_amount": {"type": ["number", "null"]},
-        "total_amount_confidence": {
-            "type": "string",
-            "enum": ["high", "medium", "low"]
-        },
-        "payment_terms": {"type": "string"},
-        "payment_terms_confidence": {
-            "type": "string",
-            "enum": ["high", "medium", "low"]
-        }
-    }
-}
+**4-Step Workflow:**
 
-# Step 2: Calibrate thresholds using labeled validation set
-def calibrate_confidence_thresholds(validation_set):
-    """
-    validation_set: [{model_confidence, model_output, human_correct_output}]
-    Find confidence threshold where model_output == human_correct_output >= target%
-    """
-    results = {"high": [], "medium": [], "low": []}
+1. **Model outputs field-level confidence scores** alongside each extracted value (e.g., `invoice_number_confidence: "high"`, `payment_terms_confidence: "low"`). Scores use three levels: high = clearly stated, medium = inferred, low = ambiguous or imprecise.
 
-    for item in validation_set:
-        correct = item["model_output"] == item["human_correct_output"]
-        results[item["model_confidence"]].append(correct)
+2. **Calibrate thresholds using a labeled validation set.** For each confidence level, measure what percentage of the model's extractions match human-correct outputs. Example result: high confidence = 98% accurate (automate), medium = 87% (review), low = 61% (always review).
 
-    accuracy_by_confidence = {
-        level: sum(correct_list) / len(correct_list)
-        for level, correct_list in results.items()
-        if correct_list
-    }
+3. **Route each extraction based on calibrated thresholds.** Any field with low confidence, or any field below the accuracy threshold, routes to human review. Documents with internal conflicts (`conflict_detected: true`) also route to human review.
 
-    # Determine routing threshold
-    # e.g., if high confidence = 98% accurate → automate
-    #        if medium confidence = 87% accurate → review
-    #        if low confidence = 61% accurate → always review
-    return accuracy_by_confidence
-
-# Step 3: Route based on calibrated confidence
-def route_extraction(extraction, thresholds):
-    for field, value in extraction.items():
-        if field.endswith("_confidence"):
-            base_field = field.replace("_confidence", "")
-            confidence = value
-            if confidence == "low" or thresholds.get(confidence, 0) < 0.95:
-                return "human_review", f"Low confidence on {base_field}"
-
-    # Also route ambiguous source documents
-    if extraction.get("conflict_detected"):
-        return "human_review", "Conflicting values in source document"
-
-    return "automate", None
-```
+4. **Apply stratified sampling continuously** to catch drift — error rates in high-confidence extractions shift over time as document formats change.
 
 > **Exam Tip:** "The system has 97% overall accuracy. Should we automate?" — the correct answer is no, not without segmenting by document type and field first. Aggregate accuracy masking segment-level failures is the core concept.
 
@@ -789,163 +321,48 @@ def route_extraction(extraction, thresholds):
 
 **Claim-Source Mapping Structure**
 
+Each claim a subagent returns must carry its source attribution — not as a footnote but as a structured field the synthesis agent can read and preserve:
+
 ```python
-# Subagent output — claim-source mappings preserved
-def search_agent_output():
-    return {
-        "agentId": "web_search_agent",
-        "queryDate": "2026-03-22",
-        "claims": [
-            {
-                "claim": "Global AI market size reached $500B in 2025",
-                "sources": [
-                    {
-                        "url": "https://example-research.com/ai-market-2025",
-                        "title": "AI Market Report 2025",
-                        "publishDate": "2025-11-01",
-                        "excerpt": "The global AI market reached $500 billion in revenue during 2025...",
-                        "credibilityScore": 0.92
-                    }
-                ],
-                "confidence": "high",
-                "isContested": False
-            },
-            {
-                "claim": "AI will replace 30% of jobs by 2030",
-                "sources": [
-                    {
-                        "url": "https://source-A.com/ai-jobs",
-                        "publishDate": "2024-03-15",
-                        "excerpt": "AI automation will displace approximately 30% of current jobs...",
-                        "credibilityScore": 0.85
-                    },
-                    {
-                        "url": "https://source-B.com/ai-jobs-analysis",
-                        "publishDate": "2025-01-10",
-                        "excerpt": "Contrary to previous estimates, AI job displacement will be closer to 12%...",
-                        "credibilityScore": 0.88
-                    }
-                ],
-                "confidence": "low",
-                "isContested": True,
-                "contestDescription": "Source A (2024) says 30%; Source B (2025) says 12%"
-            }
-        ]
-    }
+{
+    "claim": "Global AI market size reached $500B in 2025",
+    "sources": [{"url": "...", "title": "AI Market Report 2025",
+                 "publishDate": "2025-11-01", "excerpt": "..."}],
+    "confidence": "high",
+    "isContested": False
+}
+```
+
+For a contested claim, the structure additionally carries both conflicting sources and a `contestDescription`:
+
+```python
+{
+    "claim": "AI will replace X% of jobs by 2030",
+    "confidence": "low",
+    "isContested": True,
+    "contestDescription": "Source A (2024) says 30%; Source B (2025) says 12%"
+}
 ```
 
 **Synthesis Agent: Preserving Provenance Through Merging**
 
-```python
-def synthesize_with_provenance(agent_outputs):
-    """
-    Synthesis must NOT compress claims into bare statements.
-    Each claim in output must trace to its sources.
-    """
-    synthesized_claims = []
+The synthesis agent must not compress claims into bare statements — each claim in the output must trace to its originating sources. When merging findings from multiple subagents, the synthesis agent checks whether a similar claim already exists. If the publication dates differ, it marks the pair as a temporal difference rather than a contradiction. If both sources genuinely conflict, it merges them into a contested claim with `isContested: true` and the combined attribution.
 
-    for agent_output in agent_outputs:
-        for claim in agent_output["claims"]:
-            # Check if this claim conflicts with existing claims
-            existing = find_similar_claim(synthesized_claims, claim["claim"])
-
-            if existing and existing["sources"][0]["publishDate"] != claim["sources"][0]["publishDate"]:
-                # Different dates — this may be temporal, not contradiction
-                mark_as_temporal_difference(existing, claim)
-            elif existing and existing.get("isContested"):
-                # Merge additional conflicting source
-                existing["sources"].extend(claim["sources"])
-                existing["contestDescription"] += f"; Also: {claim['contestDescription']}"
-            else:
-                synthesized_claims.append(claim)
-
-    return synthesized_claims
-
-def build_report_with_sections(claims):
-    """
-    Structure report: well-established vs. contested findings
-    Different content types: different rendering
-    """
-
-    well_established = [c for c in claims if not c.get("isContested") and c["confidence"] == "high"]
-    contested = [c for c in claims if c.get("isContested")]
-    uncertain = [c for c in claims if c["confidence"] in ["medium", "low"] and not c.get("isContested")]
-
-    report_sections = {
-        "wellEstablishedFindings": format_as_table_or_list(well_established),
-        "contestedFindings": format_contested_section(contested),
-        "uncertainFindings": format_uncertain_section(uncertain),
-        "methodologicalNotes": extract_methodological_context(claims)
-    }
-
-    return report_sections
-```
+The final report is structured in sections: well-established findings (high confidence, uncontested), contested findings (annotated with both sources), and uncertain findings (medium/low confidence). Financial data is rendered as tables, news as prose, and technical findings as lists — matching the rendering format to the content type.
 
 **Handling Conflicting Statistics**
 
-```python
-def handle_conflicting_statistics(claim, source_a, source_b):
-    """
-    Rule: Never arbitrarily select one value over another.
-    Always: annotate with both values and source attribution.
-    """
-
-    # Check if conflict is temporal (different measurement dates)
-    date_a = source_a.get("dataCollectionDate") or source_a.get("publishDate")
-    date_b = source_b.get("dataCollectionDate") or source_b.get("publishDate")
-
-    if date_a and date_b and date_a != date_b:
-        return {
-            "claim": claim,
-            "resolution": "temporal_difference",
-            "valueA": {"value": source_a["value"], "date": date_a, "source": source_a["title"]},
-            "valueB": {"value": source_b["value"], "date": date_b, "source": source_b["title"]},
-            "note": "Values differ by measurement date, not contradiction"
-        }
-
-    # Genuine conflict — annotate both, let coordinator/human decide
-    return {
-        "claim": claim,
-        "resolution": "genuine_conflict",
-        "valueA": {"value": source_a["value"], "source": source_a["title"]},
-        "valueB": {"value": source_b["value"], "source": source_b["title"]},
-        "note": "Credible sources disagree; present both values with attribution",
-        "requiresCoordinatorDecision": True
-    }
-```
+| Situation | Resolution | Action |
+|---|---|---|
+| Sources have different measurement/publication dates | `temporal_difference` | Present both values with their dates; explain market/metric changed over time |
+| Same-date credible sources give different values | `genuine_conflict` | Annotate both values with source attribution; flag `requiresCoordinatorDecision: true` |
+| Either case | Never silently select one | The synthesis agent must not choose — pass both values up to the coordinator or human |
 
 **Temporal Data Requirements**
 
-```python
-# Require subagents to always include dates
-subagent_output_schema = {
-    "properties": {
-        "statistics": {
-            "type": "array",
-            "items": {
-                "properties": {
-                    "value": {"type": "number"},
-                    "unit": {"type": "string"},
-                    "dataCollectionDate": {
-                        "type": ["string", "null"],
-                        "description": "Date data was collected (not published). ISO 8601. REQUIRED for statistics."
-                    },
-                    "publicationDate": {
-                        "type": "string",
-                        "description": "When the source was published. ISO 8601. REQUIRED."
-                    },
-                    "source": {"type": "string"}
-                },
-                "required": ["value", "publicationDate", "source"]
-            }
-        }
-    }
-}
+Subagent output schemas must require `publicationDate` (when the source was published) and `dataCollectionDate` (when the data was actually measured) as ISO 8601 strings on every statistic. Without dates, apparent contradictions cannot be distinguished from temporal evolution.
 
-# Without dates: "AI market was $200B (Source A) vs $500B (Source B) — contradiction?"
-# With dates: "$200B in 2022 (Source A, published 2022) vs $500B in 2025 (Source B, published 2025)"
-# → Not a contradiction; temporal difference. Market grew from $200B to $500B.
-```
+Example: "AI market was $200B (Source A) vs $500B (Source B) — contradiction?" With dates: "$200B in 2022 vs $500B in 2025" — not a contradiction; the market grew over three years.
 
 > **Exam Tip:** "Source A says X, Source B says Y — how should synthesis handle this?" The correct answer is always to annotate both with source attribution, check if dates explain the difference, and let the coordinator (or human) decide. Never silently pick one value.
 
